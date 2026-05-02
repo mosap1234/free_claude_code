@@ -8,8 +8,8 @@ included at top level for easy grep/filter.
 
 import json
 import logging
+import os
 import re
-from pathlib import Path
 
 from loguru import logger
 
@@ -93,11 +93,11 @@ def configure_logging(
     # Remove default loguru handler (writes to stderr)
     logger.remove()
 
-    # Add file sink: JSON lines, DEBUG level, context vars at top level
-    # enqueue=True: async writes — decouples log I/O from request path
+    # Add file sink: JSON lines, INFO by default (DEBUG via LOG_FILE_LEVEL=DEBUG).
+    # enqueue=True offloads writes to a background thread, keeping the streaming path non-blocking.
     logger.add(
         log_file,
-        level="DEBUG",
+        level=os.getenv("LOG_FILE_LEVEL", "INFO"),
         format=_serialize_with_context,
         encoding="utf-8",
         mode="a",

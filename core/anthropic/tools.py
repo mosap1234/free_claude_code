@@ -210,9 +210,14 @@ class HeuristicToolParser:
     def feed(self, text: str) -> tuple[str, list[dict[str, Any]]]:
         """Feed text and return safe text plus detected tool calls."""
         self._buffer += text
-        self._buffer = self._strip_control_tokens(self._buffer)
-        self._buffer, detected_tools = self._extract_open_model_tool_calls()
-        if not detected_tools:
+        if _CONTROL_TOKEN_START in self._buffer:
+            self._buffer = self._strip_control_tokens(self._buffer)
+        detected_tools: list[dict[str, Any]] = []
+        if "<tool_call" in self._buffer or "●" in self._buffer:
+            self._buffer, detected_tools = self._extract_open_model_tool_calls()
+        if not detected_tools and (
+            "WebFetch" in self._buffer or "WebSearch" in self._buffer
+        ):
             self._buffer, detected_tools = self._extract_web_tool_json_calls()
         filtered_output_parts: list[str] = []
 
