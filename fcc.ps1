@@ -74,7 +74,7 @@ function Start-Proxy {
         -RedirectStandardOutput $LogFile `
         -RedirectStandardError $LogFile `
         -PassThru
-    $proc.Id | Out-File -FilePath "$env:TEMP\fcc-proxy.pid"
+    if ($proc) { $proc.Id | Out-File -FilePath "$env:TEMP\fcc-proxy.pid" }
 
     # Wait for proxy to be ready
     for ($i = 0; $i -lt 10; $i++) {
@@ -186,7 +186,7 @@ pause
     }
 
     try {
-        $content | Out-File -FilePath $filepath -Encoding Default -Force
+        $content | Out-File -FilePath $filepath -Encoding ASCII -Force
         Write-Host "✅ Created: $filepath"
     } catch {
         Write-Host "❌ Write failed: $filepath"

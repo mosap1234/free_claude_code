@@ -188,6 +188,7 @@ create_shortcut() {
     # --- Overwrite check ---
     if [[ -f "$filepath" ]]; then
         echo "⚠️  Shortcut already exists: $filename"
+        local confirm
         read -r -p "Overwrite? [y/N] " confirm
         if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
             echo "Skipped: $filename"
