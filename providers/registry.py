@@ -74,6 +74,18 @@ def _create_kimi(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     return KimiProvider(config)
 
 
+def _create_openai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.openai_generic import OpenAIGenericProvider
+
+    return OpenAIGenericProvider(config)
+
+
+def _create_anthropic(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.anthropic_generic import AnthropicGenericProvider
+
+    return AnthropicGenericProvider(config)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -82,6 +94,8 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "llamacpp": _create_llamacpp,
     "ollama": _create_ollama,
     "kimi": _create_kimi,
+    "openai": _create_openai,
+    "anthropic": _create_anthropic,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(

@@ -115,6 +115,31 @@ class Settings(BaseSettings):
     # ==================== Kimi Config ====================
     kimi_api_key: str = Field(default="", validation_alias="KIMI_API_KEY")
 
+    # ==================== Generic OpenAI-compatible Config ====================
+    # Points at any OpenAI-compatible ``/chat/completions`` upstream
+    # (SiliconFlow, DashScope, OneAPI, vLLM, LM Studio OpenAI mode, ...).
+    # Used by the ``openai`` provider id.
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias="OPENAI_BASE_URL",
+    )
+
+    # ==================== Generic Anthropic Messages Config ====================
+    # Points at any server speaking native Anthropic ``/v1/messages`` SSE
+    # (api.anthropic.com, DeepSeek's ``/anthropic`` path, LM Studio's Anthropic
+    # mode, self-hosted proxies). Used by the ``anthropic`` provider id.
+    #
+    # NOTE: intentionally separate from :attr:`anthropic_auth_token`, which is
+    # this proxy's own inbound auth token - not an upstream credential.
+    anthropic_upstream_api_key: str = Field(
+        default="", validation_alias="ANTHROPIC_UPSTREAM_API_KEY"
+    )
+    anthropic_upstream_base_url: str = Field(
+        default="https://api.anthropic.com",
+        validation_alias="ANTHROPIC_UPSTREAM_BASE_URL",
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -165,6 +190,10 @@ class Settings(BaseSettings):
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
+    openai_proxy: str = Field(default="", validation_alias="OPENAI_PROXY")
+    anthropic_upstream_proxy: str = Field(
+        default="", validation_alias="ANTHROPIC_UPSTREAM_PROXY"
+    )
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

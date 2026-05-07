@@ -22,6 +22,9 @@ OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1"
 LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
+# Generic upstreams for the ``openai`` and ``anthropic`` provider ids.
+OPENAI_GENERIC_DEFAULT_BASE = "https://api.openai.com/v1"
+ANTHROPIC_GENERIC_DEFAULT_BASE = "https://api.anthropic.com"
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +115,26 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=KIMI_DEFAULT_BASE,
         proxy_attr="kimi_proxy",
         capabilities=("chat", "streaming", "tools"),
+    ),
+    "openai": ProviderDescriptor(
+        provider_id="openai",
+        transport_type="openai_chat",
+        credential_env="OPENAI_API_KEY",
+        credential_attr="openai_api_key",
+        default_base_url=OPENAI_GENERIC_DEFAULT_BASE,
+        base_url_attr="openai_base_url",
+        proxy_attr="openai_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking"),
+    ),
+    "anthropic": ProviderDescriptor(
+        provider_id="anthropic",
+        transport_type="anthropic_messages",
+        credential_env="ANTHROPIC_UPSTREAM_API_KEY",
+        credential_attr="anthropic_upstream_api_key",
+        default_base_url=ANTHROPIC_GENERIC_DEFAULT_BASE,
+        base_url_attr="anthropic_upstream_base_url",
+        proxy_attr="anthropic_upstream_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "native_anthropic"),
     ),
 }
 
