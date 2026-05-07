@@ -5,7 +5,7 @@
 Use Claude Code CLI, VS Code, JetBrains ACP, or chat bots through your own Anthropic-compatible proxy.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-3776ab.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json&style=for-the-badge)](https://github.com/astral-sh/uv)
 [![Tested with Pytest](https://img.shields.io/badge/testing-Pytest-00c0ff.svg?style=for-the-badge)](https://github.com/Alishahryar1/free-claude-code/actions/workflows/tests.yml)
 [![Type checking: Ty](https://img.shields.io/badge/type%20checking-ty-ffcc00.svg?style=for-the-badge)](https://pypi.org/project/ty/)
@@ -48,14 +48,14 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to NVIDI
 
 ### 1. Install Requirements
 
-Install [Claude Code](https://github.com/anthropics/claude-code), then install `uv` and Python 3.14.
+Install [Claude Code](https://github.com/anthropics/claude-code), then install `uv` and Python 3.13.
 
 macOS/Linux:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv self update
-uv python install 3.14
+uv python install 3.13
 ```
 
 Windows PowerShell:
@@ -63,7 +63,7 @@ Windows PowerShell:
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 uv self update
-uv python install 3.14
+uv python install 3.13
 ```
 
 ### 2. Clone And Configure
@@ -542,7 +542,6 @@ Run them in that order before pushing. CI enforces the same checks.
 - Do not open Docker integration PRs.
 - Do not open README change PRs just open an issue for it.
 - Run the full check sequence before opening a pull request.
-- The syntax Except X, Y is brought back in python 3.14 final version (not in 3.14 alpha). Keep in mind before opening PRs.
 
 ## License
 
