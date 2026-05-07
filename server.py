@@ -26,6 +26,7 @@ if __name__ == "__main__":
             port=settings.port,
             log_level="debug",
             timeout_graceful_shutdown=5,
+            timeout_keep_alive=600,
         )
     finally:
         # Safety net: cleanup subprocesses if lifespan shutdown doesn't fully run.

@@ -58,7 +58,9 @@ def warn_if_process_auth_token(settings: Settings) -> None:
             "ANTHROPIC_AUTH_TOKEN is set in the process environment but not in "
             "a configured .env file. The proxy will require that token. Add "
             "ANTHROPIC_AUTH_TOKEN= to .env to disable proxy auth, or set the "
-            "same token in .env to make server auth explicit."
+            "same token in .env to make server auth explicit. If Claude Code "
+            "shows an auth conflict, run claude /logout so only one auth source "
+            "is active."
         )
 
 

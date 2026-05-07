@@ -17,6 +17,11 @@ from providers.exceptions import (
 )
 from providers.registry import PROVIDER_DESCRIPTORS, ProviderRegistry
 
+_AUTH_TOKEN_MISMATCH_HINT = (
+    " If Claude Code shows an auth conflict, run claude /logout and ensure the "
+    "proxy and client use the same ANTHROPIC_AUTH_TOKEN."
+)
+
 # Process-level cache: only for :func:`get_provider_for_type` / :func:`get_provider`
 # when there is no ``Request``/``app`` (unit tests, scripts). HTTP handlers must pass
 # ``app`` to :func:`resolve_provider` so the app-scoped registry is used.
@@ -123,7 +128,10 @@ def require_api_key(
     if not secrets.compare_digest(
         token.encode("utf-8"), anthropic_auth_token.encode("utf-8")
     ):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid API key.{_AUTH_TOKEN_MISMATCH_HINT}",
+        )
 
 
 def get_provider() -> BaseProvider:

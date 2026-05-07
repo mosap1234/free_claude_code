@@ -262,6 +262,21 @@ class GlobalRateLimiter:
                 )
                 self.set_blocked(delay)
                 await asyncio.sleep(delay)
+            except (httpx.ConnectError, httpx.NetworkError) as e:
+                last_exc = e
+                if attempt >= max_retries:
+                    logger.warning(
+                        f"Network error retry exhausted after {max_retries} retries"
+                    )
+                    break
+
+                delay = min(base_delay * (2**attempt), max_delay)
+                delay += random.uniform(0, jitter)
+                logger.warning(
+                    f"Network error ({type(e).__name__}), attempt {attempt + 1}/{max_retries + 1}. "
+                    f"Retrying in {delay:.1f}s..."
+                )
+                await asyncio.sleep(delay)
 
         assert last_exc is not None
         raise last_exc

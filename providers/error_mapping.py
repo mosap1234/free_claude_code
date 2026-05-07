@@ -73,4 +73,8 @@ def map_error(
             return APIError(message, status_code=status, raw_error=str(e))
         return APIError(message, status_code=status, raw_error=str(e))
 
+    # Handle network-related errors that should be retried
+    if isinstance(e, (httpx.ConnectError, httpx.NetworkError)):
+        return APIError(message, status_code=0, raw_error=str(e))
+
     return e
