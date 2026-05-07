@@ -113,11 +113,14 @@ async def _messages_response_to_sse_stream(
                 "model": response.model,
                 "stop_reason": None,
                 "stop_sequence": None,
-                "usage": {"input_tokens": input_tokens, "output_tokens": 1},
+                "usage": {"input_tokens": input_tokens, "output_tokens": 0},
             },
         },
     )
     for idx, item in enumerate(response.content):
+        # NOTE: optimization handlers currently only return text blocks.
+        # If a handler ever returns tool_use or image content, the
+        # hardcoded text_delta / text field below must be generalized.
         if isinstance(item, dict):
             block_type = item.get("type", "text")
             text = item.get("text", "")
