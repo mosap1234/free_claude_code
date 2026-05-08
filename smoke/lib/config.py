@@ -44,6 +44,7 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "lmstudio": "lmstudio/local-model",
     "llamacpp": "llamacpp/local-model",
     "ollama": "ollama/llama3.1",
+    "custom": "custom/custom-model",
 }
 
 
@@ -185,6 +186,11 @@ class SmokeConfig:
             return bool(self.settings.llamacpp_base_url.strip())
         if provider == "ollama":
             return bool(self.settings.ollama_base_url.strip())
+        if provider == "custom":
+            return bool(
+                self.settings.custom_provider_api_key.strip()
+                and self.settings.custom_provider_base_url.strip()
+            )
         return False
 
 

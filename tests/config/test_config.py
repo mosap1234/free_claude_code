@@ -647,6 +647,7 @@ class TestPerModelMapping:
         assert Settings.parse_provider_type("lmstudio/qwen") == "lmstudio"
         assert Settings.parse_provider_type("llamacpp/model") == "llamacpp"
         assert Settings.parse_provider_type("ollama/llama3.1") == "ollama"
+        assert Settings.parse_provider_type("custom/group/model") == "custom"
 
     def test_parse_model_name(self):
         """parse_model_name extracts model name from model string."""

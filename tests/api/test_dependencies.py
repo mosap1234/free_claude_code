@@ -16,6 +16,7 @@ from api.dependencies import (
 )
 from config.nim import NimSettings
 from providers.deepseek import DeepSeekProvider
+from providers.custom import CustomProvider
 from providers.exceptions import ServiceUnavailableError, UnknownProviderTypeError
 from providers.lmstudio import LMStudioProvider
 from providers.nvidia_nim import NvidiaNimProvider
@@ -37,11 +38,15 @@ def _make_mock_settings(**overrides):
     mock.deepseek_api_key = "test_deepseek_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.ollama_base_url = "http://localhost:11434"
+    mock.custom_provider_api_key = "test_custom_key"
+    mock.custom_provider_base_url = "https://custom.example/v1"
+    mock.custom_provider_group = "custom-group"
     mock.nim = NimSettings()
     mock.http_read_timeout = 300.0
     mock.http_write_timeout = 10.0
     mock.http_connect_timeout = 10.0
     mock.enable_model_thinking = True
+    mock.custom_provider_proxy = ""
     for key, value in overrides.items():
         setattr(mock, key, value)
     return mock
@@ -186,6 +191,19 @@ async def test_get_provider_deepseek_passes_enable_model_thinking():
 
         assert isinstance(provider, DeepSeekProvider)
         assert provider._config.enable_thinking is False
+
+
+@pytest.mark.asyncio
+async def test_get_provider_custom():
+    """Test that provider_type=custom returns CustomProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="custom")
+
+        provider = get_provider()
+
+        assert isinstance(provider, CustomProvider)
+        assert provider._base_url == "https://custom.example/v1"
+        assert provider._api_key == "test_custom_key"
 
 
 @pytest.mark.asyncio

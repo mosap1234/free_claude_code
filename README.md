@@ -12,7 +12,7 @@ Use Claude Code CLI, VS Code, JetBrains ACP, or chat bots through your own Anthr
 [![Code style: Ruff](https://img.shields.io/badge/code%20formatting-ruff-f5a623.svg?style=for-the-badge)](https://github.com/astral-sh/ruff)
 [![Logging: Loguru](https://img.shields.io/badge/logging-loguru-4ecdc4.svg?style=for-the-badge)](https://github.com/Delgan/loguru)
 
-Free Claude Code routes Anthropic Messages API traffic from Claude Code to NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, or Ollama. It keeps Claude Code's client-side protocol stable while letting you choose free, paid, or local models.
+Free Claude Code routes Anthropic Messages API traffic from Claude Code to NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, Kimi, or a custom OpenAI-compatible endpoint. It keeps Claude Code's client-side protocol stable while letting you choose free, paid, local, or private models.
 
 [Quick Start](#quick-start) · [Providers](#choose-a-provider) · [Clients](#connect-claude-code) · [Troubleshooting](#troubleshooting) · [Development](#development)
 
@@ -37,7 +37,7 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to NVIDI
 ## What You Get
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
-- Six provider backends: NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, and Ollama.
+- Eight provider backends: NVIDIA NIM, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, Kimi, and Custom.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint.
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -140,6 +140,8 @@ provider_id/model/name
 | <img src="https://github.com/lmstudio-ai.png?size=64" alt="" width="18" height="18"> LM Studio | `lmstudio/...` | Anthropic Messages | none | `http://localhost:1234/v1` |
 | <img src="https://github.com/ggml-org.png?size=64" alt="" width="18" height="18"> llama.cpp | `llamacpp/...` | Anthropic Messages | none | `http://localhost:8080/v1` |
 | <img src="https://github.com/ollama.png?size=64" alt="" width="18" height="18"> Ollama | `ollama/...` | Anthropic Messages | none | `http://localhost:11434` |
+| Kimi (Moonshot) | `kimi/...` | OpenAI chat translation | `KIMI_API_KEY` | `https://api.moonshot.ai/v1` |
+| Custom (OpenAI-compatible) | `custom/...` | OpenAI chat translation | `CUSTOM_PROVIDER_API_KEY` | `CUSTOM_PROVIDER_BASE_URL` |
 
 <details>
 <summary><img src="https://cdn.simpleicons.org/nvidia/76B900" alt="" width="18" height="18"> <b>NVIDIA NIM</b></summary>
@@ -187,6 +189,22 @@ MODEL="deepseek/deepseek-chat"
 ```
 
 This provider uses DeepSeek's Anthropic-compatible endpoint, not the OpenAI chat-completions endpoint.
+
+</details>
+
+<details>
+<summary><b>Custom (OpenAI-compatible)</b></summary>
+
+Set your API key, base URL, and optional group filter:
+
+```dotenv
+CUSTOM_PROVIDER_API_KEY="your-key"
+CUSTOM_PROVIDER_BASE_URL="https://your-openai-endpoint.example/v1"
+CUSTOM_PROVIDER_GROUP="your-group"
+MODEL="custom/your-group/your-model"
+```
+
+When `CUSTOM_PROVIDER_GROUP` is set, the model list only includes models under that group prefix when possible.
 
 </details>
 

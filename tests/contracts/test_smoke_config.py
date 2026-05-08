@@ -23,6 +23,9 @@ def _settings(**overrides):
         "lm_studio_base_url": "",
         "llamacpp_base_url": "",
         "ollama_base_url": "http://localhost:11434",
+        "custom_provider_api_key": "",
+        "custom_provider_base_url": "",
+        "custom_provider_group": "",
     }
     values.update(overrides)
     return SimpleNamespace(**values)

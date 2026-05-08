@@ -115,6 +115,17 @@ class Settings(BaseSettings):
     # ==================== Kimi Config ====================
     kimi_api_key: str = Field(default="", validation_alias="KIMI_API_KEY")
 
+    # ==================== Custom Provider Config ====================
+    custom_provider_api_key: str = Field(
+        default="", validation_alias="CUSTOM_PROVIDER_API_KEY"
+    )
+    custom_provider_base_url: str = Field(
+        default="", validation_alias="CUSTOM_PROVIDER_BASE_URL"
+    )
+    custom_provider_group: str = Field(
+        default="", validation_alias="CUSTOM_PROVIDER_GROUP"
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -165,6 +176,9 @@ class Settings(BaseSettings):
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
+    custom_provider_proxy: str = Field(
+        default="", validation_alias="CUSTOM_PROVIDER_PROXY"
+    )
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

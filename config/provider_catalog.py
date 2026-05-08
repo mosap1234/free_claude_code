@@ -113,6 +113,15 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         proxy_attr="kimi_proxy",
         capabilities=("chat", "streaming", "tools"),
     ),
+    "custom": ProviderDescriptor(
+        provider_id="custom",
+        transport_type="openai_chat",
+        credential_env="CUSTOM_PROVIDER_API_KEY",
+        credential_attr="custom_provider_api_key",
+        base_url_attr="custom_provider_base_url",
+        proxy_attr="custom_provider_proxy",
+        capabilities=("chat", "streaming", "thinking", "tools", "rate_limit"),
+    ),
 }
 
 # Order matches docs / historical error text; must match PROVIDER_CATALOG keys.
