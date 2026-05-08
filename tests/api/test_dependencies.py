@@ -21,6 +21,7 @@ from providers.lmstudio import LMStudioProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
+from providers.openai_compatible import OpenAICompatibleProvider
 from providers.registry import ProviderRegistry
 
 
@@ -37,6 +38,9 @@ def _make_mock_settings(**overrides):
     mock.deepseek_api_key = "test_deepseek_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.ollama_base_url = "http://localhost:11434"
+    mock.openai_compatible_api_key = "local"
+    mock.openai_compatible_base_url = "http://127.0.0.1:8000/v1"
+    mock.openai_compatible_proxy = ""
     mock.nim = NimSettings()
     mock.http_read_timeout = 300.0
     mock.http_write_timeout = 10.0
@@ -157,6 +161,24 @@ async def test_get_provider_deepseek():
         assert provider._base_url == "https://api.deepseek.com/anthropic"
         assert provider._api_key == "test_deepseek_key"
         assert provider._config.enable_thinking is True
+
+
+@pytest.mark.asyncio
+async def test_get_provider_openai_compatible():
+    """provider_type=openai_compatible returns the generic OpenAI provider."""
+    with (
+        patch("api.dependencies.get_settings") as mock_settings,
+        patch("providers.openai_compat.AsyncOpenAI"),
+    ):
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="openai_compatible"
+        )
+
+        provider = get_provider()
+
+        assert isinstance(provider, OpenAICompatibleProvider)
+        assert provider._base_url == "http://127.0.0.1:8000/v1"
+        assert provider._api_key == "local"
 
 
 @pytest.mark.asyncio

@@ -30,10 +30,13 @@ def _make_settings(**overrides):
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.llamacpp_base_url = "http://localhost:8080/v1"
     mock.ollama_base_url = "http://localhost:11434"
+    mock.openai_compatible_api_key = "local"
+    mock.openai_compatible_base_url = "http://localhost:8000/v1"
     mock.nvidia_nim_proxy = ""
     mock.open_router_proxy = ""
     mock.lmstudio_proxy = ""
     mock.llamacpp_proxy = ""
+    mock.openai_compatible_proxy = ""
     mock.provider_rate_limit = 40
     mock.provider_rate_window = 60
     mock.provider_max_concurrency = 5
@@ -77,6 +80,17 @@ def test_ollama_descriptor_uses_native_anthropic_transport():
     assert descriptor.transport_type == "anthropic_messages"
     assert descriptor.default_base_url == "http://localhost:11434"
     assert "native_anthropic" in descriptor.capabilities
+
+
+def test_openai_compatible_descriptor_uses_openai_chat_transport():
+    descriptor = PROVIDER_DESCRIPTORS["openai_compatible"]
+
+    assert descriptor.transport_type == "openai_chat"
+    assert descriptor.default_base_url == "http://localhost:8000/v1"
+    assert descriptor.credential_env is None
+    assert descriptor.credential_attr == "openai_compatible_api_key"
+    assert descriptor.base_url_attr == "openai_compatible_base_url"
+    assert "local" in descriptor.capabilities
 
 
 def test_create_provider_uses_native_openrouter_by_default():

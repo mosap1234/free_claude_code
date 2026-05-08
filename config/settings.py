@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     # ==================== Kimi Config ====================
     kimi_api_key: str = Field(default="", validation_alias="KIMI_API_KEY")
 
+    # ==================== Generic OpenAI-Compatible Config ====================
+    openai_compatible_api_key: str = Field(
+        default="local", validation_alias="OPENAI_COMPATIBLE_API_KEY"
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -148,6 +153,12 @@ class Settings(BaseSettings):
         validation_alias="OLLAMA_BASE_URL",
     )
 
+    # ==================== Generic OpenAI-Compatible Config ====================
+    openai_compatible_base_url: str = Field(
+        default="http://localhost:8000/v1",
+        validation_alias="OPENAI_COMPATIBLE_BASE_URL",
+    )
+
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name
@@ -165,6 +176,9 @@ class Settings(BaseSettings):
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
+    openai_compatible_proxy: str = Field(
+        default="", validation_alias="OPENAI_COMPATIBLE_PROXY"
+    )
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

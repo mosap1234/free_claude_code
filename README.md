@@ -130,6 +130,7 @@ provider_id/model/name
 | --- | --- | --- | --- | --- |
 | <img src="https://cdn.simpleicons.org/nvidia/76B900" alt="" width="18" height="18"> NVIDIA NIM | `nvidia_nim/...` | OpenAI chat translation | `NVIDIA_NIM_API_KEY` | `https://integrate.api.nvidia.com/v1` |
 | <img src="https://raw.githubusercontent.com/lobehub/lobe-icons/refs/heads/master/packages/static-avatar/avatars/kimi.webp" alt="" width="18" height="18"> Kimi | `kimi/...` | OpenAI chat translation | `KIMI_API_KEY` | `https://api.moonshot.ai/v1` |
+| Generic OpenAI-compatible | `openai_compatible/...` | OpenAI chat translation | optional `OPENAI_COMPATIBLE_API_KEY` | `http://localhost:8000/v1` |
 | <img src="https://cdn.simpleicons.org/openrouter/6C47FF" alt="" width="18" height="18"> OpenRouter | `open_router/...` | Anthropic Messages | `OPENROUTER_API_KEY` | `https://openrouter.ai/api/v1` |
 | <img src="https://cdn.simpleicons.org/deepseek/4D6BFF" alt="" width="18" height="18"> DeepSeek | `deepseek/...` | Anthropic Messages | `DEEPSEEK_API_KEY` | `https://api.deepseek.com/anthropic` |
 | <img src="https://github.com/lmstudio-ai.png?size=64" alt="" width="18" height="18"> LM Studio | `lmstudio/...` | Anthropic Messages | none | `http://localhost:1234/v1` |
@@ -155,6 +156,26 @@ Popular examples:
 - `nvidia_nim/minimaxai/minimax-m2.5`
 
 Browse models at [build.nvidia.com](https://build.nvidia.com/explore/discover).
+
+</details>
+
+<details>
+<summary><b>Generic OpenAI-compatible</b></summary>
+
+Use this provider for local OpenAI-compatible servers such as vLLM or SGLang.
+Point the base URL at the server's `/v1` root and use the model id advertised by
+the local server.
+
+```dotenv
+OPENAI_COMPATIBLE_BASE_URL="http://127.0.0.1:8000/v1"
+OPENAI_COMPATIBLE_API_KEY="local"
+MODEL="openai_compatible/your-local-model"
+```
+
+The provider translates Claude Code's Anthropic Messages requests to OpenAI
+`/chat/completions` and maps the streamed OpenAI response back to Anthropic SSE.
+Tool support depends on the model, server, and chat template; prefer models that
+produce valid OpenAI tool-call deltas for coding workflows.
 
 </details>
 

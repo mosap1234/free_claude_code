@@ -373,6 +373,21 @@ Potential compatibility differences to test:
 For a first version, make thinking optional and default it off. Tool calling is
 more important for Claude Code workflows than preserving reasoning text.
 
+The current migration branch implements the first reusable slice as a generic
+`openai_compatible` provider inside this project. It is configured with:
+
+```dotenv
+OPENAI_COMPATIBLE_BASE_URL="http://127.0.0.1:8000/v1"
+OPENAI_COMPATIBLE_API_KEY="local"
+MODEL="openai_compatible/your-local-model"
+```
+
+This keeps the existing FastAPI/API/provider shell while proving the local
+OpenAI `/chat/completions` conversion path against vLLM/SGLang-style servers.
+The later extraction into a new lightweight project can copy the same provider
+request/stream conversion pieces without the multi-provider registry, messaging,
+voice, or Claude CLI subprocess layers.
+
 ## Migration Strategy
 
 Recommended sequence:

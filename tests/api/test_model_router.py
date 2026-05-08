@@ -109,6 +109,22 @@ def test_model_router_routes_prefixed_provider_model_directly(settings):
     assert routed.resolved.provider_model_ref == "deepseek/deepseek-chat"
 
 
+def test_model_router_routes_openai_compatible_model_directly(settings):
+    routed = ModelRouter(settings).resolve_messages_request(
+        MessagesRequest(
+            model="openai_compatible/qwen2.5-coder",
+            max_tokens=100,
+            messages=[Message(role="user", content="hello")],
+        )
+    )
+
+    assert routed.request.model == "qwen2.5-coder"
+    assert routed.resolved.original_model == "openai_compatible/qwen2.5-coder"
+    assert routed.resolved.provider_id == "openai_compatible"
+    assert routed.resolved.provider_model == "qwen2.5-coder"
+    assert routed.resolved.provider_model_ref == "openai_compatible/qwen2.5-coder"
+
+
 def test_model_router_routes_gateway_encoded_provider_model_directly(settings):
     routed = ModelRouter(settings).resolve_messages_request(
         MessagesRequest(

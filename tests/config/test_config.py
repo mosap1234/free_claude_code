@@ -98,6 +98,15 @@ class TestSettings:
         with pytest.raises(ValidationError, match="without /v1"):
             Settings()
 
+    def test_openai_compatible_base_url_defaults_to_v1(self, monkeypatch):
+        """OPENAI_COMPATIBLE_BASE_URL defaults to a local OpenAI-compatible /v1 URL."""
+        from config.settings import Settings
+
+        monkeypatch.delenv("OPENAI_COMPATIBLE_BASE_URL", raising=False)
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+        settings = Settings()
+        assert settings.openai_compatible_base_url == "http://localhost:8000/v1"
+
     def test_provider_rate_limit_from_env(self, monkeypatch):
         """PROVIDER_RATE_LIMIT env var is loaded into settings."""
         from config.settings import Settings
@@ -647,6 +656,10 @@ class TestPerModelMapping:
         assert Settings.parse_provider_type("lmstudio/qwen") == "lmstudio"
         assert Settings.parse_provider_type("llamacpp/model") == "llamacpp"
         assert Settings.parse_provider_type("ollama/llama3.1") == "ollama"
+        assert (
+            Settings.parse_provider_type("openai_compatible/qwen2.5-coder")
+            == "openai_compatible"
+        )
 
     def test_parse_model_name(self):
         """parse_model_name extracts model name from model string."""
@@ -657,6 +670,10 @@ class TestPerModelMapping:
         assert Settings.parse_model_name("lmstudio/qwen") == "qwen"
         assert Settings.parse_model_name("llamacpp/model") == "model"
         assert Settings.parse_model_name("ollama/llama3.1") == "llama3.1"
+        assert (
+            Settings.parse_model_name("openai_compatible/qwen2.5-coder")
+            == "qwen2.5-coder"
+        )
 
     def test_configured_chat_model_refs_collects_unique_models_with_sources(
         self, monkeypatch
