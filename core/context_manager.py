@@ -32,7 +32,7 @@ def _has_tool_result(message: object) -> bool:
     )
 
 
-def _sanitize_seam(messages: list) -> list:
+def _sanitize_seam(messages: list, max_drops: int | None = None) -> list:
     """Drop leading messages until the conversation starts at a clean boundary.
 
     After trimming, the head of the list may be an assistant message whose
@@ -44,13 +44,22 @@ def _sanitize_seam(messages: list) -> list:
     1. The first message is a user message.
     2. That user message does not consist solely of tool_result blocks
        (i.e., it is a genuine human turn, not a dangling tool response).
+
+    If ``max_drops`` is set, stop after that many drops even if the head is
+    still invalid.  Used as a safety net so the seam walker cannot wipe the
+    entire conversation when every user turn is a tool_result (Claude Code's
+    normal working pattern).
     """
+    dropped = 0
     while messages:
+        if max_drops is not None and dropped >= max_drops:
+            break
         first = messages[0]
         role = getattr(first, "role", None) or (first.get("role") if isinstance(first, dict) else None)
         if role == "user" and not _has_tool_result(first):
             break
         messages = messages[1:]
+        dropped += 1
     return messages
 
 
@@ -128,15 +137,52 @@ class ContextManager:
         # Sanitize the head of the trimmed list: drop any leading messages that
         # would form an invalid conversation structure (orphaned tool_use /
         # tool_result at the cut boundary), which causes a 400 from providers.
-        trimmed = _sanitize_seam(list(trimmed))
+        # If unbounded sanitization would drop us below the configured floor —
+        # which happens routinely in Claude Code where every user turn is a
+        # tool_result — fall back to a bounded version that preserves context.
+        sanitized = _sanitize_seam(list(trimmed))
+        floor = max(4, self.min_messages) if (self.max_tokens or self.max_messages) else 0
+        if floor > 0 and len(sanitized) < floor and len(trimmed) >= floor:
+            sanitized = _sanitize_seam(list(trimmed), max_drops=4)
+        trimmed = sanitized
 
         return trimmed, len(trimmed) < original_count
 
 
-def get_context_manager(settings: Settings) -> ContextManager:
-    """Create a ContextManager from settings."""
+def get_context_manager(
+    settings: Settings, provider_id: str | None = None
+) -> ContextManager:
+    """Create a ContextManager from settings, optionally provider-scoped.
+
+    Per-provider overrides (NIM_*/OPENROUTER_*) win when set (>0); otherwise
+    the global MAX_MESSAGES / CONTEXT_MAX_TOKENS / CONTEXT_MIN_MESSAGES apply.
+    Lets you size context budgets independently for each upstream — e.g.
+    keep NIM tight (256k cap, free tier latency) while letting OR Qwen run
+    near 1M context where the model supports it.
+    """
+    max_messages = settings.max_messages
+    max_tokens = settings.context_max_tokens
+    min_messages = settings.context_min_messages
+
+    if provider_id == "nvidia_nim":
+        max_messages = getattr(settings, "nim_max_messages", 0) or max_messages
+        max_tokens = getattr(settings, "nim_context_max_tokens", 0) or max_tokens
+        min_messages = (
+            getattr(settings, "nim_context_min_messages", 0) or min_messages
+        )
+    elif provider_id == "open_router":
+        max_messages = (
+            getattr(settings, "openrouter_max_messages", 0) or max_messages
+        )
+        max_tokens = (
+            getattr(settings, "openrouter_context_max_tokens", 0) or max_tokens
+        )
+        min_messages = (
+            getattr(settings, "openrouter_context_min_messages", 0) or min_messages
+        )
+
     return ContextManager(
-        max_messages=settings.max_messages if settings.max_messages > 0 else None,
-        max_tokens=settings.context_max_tokens if settings.context_max_tokens > 0 else None,
-        min_messages=settings.context_min_messages,
+        max_messages=max_messages if max_messages > 0 else None,
+        max_tokens=max_tokens if max_tokens > 0 else None,
+        min_messages=min_messages,
     )

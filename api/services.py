@@ -104,25 +104,31 @@ class ClaudeProxyService:
         try:
             _require_non_empty_messages(request_data.messages)
 
-            # Apply context management (trimming/compaction) if configured
-            context_mgr = get_context_manager(self._settings)
+            # Resolve routing first so context-trim uses the right provider's
+            # budget (NIM/OR have different caps; see config.settings).
+            routed = self._model_router.resolve_messages_request(request_data)
+            provider_id = routed.resolved.provider_id
+
+            # Apply provider-scoped context management.
+            context_mgr = get_context_manager(self._settings, provider_id=provider_id)
             messages, was_trimmed = context_mgr.trim_messages(
-                request_data.messages, request_data.system, request_data.tools
+                routed.request.messages, routed.request.system, routed.request.tools
             )
             if was_trimmed:
                 logger.info(
-                    "CONTEXT: trimmed {} → {} messages",
-                    len(request_data.messages),
+                    "CONTEXT: trimmed {} → {} messages (provider={})",
+                    len(routed.request.messages),
                     len(messages),
+                    provider_id,
                 )
+                # Rebuild routed with the trimmed messages — every downstream
+                # consumer reads from routed.request, so this keeps them in sync.
+                from api.model_router import RoutedMessagesRequest
 
-            trimmed_request = (
-                request_data.model_copy(update={"messages": messages})
-                if was_trimmed
-                else request_data
-            )
-
-            routed = self._model_router.resolve_messages_request(trimmed_request)
+                routed = RoutedMessagesRequest(
+                    request=routed.request.model_copy(update={"messages": messages}),
+                    resolved=routed.resolved,
+                )
             if routed.resolved.provider_id in _OPENAI_CHAT_UPSTREAM_IDS:
                 tool_err = openai_chat_upstream_server_tool_error(
                     routed.request,

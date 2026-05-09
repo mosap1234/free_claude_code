@@ -61,7 +61,22 @@ def extract_openrouter_tool_model_ids(
 def extract_openrouter_tool_model_infos(
     payload: Any, *, provider_name: str
 ) -> frozenset[ProviderModelInfo]:
-    """Extract OpenRouter tool-capable model ids with thinking capability metadata."""
+    """Extract OpenRouter tool-capable model ids with thinking metadata.
+
+    By default only free models are returned, to prevent unexpected paid usage
+    on accounts with credits.  Set ``OPENROUTER_INCLUDE_PAID_MODELS=true`` to
+    surface paid models in the model picker too — useful when you have OR
+    credits and want to opt into paid models from Claude Code's /model menu.
+    """
+    import os
+
+    include_paid = os.environ.get("OPENROUTER_INCLUDE_PAID_MODELS", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
     data = _field(payload, "data")
     if not _is_sequence(data):
         raise _malformed(provider_name, "expected top-level data array")
@@ -71,6 +86,8 @@ def extract_openrouter_tool_model_infos(
         model_id = _field(item, "id")
         if not isinstance(model_id, str) or not model_id.strip():
             raise _malformed(provider_name, "expected every data item to include id")
+        if not include_paid and not _is_openrouter_free_model(item, model_id):
+            continue
 
         supported_parameters = _field(item, "supported_parameters")
         if not _is_sequence(supported_parameters):
@@ -88,6 +105,25 @@ def extract_openrouter_tool_model_infos(
         )
 
     return frozenset(model_infos)
+
+
+def _is_openrouter_free_model(item: Any, model_id: str) -> bool:
+    """Return True for OpenRouter models that should not incur paid usage."""
+    if model_id.endswith(":free"):
+        return True
+    pricing = _field(item, "pricing")
+    if not isinstance(pricing, Mapping):
+        return False
+    return _is_zero_price(_field(pricing, "prompt")) and _is_zero_price(
+        _field(pricing, "completion")
+    )
+
+
+def _is_zero_price(value: Any) -> bool:
+    try:
+        return float(value) == 0.0
+    except (TypeError, ValueError):
+        return False
 
 
 def extract_ollama_model_ids(payload: Any, *, provider_name: str) -> frozenset[str]:

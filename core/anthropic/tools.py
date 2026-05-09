@@ -43,6 +43,16 @@ class HeuristicToolParser:
     _TOOL_CALL_XML_PATTERN = re.compile(
         r"<tool_call>\s*(?P<json>\{.*?\})\s*</tool_call>", re.DOTALL
     )
+    # Matches <function=NAME>...<parameter=K>V</parameter>...</function> emitted by
+    # nemotron-super and similar models *without* the leading ● bullet (NIM under
+    # heavy tool-loaded sessions sometimes drops the bullet, so the bullet-only
+    # streaming parser below misses these blocks and they leak as raw XML text).
+    _FUNCTION_BLOCK_PATTERN = re.compile(
+        r"<function=(?P<name>[^>\s]+)>(?P<body>.*?)</function>", re.DOTALL
+    )
+    _PARAM_BLOCK_PATTERN = re.compile(
+        r"<parameter=(?P<key>[^>\s]+)>(?P<val>.*?)</parameter>", re.DOTALL
+    )
 
     def __init__(self):
         self._state = ParserState.TEXT
@@ -98,6 +108,38 @@ class HeuristicToolParser:
         """
         detected_tools: list[dict[str, Any]] = []
         spans_to_remove: list[tuple[int, int]] = []
+
+        # --- <function=NAME>...</function> block form (no bullet prefix) ---
+        for match in self._FUNCTION_BLOCK_PATTERN.finditer(self._buffer):
+            name = match.group("name").strip()
+            params: dict[str, Any] = {}
+            for pm in self._PARAM_BLOCK_PATTERN.finditer(match.group("body")):
+                key = pm.group("key").strip()
+                val = pm.group("val").strip()
+                # Try to recover JSON values; fall back to raw string.
+                try:
+                    if (val.startswith("{") and val.endswith("}")) or (
+                        val.startswith("[") and val.endswith("]")
+                    ):
+                        params[key] = json.loads(val)
+                        continue
+                except json.JSONDecodeError:
+                    pass
+                params[key] = val
+            detected_tools.append(
+                {
+                    "type": "tool_use",
+                    "id": f"toolu_heuristic_{uuid.uuid4().hex[:8]}",
+                    "name": name,
+                    "input": params,
+                }
+            )
+            spans_to_remove.append((match.start(), match.end()))
+            logger.debug(
+                "Heuristic bypass: Detected <function=> XML tool call '{}' ({} params)",
+                name,
+                len(params),
+            )
 
         # --- XML wrapper form ---
         for match in self._TOOL_CALL_XML_PATTERN.finditer(self._buffer):
@@ -213,7 +255,11 @@ class HeuristicToolParser:
         if _CONTROL_TOKEN_START in self._buffer:
             self._buffer = self._strip_control_tokens(self._buffer)
         detected_tools: list[dict[str, Any]] = []
-        if "<tool_call" in self._buffer or "●" in self._buffer:
+        if (
+            "<tool_call" in self._buffer
+            or "<function=" in self._buffer
+            or "●" in self._buffer
+        ):
             self._buffer, detected_tools = self._extract_open_model_tool_calls()
         if not detected_tools and (
             "WebFetch" in self._buffer or "WebSearch" in self._buffer

@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     # ==================== OpenRouter Config ====================
     open_router_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
 
+    # ==================== Hugging Face Router Config ====================
+    hf_token: str = Field(default="", validation_alias="HF_TOKEN")
+
     # ==================== DeepSeek Config ====================
     deepseek_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
 
@@ -159,6 +162,7 @@ class Settings(BaseSettings):
     # ==================== Per-Provider Proxy ====================
     nvidia_nim_proxy: str = Field(default="", validation_alias="NVIDIA_NIM_PROXY")
     open_router_proxy: str = Field(default="", validation_alias="OPENROUTER_PROXY")
+    huggingface_proxy: str = Field(default="", validation_alias="HUGGINGFACE_PROXY")
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
 
@@ -250,9 +254,28 @@ class Settings(BaseSettings):
     )
 
     # ==================== Context Management ====================
+    # Global defaults — per-provider overrides below win when set (>0 / non-empty).
     max_messages: int = Field(default=0, validation_alias="MAX_MESSAGES")
     context_max_tokens: int = Field(default=0, validation_alias="CONTEXT_MAX_TOKENS")
     context_min_messages: int = Field(default=20, validation_alias="CONTEXT_MIN_MESSAGES")
+
+    # Per-provider context overrides. 0 = inherit the global setting above.
+    nim_max_messages: int = Field(default=0, validation_alias="NIM_MAX_MESSAGES")
+    nim_context_max_tokens: int = Field(
+        default=0, validation_alias="NIM_CONTEXT_MAX_TOKENS"
+    )
+    nim_context_min_messages: int = Field(
+        default=0, validation_alias="NIM_CONTEXT_MIN_MESSAGES"
+    )
+    openrouter_max_messages: int = Field(
+        default=0, validation_alias="OPENROUTER_MAX_MESSAGES"
+    )
+    openrouter_context_max_tokens: int = Field(
+        default=0, validation_alias="OPENROUTER_CONTEXT_MAX_TOKENS"
+    )
+    openrouter_context_min_messages: int = Field(
+        default=0, validation_alias="OPENROUTER_CONTEXT_MIN_MESSAGES"
+    )
 
     # ==================== NIM Settings ====================
     nim: NimSettings = Field(default_factory=NimSettings)
@@ -261,6 +284,14 @@ class Settings(BaseSettings):
     )
     nim_parallel_tool_calls: bool = Field(
         default=True, validation_alias="NIM_PARALLEL_TOOL_CALLS"
+    )
+
+    # ==================== OpenRouter Settings ====================
+    # Set true to enable thinking/reasoning mode for OR requests (overrides
+    # global ENABLE_MODEL_THINKING for OR-routed requests only).  Useful when
+    # you pick a Qwen ``-thinking`` variant from the /model menu.
+    openrouter_enable_thinking: bool = Field(
+        default=False, validation_alias="OPENROUTER_ENABLE_THINKING"
     )
 
     # ==================== Voice Note Transcription ====================
@@ -412,7 +443,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def _inject_nim_settings(self) -> "Settings":
+    def _inject_nim_settings(self) -> Settings:
         self.nim = self.nim.model_copy(
             update={
                 "parallel_tool_calls": self.nim_parallel_tool_calls,
@@ -421,7 +452,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def check_nvidia_nim_api_key(self) -> "Settings":
+    def check_nvidia_nim_api_key(self) -> Settings:
         if (
             self.voice_note_enabled
             and self.whisper_device == "nvidia_nim"
@@ -434,7 +465,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def prefer_dotenv_anthropic_auth_token(self) -> "Settings":
+    def prefer_dotenv_anthropic_auth_token(self) -> Settings:
         """Let explicit .env auth config override stale shell/client tokens."""
         dotenv_value = _env_file_override(self.model_config, "ANTHROPIC_AUTH_TOKEN")
         if dotenv_value is not None:
@@ -496,15 +527,34 @@ class Settings(BaseSettings):
             for model_ref, sources in sources_by_ref.items()
         )
 
-    def resolve_thinking(self, claude_model_name: str) -> bool:
-        """Resolve whether thinking is enabled for an incoming Claude model name."""
+    def resolve_thinking(
+        self, claude_model_name: str, provider_id: str | None = None
+    ) -> bool:
+        """Resolve whether thinking is enabled for an incoming Claude model name.
+
+        Resolution order: per-role override → provider-specific override →
+        model-name heuristic (``-thinking`` variant) → global default.
+        """
         name_lower = claude_model_name.lower()
+
+        # Per-role overrides (Opus/Sonnet/Haiku) win first when explicitly set.
         if "opus" in name_lower and self.enable_opus_thinking is not None:
             return self.enable_opus_thinking
         if "haiku" in name_lower and self.enable_haiku_thinking is not None:
             return self.enable_haiku_thinking
         if "sonnet" in name_lower and self.enable_sonnet_thinking is not None:
             return self.enable_sonnet_thinking
+
+        # Provider-specific overrides (new): tune NIM and OR independently.
+        if provider_id == "nvidia_nim" and self.nim_enable_thinking:
+            return True
+        if provider_id == "open_router":
+            # Qwen ``-thinking`` variants on OR expect reasoning mode by name.
+            if "thinking" in name_lower:
+                return True
+            if self.openrouter_enable_thinking:
+                return True
+
         return self.enable_model_thinking
 
     def web_fetch_allowed_scheme_set(self) -> frozenset[str]:

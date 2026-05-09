@@ -50,7 +50,9 @@ class ModelRouter:
             thinking_enabled = (
                 force_thinking_enabled
                 if force_thinking_enabled is not None
-                else self._settings.resolve_thinking(direct_provider_model)
+                else self._settings.resolve_thinking(
+                    direct_provider_model, provider_id=direct_provider_id
+                )
             )
             logger.debug(
                 "MODEL DIRECT: '{}' -> provider='{}' model='{}' thinking={}",
@@ -68,9 +70,11 @@ class ModelRouter:
             )
 
         provider_model_ref = self._settings.resolve_model(claude_model_name)
-        thinking_enabled = self._settings.resolve_thinking(claude_model_name)
         provider_id = Settings.parse_provider_type(provider_model_ref)
         provider_model = Settings.parse_model_name(provider_model_ref)
+        thinking_enabled = self._settings.resolve_thinking(
+            claude_model_name, provider_id=provider_id
+        )
         if provider_model != claude_model_name:
             logger.debug(
                 "MODEL MAPPING: '{}' -> '{}'", claude_model_name, provider_model
