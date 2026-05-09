@@ -45,9 +45,10 @@ class OpenAICompatibleProvider(BaseProvider):
             max_concurrency=config.max_concurrency,
         )
         http_client = None
-        if config.proxy:
+        if config.proxy and isinstance(config.proxy, str):
             http_client = httpx.AsyncClient(
                 proxy=config.proxy,
+                trust_env=False,
                 timeout=httpx.Timeout(
                     config.http_read_timeout,
                     connect=config.http_connect_timeout,
@@ -139,6 +140,15 @@ class OpenAICompatibleProvider(BaseProvider):
                     yield sse.emit_tool_delta(tc_index, json.dumps(parsed))
                 return
 
+            emitted_args = "".join(state.contents) if state else ""
+            if emitted_args:
+                if args == emitted_args:
+                    return
+                if args.startswith(emitted_args):
+                    args = args[len(emitted_args) :]
+                    if not args:
+                        return
+
             yield sse.emit_tool_delta(tc_index, args)
 
     def _flush_task_arg_buffers(self, sse: SSEBuilder) -> Iterator[str]:
@@ -204,13 +214,13 @@ class OpenAICompatibleProvider(BaseProvider):
                         continue
 
                     choice = chunk.choices[0]
-                    delta = choice.delta
-                    if delta is None:
-                        continue
-
                     if choice.finish_reason:
                         finish_reason = choice.finish_reason
                         logger.debug("{} finish_reason: {}", tag, finish_reason)
+
+                    delta = choice.delta
+                    if delta is None:
+                        continue
 
                     # Handle reasoning_content (OpenAI extended format)
                     reasoning = getattr(delta, "reasoning_content", None)

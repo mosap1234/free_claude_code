@@ -18,6 +18,38 @@ from .routes import router
 # Opt-in to future behavior for python-telegram-bot
 os.environ["PTB_TIMEDELTA"] = "1"
 
+
+def _clean_proxy_env() -> None:
+    """Remove proxy env vars before provider clients are initialized.
+
+    Preserves existing NO_PROXY entries and appends localhost entries.
+    """
+    proxy_vars = [
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ]
+    for var in proxy_vars:
+        os.environ.pop(var, None)
+
+    no_proxy = os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or ""
+    entries = [entry.strip() for entry in no_proxy.split(",") if entry.strip()]
+    local_entries = ["127.0.0.1", "localhost"]
+    for entry in local_entries:
+        if entry not in entries:
+            entries.append(entry)
+
+    no_proxy = ",".join(entries)
+    os.environ["NO_PROXY"] = no_proxy
+    os.environ["no_proxy"] = no_proxy
+
+
+# Clean proxy environment before app initialization
+_clean_proxy_env()
+
 # Configure logging first (before any module logs)
 _settings = get_settings()
 configure_logging(_settings.log_file)

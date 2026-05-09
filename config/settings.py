@@ -95,6 +95,20 @@ class Settings(BaseSettings):
     # ==================== DeepSeek Config ====================
     deepseek_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
 
+    # ==================== MiniMax Config ====================
+    minimax_api_key: str = Field(default="", validation_alias="MINIMAX_API_KEY")
+    minimax_base_url: str = Field(
+        default="https://api.minimax.io/anthropic",
+        validation_alias="MINIMAX_BASE_URL",
+    )
+
+    # ==================== Xiaomi MiMo Config ====================
+    xiaomi_api_key: str = Field(default="", validation_alias="XIAOMI_API_KEY")
+    xiaomi_base_url: str = Field(
+        default="https://token-plan-cn.xiaomimimo.com/v1",
+        validation_alias="XIAOMI_BASE_URL",
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord"
     messaging_platform: str = Field(
@@ -132,6 +146,8 @@ class Settings(BaseSettings):
     open_router_proxy: str = Field(default="", validation_alias="OPENROUTER_PROXY")
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
+    minimax_proxy: str = Field(default="", validation_alias="MINIMAX_PROXY")
+    xiaomi_proxy: str = Field(default="", validation_alias="XIAOMI_PROXY")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
@@ -248,6 +264,8 @@ class Settings(BaseSettings):
             "deepseek",
             "lmstudio",
             "llamacpp",
+            "minimax",
+            "xiaomi",
         )
         if "/" not in v:
             raise ValueError(
@@ -259,9 +277,26 @@ class Settings(BaseSettings):
         if provider not in valid_providers:
             raise ValueError(
                 f"Invalid provider: '{provider}'. "
-                f"Supported: 'nvidia_nim', 'open_router', 'deepseek', 'lmstudio', 'llamacpp'"
+                f"Supported: 'nvidia_nim', 'open_router', 'deepseek', 'lmstudio', 'llamacpp', 'minimax', 'xiaomi'"
             )
         return v
+
+    @model_validator(mode="after")
+    def prefer_dotenv_secrets(self) -> Settings:
+        """Let explicit .env secrets override stale shell/client values."""
+        secret_fields = {
+            "ANTHROPIC_AUTH_TOKEN": "anthropic_auth_token",
+            "OPENROUTER_API_KEY": "open_router_api_key",
+            "DEEPSEEK_API_KEY": "deepseek_api_key",
+            "MINIMAX_API_KEY": "minimax_api_key",
+            "XIAOMI_API_KEY": "xiaomi_api_key",
+            "NVIDIA_NIM_API_KEY": "nvidia_nim_api_key",
+        }
+        for env_key, field_name in secret_fields.items():
+            dotenv_value = _env_file_override(self.model_config, env_key)
+            if dotenv_value is not None:
+                setattr(self, field_name, dotenv_value)
+        return self
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self) -> Settings:
@@ -276,17 +311,13 @@ class Settings(BaseSettings):
             )
         return self
 
-    @model_validator(mode="after")
-    def prefer_dotenv_anthropic_auth_token(self) -> Settings:
-        """Let explicit .env auth config override stale shell/client tokens."""
+    def _has_dotenv_anthropic_auth_token(self) -> bool:
         dotenv_value = _env_file_override(self.model_config, "ANTHROPIC_AUTH_TOKEN")
-        if dotenv_value is not None:
-            self.anthropic_auth_token = dotenv_value
-        return self
+        return dotenv_value is not None
 
     def uses_process_anthropic_auth_token(self) -> bool:
         """Return whether proxy auth came from process env, not dotenv config."""
-        if _env_file_override(self.model_config, "ANTHROPIC_AUTH_TOKEN") is not None:
+        if self._has_dotenv_anthropic_auth_token():
             return False
         return bool(os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 

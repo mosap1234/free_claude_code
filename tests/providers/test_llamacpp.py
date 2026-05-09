@@ -226,7 +226,7 @@ async def test_stream_response_adds_max_tokens_if_missing(llamacpp_provider):
 
 @pytest.mark.asyncio
 async def test_stream_error_status_code(llamacpp_provider):
-    """Non-200 status code raises an error that gets caught and yielded as an SSE API error."""
+    """Non-200 status code raises an error that gets caught and yielded as full Anthropic SSE format."""
     req = MockRequest()
 
     mock_response = MagicMock()
@@ -254,15 +254,17 @@ async def test_stream_error_status_code(llamacpp_provider):
             async for e in llamacpp_provider.stream_response(req, request_id="TEST_ID")
         ]
 
-        assert len(events) == 1
-        assert events[0].startswith("event: error\ndata: {")
-        assert "Internal Server Error" in events[0]
-        assert "TEST_ID" in events[0]
+        # New format: message_start + content_block + message_delta + message_stop
+        assert len(events) == 6
+        assert events[0].startswith("event: message_start\n")
+        assert any("Internal Server Error" in e for e in events)
+        assert any("TEST_ID" in e for e in events)
+        assert events[-1].startswith("event: message_stop\n")
 
 
 @pytest.mark.asyncio
 async def test_stream_network_error(llamacpp_provider):
-    """Network errors are caught and yielded as SSE API error events."""
+    """Network errors are caught and yielded as full Anthropic SSE format."""
     req = MockRequest()
 
     with (
@@ -281,10 +283,12 @@ async def test_stream_network_error(llamacpp_provider):
             async for e in llamacpp_provider.stream_response(req, request_id="TEST_ID2")
         ]
 
-        assert len(events) == 1
-        assert events[0].startswith("event: error\ndata: {")
-        assert "Connection refused" in events[0]
-        assert "TEST_ID2" in events[0]
+        # New format: message_start + content_block + message_delta + message_stop
+        assert len(events) == 6
+        assert events[0].startswith("event: message_start\n")
+        assert any("Connection refused" in e for e in events)
+        assert any("TEST_ID2" in e for e in events)
+        assert events[-1].startswith("event: message_stop\n")
 
 
 @pytest.mark.asyncio
@@ -315,8 +319,10 @@ async def test_stream_error_405_mentions_upstream_provider(llamacpp_provider):
             e async for e in llamacpp_provider.stream_response(req, request_id="REQ405")
         ]
 
-    assert (
+    # Check error message is present in any event
+    assert any(
         "Upstream provider LLAMACPP rejected the request method or endpoint (HTTP 405)."
-        in events[0]
+        in e
+        for e in events
     )
-    assert "REQ405" in events[0]
+    assert any("REQ405" in e for e in events)

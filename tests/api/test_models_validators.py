@@ -161,3 +161,41 @@ def test_token_count_request_model_aware():
             messages=[Message(role="user", content="hello")],
         )
         assert request.model == "qwen2.5-7b"
+
+
+def test_settings_dotenv_secrets_override_stale_process_env(tmp_path, monkeypatch):
+    """Explicit dotenv API keys win over stale shell values."""
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "MINIMAX_API_KEY=dotenv-minimax-key",
+                "XIAOMI_API_KEY=dotenv-xiaomi-key",
+                "OPENROUTER_API_KEY=dotenv-openrouter-key",
+                "DEEPSEEK_API_KEY=dotenv-deepseek-key",
+                "NVIDIA_NIM_API_KEY=dotenv-nim-key",
+                "ANTHROPIC_AUTH_TOKEN=dotenv-auth-token",
+                "MODEL=nvidia_nim/test-model",
+                "VOICE_NOTE_ENABLED=false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("MINIMAX_API_KEY", "你的MiniMax_API_KEY")
+    monkeypatch.setenv("XIAOMI_API_KEY", "stale-xiaomi-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "stale-openrouter-key")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "stale-deepseek-key")
+    monkeypatch.setenv("NVIDIA_NIM_API_KEY", "stale-nim-key")
+    monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "stale-auth-token")
+
+    with patch.object(Settings, "model_config", {**Settings.model_config, "env_file": (env_file,)}):
+        settings = Settings()
+        uses_process_token = settings.uses_process_anthropic_auth_token()
+
+    assert settings.minimax_api_key == "dotenv-minimax-key"
+    assert settings.xiaomi_api_key == "dotenv-xiaomi-key"
+    assert settings.open_router_api_key == "dotenv-openrouter-key"
+    assert settings.deepseek_api_key == "dotenv-deepseek-key"
+    assert settings.nvidia_nim_api_key == "dotenv-nim-key"
+    assert settings.anthropic_auth_token == "dotenv-auth-token"
+    assert uses_process_token is False

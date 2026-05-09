@@ -1,6 +1,7 @@
 """LM Studio provider implementation."""
 
 import json
+import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -8,7 +9,12 @@ import httpx
 from loguru import logger
 
 from providers.base import BaseProvider, ProviderConfig
-from providers.common import get_user_facing_error_message, map_error
+from providers.common import SSEBuilder, get_user_facing_error_message, map_error
+from providers.common.message_converter import (
+    AnthropicToOpenAIConverter,
+    normalize_messages,
+    summarize_messages,
+)
 from providers.rate_limit import GlobalRateLimiter
 
 LMSTUDIO_DEFAULT_BASE_URL = "http://localhost:1234/v1"
@@ -35,6 +41,7 @@ class LMStudioProvider(BaseProvider):
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
             proxy=config.proxy or None,
+            trust_env=False,
             timeout=httpx.Timeout(
                 config.http_read_timeout,
                 connect=config.http_connect_timeout,
@@ -61,6 +68,10 @@ class LMStudioProvider(BaseProvider):
 
         # Dump the Anthropic Pydantic model directly into a dict
         body = request.model_dump(exclude_none=True)
+
+        # Normalize message content blocks to strings before sending to backend
+        body["messages"] = normalize_messages(body.get("messages", []))
+        logger.debug("{}_NORMALIZED_MESSAGES: {}", tag, summarize_messages(body["messages"]))
 
         # Remove extra_body, original_model, resolved_provider_model which are internal
         body.pop("extra_body", None)
@@ -145,15 +156,20 @@ class LMStudioProvider(BaseProvider):
                     error_message += f"\nRequest ID: {request_id}"
 
                 logger.info(
-                    "{}_STREAM: Emitting native SSE error event for {}{}",
+                    "{}_STREAM: Emitting Anthropic-compatible SSE error for {}{}",
                     tag,
                     type(e).__name__,
                     req_tag,
                 )
 
-                # Emit an Anthropic-compatible error event
-                error_event = {
-                    "type": "error",
-                    "error": {"type": "api_error", "message": error_message},
-                }
-                yield f"event: error\ndata: {json.dumps(error_event)}\n\n"
+                # Emit full Anthropic SSE format with message_start/content_block/message_delta/message_stop
+                sse = SSEBuilder(
+                    f"msg_{uuid.uuid4().hex}",
+                    body.get("model", "unknown"),
+                    input_tokens,
+                )
+                yield sse.message_start()
+                for event in sse.emit_error(error_message):
+                    yield event
+                yield sse.message_delta("end_turn", 1)
+                yield sse.message_stop()

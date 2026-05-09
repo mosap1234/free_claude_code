@@ -48,6 +48,25 @@ def _make_bad_request_error(message: str) -> openai.BadRequestError:
     return openai.BadRequestError(message, response=response, body=body)
 
 
+def _parse_sse_data(event: str) -> dict:
+    for line in event.splitlines():
+        if line.startswith("data: "):
+            return json.loads(line[6:])
+    return {}
+
+
+def _input_json_deltas(events: list[str]) -> list[str]:
+    deltas = []
+    for event in events:
+        if "event: content_block_delta" not in event:
+            continue
+        data = _parse_sse_data(event)
+        delta = data.get("delta", {})
+        if delta.get("type") == "input_json_delta":
+            deltas.append(delta.get("partial_json", ""))
+    return deltas
+
+
 @pytest.fixture(autouse=True)
 def mock_rate_limiter():
     """Mock the global rate limiter to prevent waiting."""
@@ -395,6 +414,103 @@ async def test_tool_call_stream(nim_provider):
         ]
         assert len(starts) == 1
         assert "search" in starts[0]
+
+
+@pytest.mark.asyncio
+async def test_tool_call_stream_ignores_repeated_full_arguments(nim_provider):
+    """Providers may resend a complete tool-call argument snapshot."""
+    req = MockRequest()
+
+    mock_tc = MagicMock()
+    mock_tc.index = 0
+    mock_tc.id = "call_1"
+    mock_tc.function.name = "Bash"
+    mock_tc.function.arguments = '{"command": "pwd"}'
+
+    repeated_tc = MagicMock()
+    repeated_tc.index = 0
+    repeated_tc.id = None
+    repeated_tc.function.name = None
+    repeated_tc.function.arguments = '{"command": "pwd"}'
+
+    async def mock_stream():
+        yield MagicMock(
+            choices=[
+                MagicMock(
+                    delta=MagicMock(
+                        content=None, reasoning_content="", tool_calls=[mock_tc]
+                    ),
+                    finish_reason=None,
+                )
+            ],
+            usage=None,
+        )
+        yield MagicMock(
+            choices=[
+                MagicMock(
+                    delta=MagicMock(
+                        content=None, reasoning_content="", tool_calls=[repeated_tc]
+                    ),
+                    finish_reason="tool_calls",
+                )
+            ],
+            usage=None,
+        )
+
+    with patch.object(
+        nim_provider._client.chat.completions, "create", new_callable=AsyncMock
+    ) as mock_create:
+        mock_create.return_value = mock_stream()
+
+        events = [e async for e in nim_provider.stream_response(req)]
+
+    assert _input_json_deltas(events) == ['{"command": "pwd"}']
+    event_text = "".join(events)
+    assert event_text.count("event: content_block_start") == 1
+    assert event_text.count("event: content_block_stop") == 1
+    assert '"stop_reason": "tool_use"' in event_text
+    assert "event: message_stop" in event_text
+
+
+@pytest.mark.asyncio
+async def test_tool_call_finish_reason_is_kept_when_delta_is_none(nim_provider):
+    """OpenAI can send the terminal finish_reason on an empty delta chunk."""
+    req = MockRequest()
+
+    mock_tc = MagicMock()
+    mock_tc.index = 0
+    mock_tc.id = "call_1"
+    mock_tc.function.name = "Bash"
+    mock_tc.function.arguments = '{"command": "pwd"}'
+
+    async def mock_stream():
+        yield MagicMock(
+            choices=[
+                MagicMock(
+                    delta=MagicMock(
+                        content=None, reasoning_content="", tool_calls=[mock_tc]
+                    ),
+                    finish_reason=None,
+                )
+            ],
+            usage=None,
+        )
+        yield MagicMock(
+            choices=[MagicMock(delta=None, finish_reason="tool_calls")],
+            usage=None,
+        )
+
+    with patch.object(
+        nim_provider._client.chat.completions, "create", new_callable=AsyncMock
+    ) as mock_create:
+        mock_create.return_value = mock_stream()
+
+        events = [e async for e in nim_provider.stream_response(req)]
+
+    event_text = "".join(events)
+    assert '"stop_reason": "tool_use"' in event_text
+    assert event_text.count("event: content_block_stop") == 1
+    assert "event: message_stop" in event_text
 
 
 @pytest.mark.asyncio

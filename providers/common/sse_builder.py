@@ -302,7 +302,9 @@ class SSEBuilder:
 
     def stop_tool_block(self, tool_index: int) -> str:
         """Stop a tool block."""
-        block_idx = self.blocks.tool_states[tool_index].block_index
+        state = self.blocks.tool_states[tool_index]
+        block_idx = state.block_index
+        state.started = False
         return self.content_block_stop(block_idx)
 
     # State management helpers

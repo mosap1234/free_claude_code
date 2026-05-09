@@ -261,3 +261,65 @@ def build_base_request_body(
         )
 
     return body
+
+
+def normalize_message_content(content: Any) -> str:
+    """Convert message content (array or string) to a plain string.
+
+    Handles text blocks, tool_result blocks, and document/base64 blocks.
+    """
+    if isinstance(content, str):
+        return content
+
+    if not isinstance(content, list):
+        return str(content) if content is not None else ""
+
+    text_parts: list[str] = []
+    for block in content:
+        block_type = get_block_type(block)
+
+        if block_type == "text":
+            text_parts.append(get_block_attr(block, "text", ""))
+        elif block_type == "tool_result":
+            tool_content = get_block_attr(block, "content", "")
+            if isinstance(tool_content, list):
+                text_parts.append(
+                    "\n".join(
+                        item.get("text", str(item))
+                        if isinstance(item, dict)
+                        else str(item)
+                        for item in tool_content
+                    )
+                )
+            else:
+                text_parts.append(str(tool_content) if tool_content else "")
+        elif block_type == "document":
+            doc_text = get_block_attr(block, "text", "")
+            if doc_text:
+                text_parts.append(doc_text)
+        elif block_type is None:
+            text_parts.append(str(block))
+
+    return "\n".join(text_parts)
+
+
+def normalize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ensure all message content is a string, not an array of content blocks."""
+    return [
+        {**msg, "content": normalize_message_content(msg.get("content", ""))}
+        for msg in messages
+    ]
+
+
+def summarize_messages(messages: list[dict[str, Any]]) -> str:
+    """Compact one-line summary of messages for logging."""
+    parts = []
+    for msg in messages:
+        role = msg.get("role", "?")
+        content = msg.get("content", "")
+        if isinstance(content, str):
+            snippet = content[:80] + ("..." if len(content) > 80 else "")
+        else:
+            snippet = f"<array len={len(content)}>"
+        parts.append(f"{role}:{snippet}")
+    return " | ".join(parts)

@@ -1,4 +1,5 @@
 import importlib
+import os
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,6 +26,23 @@ def test_warn_if_process_auth_token_skips_explicit_dotenv_config():
         api_app_mod._warn_if_process_auth_token(settings)
 
     warning.assert_not_called()
+
+
+def test_clean_proxy_env_removes_proxy_vars_and_preserves_no_proxy(monkeypatch):
+    api_app_mod = importlib.import_module("api.app")
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:10808")
+    monkeypatch.setenv("https_proxy", "http://127.0.0.1:10808")
+    monkeypatch.setenv("ALL_PROXY", "http://127.0.0.1:10808")
+    monkeypatch.setenv("NO_PROXY", "10.*,localhost.localdomain")
+    monkeypatch.delenv("no_proxy", raising=False)
+
+    api_app_mod._clean_proxy_env()
+
+    assert "HTTP_PROXY" not in os.environ
+    assert "https_proxy" not in os.environ
+    assert "ALL_PROXY" not in os.environ
+    assert os.environ["NO_PROXY"] == "10.*,localhost.localdomain,127.0.0.1,localhost"
+    assert os.environ["no_proxy"] == os.environ["NO_PROXY"]
 
 
 def test_create_app_provider_error_handler_returns_anthropic_format():
