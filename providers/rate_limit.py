@@ -1,6 +1,7 @@
 """Global rate limiter for API requests."""
 
 import asyncio
+import os
 import random
 import time
 from collections.abc import AsyncIterator, Callable
@@ -12,8 +13,51 @@ import openai
 from loguru import logger
 
 from core.rate_limit import StrictSlidingWindowLimiter
+from providers.transient_errors import classify
 
 T = TypeVar("T")
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _env_retry_attempts() -> int:
+    """Total attempts (initial + retries). Default 4 (3 retries)."""
+    return max(1, _env_int("NIM_RETRY_MAX_ATTEMPTS", 4))
+
+
+def _env_base_delay() -> float:
+    return max(0.0, _env_float("NIM_RETRY_BASE_DELAY_S", 2.0))
+
+
+def _env_max_delay() -> float:
+    return max(0.5, _env_float("NIM_RETRY_MAX_DELAY_S", 60.0))
+
+
+def _env_jitter() -> float:
+    return max(0.0, _env_float("NIM_RETRY_JITTER_S", 1.0))
+
+
+def _compute_backoff(base: float, ceiling: float, jitter: float, attempt: int) -> float:
+    """Exponential backoff with random jitter, clamped at ``ceiling``."""
+    return min(base * (2**attempt), ceiling) + random.uniform(0, jitter)
 
 
 class GlobalRateLimiter:
@@ -197,70 +241,103 @@ class GlobalRateLimiter:
         self,
         fn: Callable[..., Any],
         *args: Any,
-        max_retries: int = 3,
-        base_delay: float = 2.0,
-        max_delay: float = 60.0,
-        jitter: float = 1.0,
+        max_retries: int | None = None,
+        base_delay: float | None = None,
+        max_delay: float | None = None,
+        jitter: float | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Execute an async callable with rate limiting and retry on 429.
+        """Execute an async callable with rate limiting and retry on transient errors.
 
-        Waits for the proactive limiter before each attempt. On 429, applies
-        exponential backoff with jitter before retrying.
+        Waits for the proactive limiter before each attempt. On a transient
+        error (rate limits, 5xx gateway errors, NIM cold-start 404s, connection
+        failures, pre-stream timeouts), applies exponential backoff with
+        jitter and retries. Non-transient errors propagate immediately.
 
-        Args:
-            fn: Async callable to execute.
-            max_retries: Maximum number of retry attempts after the first failure.
-            base_delay: Base delay in seconds for exponential backoff.
-            max_delay: Maximum delay cap in seconds.
-            jitter: Maximum random jitter in seconds added to each delay.
+        Defaults are read from env when arguments are ``None``:
+
+        * ``max_retries`` ← ``NIM_RETRY_MAX_ATTEMPTS - 1`` (default 3 retries)
+        * ``base_delay`` ← ``NIM_RETRY_BASE_DELAY_S`` (default 2.0)
+        * ``max_delay`` ← ``NIM_RETRY_MAX_DELAY_S`` (default 60.0)
+        * ``jitter`` ← ``NIM_RETRY_JITTER_S`` (default 1.0)
 
         Returns:
             The result of the callable.
 
         Raises:
-            The last exception if all retries are exhausted.
+            The last exception if all retries are exhausted, or any
+            non-transient exception immediately.
         """
-        last_exc: Exception | None = None
+        eff_max_retries = (
+            max_retries if max_retries is not None else _env_retry_attempts() - 1
+        )
+        eff_base = base_delay if base_delay is not None else _env_base_delay()
+        eff_max = max_delay if max_delay is not None else _env_max_delay()
+        eff_jitter = jitter if jitter is not None else _env_jitter()
 
-        for attempt in range(1 + max_retries):
+        last_exc: BaseException | None = None
+        started = time.monotonic()
+
+        for attempt in range(1 + eff_max_retries):
             await self.wait_if_blocked()
 
             try:
                 return await fn(*args, **kwargs)
             except openai.RateLimitError as e:
+                # Rate limits are retried even though classify() also says yes,
+                # because they trigger a global block as a side effect.
                 last_exc = e
-                if attempt >= max_retries:
+                if attempt >= eff_max_retries:
                     logger.warning(
-                        f"Rate limit retry exhausted after {max_retries} retries"
+                        "NIM_RETRY_EXHAUSTED: cause=openai_rate_limit total_attempts={} elapsed={:.1f}s",
+                        attempt + 1,
+                        time.monotonic() - started,
                     )
                     break
-
-                delay = min(base_delay * (2**attempt), max_delay)
-                delay += random.uniform(0, jitter)
+                delay = _compute_backoff(eff_base, eff_max, eff_jitter, attempt)
                 logger.warning(
-                    f"Rate limited (429), attempt {attempt + 1}/{max_retries + 1}. "
-                    f"Retrying in {delay:.1f}s..."
+                    "NIM_RETRY: cause=openai_rate_limit attempt={}/{} backoff={:.1f}s elapsed={:.1f}s",
+                    attempt + 1,
+                    eff_max_retries + 1,
+                    delay,
+                    time.monotonic() - started,
                 )
                 self.set_blocked(delay)
                 await asyncio.sleep(delay)
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code != 429:
+            except (
+                httpx.HTTPStatusError,
+                httpx.HTTPError,
+                openai.APIError,
+            ) as e:
+                cls = classify(e)
+                if not cls.is_transient:
                     raise
                 last_exc = e
-                if attempt >= max_retries:
+                if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429:
+                    # Mirror legacy behaviour: 429 also triggers the reactive
+                    # block so other concurrent requests pause.
+                    self.set_blocked(60)
+
+                if attempt >= eff_max_retries:
                     logger.warning(
-                        f"HTTP 429 retry exhausted after {max_retries} retries"
+                        "NIM_RETRY_EXHAUSTED: cause={} total_attempts={} elapsed={:.1f}s",
+                        cls.cause,
+                        attempt + 1,
+                        time.monotonic() - started,
                     )
                     break
 
-                delay = min(base_delay * (2**attempt), max_delay)
-                delay += random.uniform(0, jitter)
+                delay = _compute_backoff(eff_base, eff_max, eff_jitter, attempt)
                 logger.warning(
-                    f"HTTP 429 from upstream, attempt {attempt + 1}/{max_retries + 1}. "
-                    f"Retrying in {delay:.1f}s..."
+                    "NIM_RETRY: cause={} attempt={}/{} backoff={:.1f}s elapsed={:.1f}s",
+                    cls.cause,
+                    attempt + 1,
+                    eff_max_retries + 1,
+                    delay,
+                    time.monotonic() - started,
                 )
-                self.set_blocked(delay)
+                if cls.cause == "http_429":
+                    self.set_blocked(delay)
                 await asyncio.sleep(delay)
 
         assert last_exc is not None
