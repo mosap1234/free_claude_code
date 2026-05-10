@@ -59,38 +59,76 @@ hurt strong-model behaviour.
    stop. Do not keep calling tools to double-check." Counters the bias of
    weak models to keep tool-calling instead of writing a final answer.
 
+## Size tiers
+
+A 30B nano model and a 480B coder cannot share one cap schedule. The governor
+classifies every non-frontier model into a **size tier** and uses tier-specific
+defaults. Pattern matching against the model id picks the tier automatically;
+manual overrides are available.
+
+| Tier       | Approx params | Examples                                                    | max consecutive | max total | tool cull | plan-mode default | termination hint |
+|------------|---------------|-------------------------------------------------------------|-----------------|-----------|-----------|-------------------|------------------|
+| `tiny`     | ≤30B          | nemotron-3-nano-30b, gpt-oss-20b, llama-8b, gemma-9b        | 4               | 20        | 15        | yes               | yes              |
+| `small`    | 30–80B        | qwen3-next-80b, llama-3.3-70b, nemotron-49b                 | 8               | 40        | 25        | yes               | yes              |
+| `medium`   | 80–200B       | nemotron-super-120b, gpt-oss-120b, glm-4.6, kimi-k2         | 15              | 80        | 35        | yes               | yes              |
+| `large`    | 200–400B      | llama-nemotron-ultra-253b, deepseek-v4-pro, qwen 235B       | 25              | 150       | 50        | no                | yes              |
+| `xl`       | 400–600B      | qwen3-coder-480b, llama-3.1-405b, hermes-3-405b, ring-1t    | 40              | 250       | 60        | no                | yes              |
+| `xxl`      | 600B+         | mistral-large-3-675b, future Qwen3-Max class                | 60              | 400       | 80        | no                | no               |
+| `frontier` | n/a           | claude-, gpt-5, gemini, grok                                | bypass          | bypass    | bypass    | n/a               | n/a              |
+
+Tier detection is substring-based, ordered largest → smallest. So
+`mistral-large-3-675b-instruct-2512` matches `xxl` (via `675b`) before any
+smaller pattern can match. MoE active-param suffixes like `a35b` are
+deliberately ignored — total params drive the tier.
+
+`large` and bigger turn off `plan-mode` by default because models in those
+tiers usually plan well on their own; the preamble can hurt their output
+quality. `xxl` also turns off `termination_hint` (frontier-adjacent reasoners
+like mistral-large-3 generally terminate themselves).
+
 ## Configuration
 
-All knobs are environment variables. Defaults are aggressive-but-safe.
+All knobs are environment variables. Defaults are aggressive-but-safe and
+tier-aware: setting a global env value overrides every tier; leaving it
+unset lets each model use its tier's defaults.
 
 ```bash
 # Master switch
 GOVERNOR_ENABLED=true                       # set false to disable everywhere
 
-# Hard limits
-GOVERNOR_MAX_CONSECUTIVE_TOOL_CALLS=8
-GOVERNOR_MAX_TOTAL_TOOL_CALLS=40
-GOVERNOR_LOOP_REPEAT_THRESHOLD=3
-
-# Tool culling
+# Hard limits — UNSET means "use tier defaults". Setting any of these
+# overrides the tier default for ALL non-frontier models.
+GOVERNOR_MAX_CONSECUTIVE_TOOL_CALLS=        # tier default (4–60)
+GOVERNOR_MAX_TOTAL_TOOL_CALLS=              # tier default (20–400)
+GOVERNOR_LOOP_REPEAT_THRESHOLD=3            # not tier-dependent
 GOVERNOR_TOOL_CULL_ENABLED=true
-GOVERNOR_TOOL_CULL_MAX=25
+GOVERNOR_TOOL_CULL_MAX=                     # tier default (15–80)
 
-# Weak-model preambles
-GOVERNOR_PLAN_MODE_FOR_WEAK=true
-GOVERNOR_TERMINATION_HINT_FOR_WEAK=true
+# Weak-model preambles — leave unset to follow per-tier defaults
+GOVERNOR_PLAN_MODE_FOR_WEAK=                # tier default
+GOVERNOR_TERMINATION_HINT_FOR_WEAK=         # tier default
+
+# Per-tier override JSON. Adjusts the tier defaults themselves.
+GOVERNOR_TIER_CAPS_JSON='{"xl":{"max_consecutive_tool_calls":60},"tiny":{"tool_cull_max":12}}'
 
 # Model classification (comma-separated lowercase substring patterns)
 GOVERNOR_WEAK_MODEL_PATTERNS=qwen,nemotron,deepseek-chat,deepseek-coder,kimi,moonshot,gpt-oss,glm,mistral,llama,wafer,ring,minimax,gemma,hermes,command,yi-
 GOVERNOR_STRONG_MODEL_PATTERNS=claude-,gpt-5,gpt-4,o1-,o3-,o4-,grok-,gemini-
 
-# Per-model overrides as a JSON object
-GOVERNOR_OVERRIDES_JSON='{"nvidia/nemotron-3-super-120b-a12b":{"max_consecutive_tool_calls":5,"plan_mode":true}}'
+# Per-model overrides as a JSON object. Highest precedence.
+# A "tier" field can pin a model into a specific tier explicitly.
+GOVERNOR_OVERRIDES_JSON='{"nvidia/nemotron-3-super-120b-a12b":{"max_consecutive_tool_calls":5,"plan_mode":true},"qwen3-coder-480b":{"tier":"xxl"}}'
 ```
 
 Override keys are matched as substrings against the request's model id; the
 longest matching key wins. This lets you write a generic rule like
 `{"qwen3-coder":{...}}` that catches every Qwen3 Coder variant.
+
+**Resolution order (highest → lowest precedence):**
+1. Per-model override (`GOVERNOR_OVERRIDES_JSON`)
+2. Process-level env value (e.g. `GOVERNOR_MAX_CONSECUTIVE_TOOL_CALLS`)
+3. Per-tier override (`GOVERNOR_TIER_CAPS_JSON`)
+4. Tier defaults (the table above)
 
 ## Telemetry
 

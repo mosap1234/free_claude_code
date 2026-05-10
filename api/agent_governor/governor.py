@@ -27,6 +27,7 @@ from .conversation_stats import ConversationStats, compute_stats
 from .loop_detect import detect_repeated_signature
 from .system_augmentation import with_plan_mode, with_termination_hint
 from .telemetry import log_decision, log_skipped
+from .tiers import ModelTier
 from .tool_cull import CullResult, apply_cull, cull_tools
 
 
@@ -67,17 +68,21 @@ class AgentGovernor:
         provider_id: str,
     ) -> Verdict:
         """Inspect a request, decide on an intervention, return a Verdict."""
+        tier = self._config.tier_for(request.model)
         cfg = self._config.for_model(request.model)
 
         if not cfg.enabled:
             log_skipped(request_id, request.model, "disabled")
             return Verdict(action=GovernorAction.PASS)
 
-        if cfg.is_strong_model(request.model):
+        if tier == ModelTier.FRONTIER:
             log_skipped(request_id, request.model, "strong_model_bypass")
             return Verdict(action=GovernorAction.PASS)
 
-        is_weak = cfg.is_weak_model(request.model)
+        # Any non-frontier model gets the augmentation pipeline. Tier defaults
+        # already decided whether plan_mode / termination_hint are appropriate
+        # for the size class, so we just respect cfg.{plan_mode,termination_hint}_for_weak.
+        is_weak = True
         stats = compute_stats(request.messages)
         tools_in_request = len(request.tools or [])
 
@@ -105,6 +110,7 @@ class AgentGovernor:
                 total_tool_calls=stats.total_tool_calls,
                 tools_in_request=tools_in_request,
                 reason="total_tool_budget_exceeded",
+                extra={"tier": tier.value},
             )
             return Verdict(
                 action=GovernorAction.ABORT,
@@ -136,6 +142,7 @@ class AgentGovernor:
                 tools_in_request=tools_in_request,
                 intervention="loop_signature",
                 reason=f"repeat:{repeat.name}",
+                extra={"tier": tier.value},
             )
             return Verdict(
                 action=GovernorAction.ABORT,
@@ -167,6 +174,7 @@ class AgentGovernor:
                 tools_in_request=tools_in_request,
                 intervention="consecutive_tools",
                 reason="cap_reached",
+                extra={"tier": tier.value},
             )
             return Verdict(
                 action=GovernorAction.ABORT,
@@ -215,6 +223,7 @@ class AgentGovernor:
                 consecutive_tool_calls=stats.consecutive_tool_calls,
                 total_tool_calls=stats.total_tool_calls,
                 tools_in_request=tools_in_request,
+                extra={"tier": tier.value},
             )
             return Verdict(action=GovernorAction.PASS)
 
@@ -227,6 +236,7 @@ class AgentGovernor:
             tools_in_request=tools_in_request,
             tools_after_cull=len(augmented.tools or []) if cull_outcome else None,
             intervention=",".join(interventions),
+            extra={"tier": tier.value},
         )
         return Verdict(
             action=GovernorAction.AUGMENT,
