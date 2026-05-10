@@ -78,14 +78,14 @@ TIER_DEFAULTS: dict[ModelTier, TierCaps] = {
     ModelTier.XL: TierCaps(
         max_consecutive_tool_calls=40,
         max_total_tool_calls=250,
-        tool_cull_max=60,
+        tool_cull_max=80,
         plan_mode=False,
         termination_hint=True,
     ),
     ModelTier.XXL: TierCaps(
         max_consecutive_tool_calls=60,
         max_total_tool_calls=400,
-        tool_cull_max=80,
+        tool_cull_max=100,
         plan_mode=False,
         termination_hint=False,  # 675B+ generally terminate themselves
     ),

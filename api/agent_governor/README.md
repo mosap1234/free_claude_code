@@ -72,8 +72,8 @@ manual overrides are available.
 | `small`    | 30–80B        | qwen3-next-80b, llama-3.3-70b, nemotron-49b                 | 8               | 40        | 25        | yes               | yes              |
 | `medium`   | 80–200B       | nemotron-super-120b, gpt-oss-120b, glm-4.6, kimi-k2         | 15              | 80        | 35        | yes               | yes              |
 | `large`    | 200–400B      | llama-nemotron-ultra-253b, deepseek-v4-pro, qwen 235B       | 25              | 150       | 50        | no                | yes              |
-| `xl`       | 400–600B      | qwen3-coder-480b, llama-3.1-405b, hermes-3-405b, ring-1t    | 40              | 250       | 60        | no                | yes              |
-| `xxl`      | 600B+         | mistral-large-3-675b, future Qwen3-Max class                | 60              | 400       | 80        | no                | no               |
+| `xl`       | 400–600B      | qwen3-coder-480b, llama-3.1-405b, hermes-3-405b, ring-1t    | 40              | 250       | 80        | no                | yes              |
+| `xxl`      | 600B+         | mistral-large-3-675b, future Qwen3-Max class                | 60              | 400       | 100       | no                | no               |
 | `frontier` | n/a           | claude-, gpt-5, gemini, grok                                | bypass          | bypass    | bypass    | n/a               | n/a              |
 
 Tier detection is substring-based, ordered largest → smallest. So
@@ -102,7 +102,7 @@ GOVERNOR_MAX_CONSECUTIVE_TOOL_CALLS=        # tier default (4–60)
 GOVERNOR_MAX_TOTAL_TOOL_CALLS=              # tier default (20–400)
 GOVERNOR_LOOP_REPEAT_THRESHOLD=3            # not tier-dependent
 GOVERNOR_TOOL_CULL_ENABLED=true
-GOVERNOR_TOOL_CULL_MAX=                     # tier default (15–80)
+GOVERNOR_TOOL_CULL_MAX=                     # tier default (15–100)
 
 # Weak-model preambles — leave unset to follow per-tier defaults
 GOVERNOR_PLAN_MODE_FOR_WEAK=                # tier default
