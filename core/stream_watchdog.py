@@ -36,25 +36,78 @@ T = TypeVar("T")
 _DEFAULT_SILENCE_TIMEOUT_S = 90.0
 _SILENCE_TIMEOUT_ENV = "NIM_STREAM_SILENCE_TIMEOUT_S"
 
+# Tier-aware silence timeouts. Big models genuinely think for longer
+# without emitting tokens, so they get more rope before the watchdog
+# trips. Tiers are matched against the model id via substring patterns
+# (largest first). Frontier models (Claude/GPT-5/etc.) bypass entirely.
+_TIER_SILENCE_TIMEOUTS_S = {
+    "xxl": 180.0,    # mistral-large-3-675b, future Qwen3-Max
+    "xl": 150.0,     # qwen3-coder-480b, llama-3.1-405b, ring-1t
+    "large": 120.0,  # nemotron-ultra-253b, deepseek-v4-pro
+    "medium": 90.0,  # nemotron-super-120b, gpt-oss-120b
+    "small": 60.0,   # qwen3-next-80b, llama-70b
+    "tiny": 45.0,    # nemotron-nano-30b, gpt-oss-20b
+}
 
-def silence_timeout_s() -> float:
-    """Read the configured silence timeout from env, with a safe default."""
+# Same patterns/order as agent_governor.tiers.TIER_PATTERNS — kept here
+# duplicated to keep core/ free of api/ imports per the boundary check.
+_TIER_PATTERNS = (
+    ("xxl", ("675b", "qwen3-max", "mistral-large-3", "deepseek-r2")),
+    ("xl", ("480b", "405b", "qwen3-coder-480b", "llama-3.1-405b",
+            "hermes-3-llama-3.1-405b", "ring-2.6-1t")),
+    ("large", ("253b", "235b", "236b", "230b", "200b", "ultra-253b",
+               "deepseek-v4-pro", "deepseek-v4-flash", "mistral-large-2")),
+    ("medium", ("100b", "120b", "150b", "180b",
+                "nemotron-super-120b", "gpt-oss-120b",
+                "glm-4.6", "glm-4.5", "minimax-m2.5",
+                "kimi-k2", "kimi-k2-instruct", "mistral-nemotron")),
+    ("small", ("32b", "40b", "49b", "60b", "65b", "70b", "72b", "78b", "80b",
+               "qwen3-next-80b", "qwen3-coder-30b", "nemotron-3-super",
+               "llama-3.3-70b", "llama-3.1-70b",
+               "command-r-plus", "deepseek-coder-v2")),
+    ("tiny", ("1b", "2b", "3b", "4b", "5b", "6b", "7b", "8b", "9b",
+              "12b", "13b", "14b", "16b", "20b", "22b", "24b", "26b", "28b", "30b",
+              "nano-30b", "nano-9b", "nano-12b", "lfm-2.5",
+              "gemma-4-31b", "gemma-4-26b", "gpt-oss-20b")),
+)
+
+
+def _tier_for_model(model_id: str) -> str | None:
+    lowered = model_id.lower()
+    for tier, patterns in _TIER_PATTERNS:
+        for pat in patterns:
+            if pat in lowered:
+                return tier
+    return None
+
+
+def silence_timeout_s(model_id: str | None = None) -> float:
+    """Read the configured silence timeout from env, with a safe default.
+
+    If ``model_id`` is supplied, the timeout is tier-aware: bigger models
+    get longer headroom before the watchdog trips. Explicit env override
+    via ``NIM_STREAM_SILENCE_TIMEOUT_S`` always wins.
+    """
     raw = os.environ.get(_SILENCE_TIMEOUT_ENV, "").strip()
-    if not raw:
-        return _DEFAULT_SILENCE_TIMEOUT_S
-    try:
-        value = float(raw)
-    except ValueError:
-        logger.warning(
-            "Invalid {} value: {!r} — using default {}s",
-            _SILENCE_TIMEOUT_ENV,
-            raw,
-            _DEFAULT_SILENCE_TIMEOUT_S,
-        )
-        return _DEFAULT_SILENCE_TIMEOUT_S
-    if value <= 0:
-        return 0.0
-    return value
+    if raw:
+        try:
+            value = float(raw)
+        except ValueError:
+            logger.warning(
+                "Invalid {} value: {!r} — using default {}s",
+                _SILENCE_TIMEOUT_ENV,
+                raw,
+                _DEFAULT_SILENCE_TIMEOUT_S,
+            )
+            return _DEFAULT_SILENCE_TIMEOUT_S
+        return 0.0 if value <= 0 else value
+
+    if model_id:
+        tier = _tier_for_model(model_id)
+        if tier is not None:
+            return _TIER_SILENCE_TIMEOUTS_S[tier]
+
+    return _DEFAULT_SILENCE_TIMEOUT_S
 
 
 class StreamSilentError(Exception):

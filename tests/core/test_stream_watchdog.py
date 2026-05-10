@@ -113,13 +113,17 @@ async def test_upstream_aclose_called_on_trip():
     assert aclose_called is True
 
 
-def test_silence_timeout_env_default():
+def test_silence_timeout_env_default(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("NIM_STREAM_SILENCE_TIMEOUT_S", raising=False)
     assert silence_timeout_s() == 90.0
 
 
-def test_silence_timeout_env_override(monkeypatch: pytest.MonkeyPatch):
+def test_silence_timeout_env_override_wins_over_tier(
+    monkeypatch: pytest.MonkeyPatch,
+):
     monkeypatch.setenv("NIM_STREAM_SILENCE_TIMEOUT_S", "120")
-    assert silence_timeout_s() == 120.0
+    # Even an XL model uses the env override, not the tier default.
+    assert silence_timeout_s("qwen/qwen3-coder-480b-a35b-instruct") == 120.0
 
 
 def test_silence_timeout_env_invalid_falls_back(monkeypatch: pytest.MonkeyPatch):
@@ -130,3 +134,40 @@ def test_silence_timeout_env_invalid_falls_back(monkeypatch: pytest.MonkeyPatch)
 def test_silence_timeout_env_zero_disables(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("NIM_STREAM_SILENCE_TIMEOUT_S", "0")
     assert silence_timeout_s() == 0.0
+
+
+@pytest.mark.parametrize(
+    "model, expected",
+    [
+        ("nvidia/nemotron-3-nano-30b-a3b", 45.0),
+        ("openai/gpt-oss-20b", 45.0),
+        ("qwen/qwen3-next-80b-a3b-instruct", 60.0),
+        ("meta-llama/llama-3.3-70b-instruct", 60.0),
+        ("nvidia/nemotron-super-120b-a12b", 90.0),
+        ("openai/gpt-oss-120b", 90.0),
+        ("nvidia/llama-3.1-nemotron-ultra-253b-v1", 120.0),
+        ("qwen/qwen3-coder-480b-a35b-instruct", 150.0),
+        ("nousresearch/hermes-3-llama-3.1-405b", 150.0),
+        ("mistralai/mistral-large-3-675b-instruct-2512", 180.0),
+    ],
+)
+def test_silence_timeout_tier_aware_defaults(
+    monkeypatch: pytest.MonkeyPatch, model: str, expected: float
+):
+    monkeypatch.delenv("NIM_STREAM_SILENCE_TIMEOUT_S", raising=False)
+    assert silence_timeout_s(model) == expected
+
+
+def test_silence_timeout_unknown_model_uses_global_default(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("NIM_STREAM_SILENCE_TIMEOUT_S", raising=False)
+    assert silence_timeout_s("unknown/random-model") == 90.0
+
+
+def test_silence_timeout_no_model_uses_global_default(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("NIM_STREAM_SILENCE_TIMEOUT_S", raising=False)
+    assert silence_timeout_s() == 90.0
+    assert silence_timeout_s(None) == 90.0

@@ -385,7 +385,7 @@ class OpenAIChatTransport(BaseProvider):
                 # for httpx's read_timeout to fire ~5 minutes later.
                 guarded_stream = stream_with_silence_watchdog(
                     stream,
-                    silence_timeout=silence_timeout_s(),
+                    silence_timeout=silence_timeout_s(body.get("model")),
                     request_id=request_id,
                 )
                 async for chunk in guarded_stream:
