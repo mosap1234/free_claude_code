@@ -49,7 +49,7 @@ def test_detect_tier_unknown_returns_unknown():
 def test_caps_for_tier_returns_defaults():
     caps = caps_for_tier(ModelTier.XL)
     assert caps == TIER_DEFAULTS[ModelTier.XL]
-    assert caps.max_consecutive_tool_calls == 40
+    assert caps.max_consecutive_tool_calls == 80
 
 
 def test_tier_caps_strictly_increase_with_size():
