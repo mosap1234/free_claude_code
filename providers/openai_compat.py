@@ -23,6 +23,11 @@ from core.anthropic import (
     append_request_id,
     map_stop_reason,
 )
+from core.stream_watchdog import (
+    StreamSilentError,
+    silence_timeout_s,
+    stream_with_silence_watchdog,
+)
 from providers.base import BaseProvider, ProviderConfig
 from providers.error_mapping import (
     map_error,
@@ -375,7 +380,15 @@ class OpenAIChatTransport(BaseProvider):
             try:
                 stream, body = await self._create_stream(body)
                 tool_argument_aliases = self._tool_argument_aliases(body)
-                async for chunk in stream:
+                # Wrap upstream iterator with a silence watchdog so a hung
+                # NIM stream is killed cleanly within ~90s instead of waiting
+                # for httpx's read_timeout to fire ~5 minutes later.
+                guarded_stream = stream_with_silence_watchdog(
+                    stream,
+                    silence_timeout=silence_timeout_s(),
+                    request_id=request_id,
+                )
+                async for chunk in guarded_stream:
                     if getattr(chunk, "usage", None):
                         usage_info = chunk.usage
 
