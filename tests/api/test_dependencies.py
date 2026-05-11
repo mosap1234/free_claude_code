@@ -22,6 +22,7 @@ from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
 from providers.registry import ProviderRegistry
+from providers.wafer import WaferProvider
 
 
 def _make_mock_settings(**overrides):
@@ -35,8 +36,13 @@ def _make_mock_settings(**overrides):
     mock.provider_max_concurrency = 5
     mock.open_router_api_key = "test_openrouter_key"
     mock.deepseek_api_key = "test_deepseek_key"
+    mock.wafer_api_key = "test_wafer_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.ollama_base_url = "http://localhost:11434"
+    mock.lmstudio_proxy = ""
+    mock.llamacpp_proxy = ""
+    mock.kimi_proxy = ""
+    mock.wafer_proxy = ""
     mock.nim = NimSettings()
     mock.http_read_timeout = 300.0
     mock.http_write_timeout = 10.0
@@ -91,7 +97,7 @@ async def test_cleanup_provider():
 
         await cleanup_provider()
 
-        provider._client.aclose.assert_called_once()
+        provider._client.close.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -186,6 +192,19 @@ async def test_get_provider_deepseek_passes_enable_model_thinking():
 
         assert isinstance(provider, DeepSeekProvider)
         assert provider._config.enable_thinking is False
+
+
+@pytest.mark.asyncio
+async def test_get_provider_wafer():
+    """Test that provider_type=wafer returns WaferProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="wafer")
+
+        provider = get_provider()
+
+        assert isinstance(provider, WaferProvider)
+        assert provider._base_url == "https://pass.wafer.ai/v1"
+        assert provider._api_key == "test_wafer_key"
 
 
 @pytest.mark.asyncio
@@ -325,6 +344,23 @@ async def test_get_provider_deepseek_missing_api_key():
 
 
 @pytest.mark.asyncio
+async def test_get_provider_wafer_missing_api_key():
+    """Wafer with empty API key raises HTTPException 503."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="wafer",
+            wafer_api_key="",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_provider()
+
+        assert exc_info.value.status_code == 503
+        assert "WAFER_API_KEY" in exc_info.value.detail
+        assert "wafer.ai" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
 async def test_get_provider_unknown_type():
     """Unknown ``provider_type`` raises :exc:`~providers.exceptions.UnknownProviderTypeError`."""
     with patch("api.dependencies.get_settings") as mock_settings:
@@ -335,15 +371,15 @@ async def test_get_provider_unknown_type():
 
 
 @pytest.mark.asyncio
-async def test_cleanup_provider_aclose_raises():
-    """cleanup_provider handles aclose() raising an exception."""
+async def test_cleanup_provider_close_raises():
+    """cleanup_provider handles close() raising an exception."""
     with patch("api.dependencies.get_settings") as mock_settings:
         mock_settings.return_value = _make_mock_settings()
 
         provider = get_provider()
         assert isinstance(provider, NvidiaNimProvider)
         provider._client = AsyncMock()
-        provider._client.aclose = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+        provider._client.close = AsyncMock(side_effect=RuntimeError("cleanup failed"))
 
         # Should propagate the error
         with pytest.raises(RuntimeError, match="cleanup failed"):
@@ -410,7 +446,7 @@ async def test_cleanup_provider_cleans_all():
 
         await cleanup_provider()
 
-        nim._client.aclose.assert_called_once()
+        nim._client.close.assert_called_once()
         lmstudio._client.aclose.assert_called_once()
 
 
