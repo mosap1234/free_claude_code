@@ -76,7 +76,7 @@ _INTERNAL_FIELDS = {
 def _serialize_value(value: Any) -> Any:
     """Convert Pydantic models and lightweight objects into JSON-ready values."""
     if isinstance(value, BaseModel):
-        return value.model_dump(exclude_none=True)
+        return value.model_dump(mode="json", exclude_none=True)
     if isinstance(value, dict):
         return {
             key: _serialize_value(item)
@@ -99,7 +99,7 @@ def _serialize_value(value: Any) -> Any:
 def _dump_request_fields(request_data: Any) -> dict[str, Any]:
     """Extract the public request fields (OpenRouter-style explicit field list)."""
     if isinstance(request_data, BaseModel):
-        raw = request_data.model_dump(exclude_none=True)
+        raw = request_data.model_dump(mode="json", exclude_none=True)
         return {
             field: raw[field]
             for field in _REQUEST_FIELDS

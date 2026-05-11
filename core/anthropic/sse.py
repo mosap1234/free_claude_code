@@ -1,11 +1,12 @@
 """SSE event builder for Anthropic-format streaming responses."""
 
 import hashlib
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from loguru import logger
+
+import core.json_utils as json
 
 try:
     import tiktoken

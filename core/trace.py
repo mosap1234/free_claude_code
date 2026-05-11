@@ -63,7 +63,7 @@ def trace_event(*, stage: str, event: str, source: str, **fields: Any) -> None:
 def api_messages_request_snapshot(req: Any) -> dict[str, Any]:
     """Return a sanitized snapshot of an Anthropic ``MessagesRequest``-like body."""
     if hasattr(req, "model_dump"):
-        data = req.model_dump(mode="python")
+        data = req.model_dump(mode="json")
     elif isinstance(req, Mapping):
         data = dict(req)
     else:

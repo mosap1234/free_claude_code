@@ -1,11 +1,12 @@
 """Message and tool format converters."""
 
-import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
+
+import core.json_utils as json
 
 from .content import get_block_attr, get_block_type
 from .utils import set_if_not_none

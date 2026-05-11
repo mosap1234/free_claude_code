@@ -178,7 +178,9 @@ class ClaudeProxyService:
 
                 if self._settings.log_raw_api_payloads:
                     logger.debug(
-                        "FULL_PAYLOAD [{}]: {}", request_id, routed.request.model_dump()
+                        "FULL_PAYLOAD [{}]: {}",
+                        request_id,
+                        routed.request.model_dump(mode="json"),
                     )
 
                 input_tokens = self._token_counter(

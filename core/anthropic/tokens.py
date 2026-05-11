@@ -1,9 +1,9 @@
 """Token estimation for Anthropic-compatible requests."""
 
-import json
-
 import tiktoken
 from loguru import logger
+
+import core.json_utils as json
 
 from .content import get_block_attr
 
@@ -80,7 +80,7 @@ def get_token_count(
                     "web_fetch_tool_result",
                 ):
                     if hasattr(block, "model_dump"):
-                        blob: object = block.model_dump()
+                        blob: object = block.model_dump(mode="json")
                     else:
                         blob = block
                     try:

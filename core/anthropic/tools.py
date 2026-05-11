@@ -1,12 +1,13 @@
 """Heuristic parser for text-emitted tool calls."""
 
-import json
 import re
 import uuid
 from enum import Enum
 from typing import Any
 
 from loguru import logger
+
+import core.json_utils as json
 
 _CONTROL_TOKEN_RE = re.compile(r"<\|[^|>]{1,80}\|>")
 _CONTROL_TOKEN_START = "<|"

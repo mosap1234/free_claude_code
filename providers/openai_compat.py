@@ -5,7 +5,6 @@ in separate modules; do not list them as subclasses of this class.
 """
 
 import asyncio
-import json
 import uuid
 from abc import abstractmethod
 from collections.abc import AsyncIterator, Iterator
@@ -15,6 +14,7 @@ import httpx
 from loguru import logger
 from openai import AsyncOpenAI
 
+import core.json_utils as json
 from core.anthropic import (
     ContentType,
     HeuristicToolParser,

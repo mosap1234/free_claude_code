@@ -1,11 +1,11 @@
 """NVIDIA NIM provider implementation."""
 
-import json
 from typing import Any
 
 import openai
 from loguru import logger
 
+import core.json_utils as json
 from config.nim import NimSettings
 from providers.base import ProviderConfig
 from providers.defaults import NVIDIA_NIM_DEFAULT_BASE

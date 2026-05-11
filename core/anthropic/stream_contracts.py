@@ -5,10 +5,11 @@ Used by default CI contract tests and by opt-in live smoke scenarios.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
+
+import core.json_utils as json
 
 from .server_tool_sse import (
     SERVER_TOOL_USE,

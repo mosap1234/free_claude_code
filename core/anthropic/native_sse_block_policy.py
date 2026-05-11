@@ -7,9 +7,10 @@ Used by :class:`OpenRouterProvider` and line-mode
 from __future__ import annotations
 
 import copy
-import json
 from dataclasses import dataclass, field
 from typing import Any
+
+import core.json_utils as json
 
 __all__ = [
     "NativeSseBlockPolicyState",

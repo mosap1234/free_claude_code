@@ -1,11 +1,11 @@
 """Tests for OpenRouter providers."""
 
-import json
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+import core.json_utils as json
 from core.anthropic.stream_contracts import (
     assert_anthropic_stream_contract,
     parse_sse_text,
@@ -673,10 +673,10 @@ async def test_stream_response_closes_overlapping_thinking_before_text(
         events = [e async for e in open_router_provider.stream_response(MockRequest())]
 
     event_text = "".join(events)
-    thinking_stop = event_text.index('"type": "content_block_stop", "index": 0')
-    text_start = event_text.index('"content_block": {"type": "text"')
+    thinking_stop = event_text.index('"type":"content_block_stop","index":0')
+    text_start = event_text.index('"content_block":{"type":"text"')
     assert thinking_stop < text_start
-    assert event_text.count('"index": 0') == 3
+    assert event_text.count('"index":0') == 3
     assert "Answer" in event_text
 
 

@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Any, Literal
 
 import httpx
+import orjson
 from loguru import logger
 
 from config.constants import (
@@ -52,7 +53,7 @@ async def _maybe_await_aclose(response: Any) -> None:
 def _model_list_json(response: httpx.Response, *, provider_name: str) -> Any:
     response.raise_for_status()
     try:
-        return response.json()
+        return orjson.loads(response.read())
     except ValueError as exc:
         raise ModelListResponseError(
             f"{provider_name} model-list response is malformed: invalid JSON"
@@ -206,24 +207,22 @@ class AnthropicMessagesTransport(BaseProvider):
         """Read at most ``max_bytes`` from the error body for logging. Returns (preview, truncated)."""
         if max_bytes <= 0:
             return b"", False
-        received = 0
-        parts: list[bytes] = []
+        buf = bytearray()
         truncated = False
         async for chunk in response.aiter_bytes(chunk_size=65_536):
-            if received >= max_bytes:
+            if len(buf) >= max_bytes:
                 truncated = True
                 break
-            remaining = max_bytes - received
+            remaining = max_bytes - len(buf)
             take = chunk if len(chunk) <= remaining else chunk[:remaining]
             if take:
-                parts.append(take)
-            received += len(take)
+                buf.extend(take)
             if len(chunk) > len(take):
                 truncated = True
                 break
-            if received >= max_bytes:
+            if len(buf) >= max_bytes:
                 break
-        return (b"".join(parts), truncated)
+        return (bytes(buf), truncated)
 
     async def _iter_sse_lines(self, response: httpx.Response) -> AsyncIterator[str]:
         """Yield raw SSE line chunks preserving local provider behavior."""

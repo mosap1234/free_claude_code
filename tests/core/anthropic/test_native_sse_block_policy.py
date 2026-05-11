@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import json
-
+import core.json_utils as json
 from core.anthropic.native_sse_block_policy import (
     NativeSseBlockPolicyState,
     format_native_sse_event,
@@ -47,7 +46,7 @@ def test_text_block_passthrough_when_thinking_disabled() -> None:
     ev = format_native_sse_event("content_block_start", json.dumps(payload))
     out = transform_native_sse_block_event(ev, st, thinking_enabled=False)
     assert out is not None
-    assert '"index": 0' in (out or "")
+    assert '"index":0' in (out or "")
 
 
 def test_interleaved_thinking_signature_delta_remaps_to_reopened_block_index() -> None:
@@ -69,7 +68,7 @@ def test_interleaved_thinking_signature_delta_remaps_to_reopened_block_index() -
             ),
         )
     )
-    assert out1 is not None and '"index": 0' in out1
+    assert out1 is not None and '"index":0' in out1
 
     out2 = run(
         format_native_sse_event(
@@ -113,7 +112,7 @@ def test_interleaved_thinking_signature_delta_remaps_to_reopened_block_index() -
         )
     )
     assert out4 is not None
-    assert '"index": 2' in out4
+    assert '"index":2' in out4
     assert "signature_delta" in out4
 
 

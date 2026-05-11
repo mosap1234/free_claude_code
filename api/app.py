@@ -4,6 +4,7 @@ import traceback
 from contextlib import asynccontextmanager
 from typing import Any
 
+import orjson
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -118,7 +119,7 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
         """Log request shape for 422 debugging without content values."""
         body: Any
         try:
-            body = await request.json()
+            body = orjson.loads(await request.body())
         except Exception as e:
             body = {"_json_error": type(e).__name__}
 

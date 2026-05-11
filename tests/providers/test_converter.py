@@ -1,7 +1,6 @@
-import json
-
 import pytest
 
+import core.json_utils as json
 from api.models.anthropic import MessagesRequest
 from core.anthropic import (
     AnthropicToOpenAIConverter,
@@ -546,7 +545,7 @@ def test_convert_user_message_tool_result_dict_as_json():
     messages = [MockMessage("user", content)]
     result = AnthropicToOpenAIConverter.convert_messages(messages)
     assert result[0]["role"] == "tool"
-    assert result[0]["content"] == '{"ok": true, "count": 2}'
+    assert result[0]["content"] == '{"ok":true,"count":2}'
 
 
 def test_assistant_redacted_thinking_omitted_from_openai_chat():

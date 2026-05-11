@@ -1,5 +1,6 @@
 """FastAPI route handlers."""
 
+import orjson
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from loguru import logger
 
@@ -165,11 +166,13 @@ def _build_models_list_response(
 # =============================================================================
 @router.post("/v1/messages")
 async def create_message(
-    request_data: MessagesRequest,
+    request: Request,
     service: ClaudeProxyService = Depends(get_proxy_service),
     _auth=Depends(require_api_key),
 ):
     """Create a message (always streaming)."""
+    body_bytes = await request.body()
+    request_data = MessagesRequest.model_validate(orjson.loads(body_bytes))
     return service.create_message(request_data)
 
 
@@ -181,11 +184,13 @@ async def probe_messages(_auth=Depends(require_api_key)):
 
 @router.post("/v1/messages/count_tokens")
 async def count_tokens(
-    request_data: TokenCountRequest,
+    request: Request,
     service: ClaudeProxyService = Depends(get_proxy_service),
     _auth=Depends(require_api_key),
 ):
     """Count tokens for a request."""
+    body_bytes = await request.body()
+    request_data = TokenCountRequest.model_validate(orjson.loads(body_bytes))
     return service.count_tokens(request_data)
 
 
