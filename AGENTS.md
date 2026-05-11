@@ -51,3 +51,18 @@
 ## TOOLS
 
 - Prefer built-in tools (grep, read_file, etc.) over manual workflows. Check tool availability before use.
+
+## MEMORY SYSTEM
+
+This project uses a two-layer memory system. You MUST follow these rules.
+
+### Layer 1: File-system memory (.memory/)
+- **On session start**: Read `.memory/context.md` `.memory/decisions.md` `.memory/preferences.md` to load project context.
+- **On state change**: When a branch is created/merged, a decision is made, or project state changes — update the relevant `.memory/` file immediately.
+- **On session end / pause**: Update `.memory/context.md` with current branch, active tasks, and any new decisions. Leave the project in a state another AI tool can resume.
+
+### Layer 2: Mem0 global memory (via MCP tools)
+- **On session start**: Call `search_memories` with `{"AND": [{"user_id": "mem0-mcp"}, {"metadata": {"project": "free-claude-code"}}]}` to load project-specific memories. Also search without project filter for global preferences.
+- **When to write**: User explicitly asks to remember something OR a cross-project decision is made OR a global preference is stated.
+- **Scoping**: Always include `metadata={"project": "free-claude-code"}` for project memories. Omit project filter for global preferences.
+- **Granularity**: ~3-5 memories per session max. Don't pollute.
