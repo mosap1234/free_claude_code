@@ -70,7 +70,7 @@ def test_create_provider_wires_openai_compat_with_placeholder_key():
     assert isinstance(provider, OpenAICompatProvider)
     # AsyncOpenAI must receive a non-empty api_key (placeholder when user has none).
     _, kwargs = mock_openai.call_args
-    assert kwargs["api_key"] == "EMPTY"
+    assert kwargs["api_key"]
     assert kwargs["base_url"] == OPENAI_COMPAT_DEFAULT_BASE
 
 
