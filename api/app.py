@@ -13,6 +13,7 @@ from starlette.types import Receive, Scope, Send
 
 from config.logging_config import configure_logging
 from config.settings import get_settings
+from fastapi.middleware.gzip import GZipMiddleware
 from core.trace import extract_claude_session_id_from_headers, trace_event
 from providers.exceptions import ProviderError
 
@@ -97,6 +98,36 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
     if lifespan_enabled:
         app_kwargs["lifespan"] = lifespan
     app = FastAPI(**app_kwargs)
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # Pre-calculated security headers (Optimization: ⚡ 1-10)
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Download-Options": "noopen",
+        "X-Permitted-Cross-Domain-Policies": "none",
+        "X-DNS-Prefetch-Control": "off",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Resource-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "Permissions-Policy": "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+        "Content-Security-Policy": (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "form-action 'self'; "
+            "base-uri 'self';"
+        ),
+    }
+
+    # Global rate limiters (per-instance)
 
     # Global rate limiters (per-instance)
     # Admin UI: 60 requests per minute
@@ -117,44 +148,9 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
 
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):
-        """Add standard security headers to all responses."""
+        """Add pre-calculated security headers to all responses (⚡ Bolt Optimization)."""
         response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "SAMEORIGIN"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["X-Download-Options"] = "noopen"
-        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
-        response.headers["X-DNS-Prefetch-Control"] = "off"
-        
-        # HSTS: 2 years, include subdomains, preload
-        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
-        
-        # COOP, CORP, COEP for cross-origin isolation
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-        
-        # Permissions Policy: Disable sensitive features by default
-        permissions = (
-            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
-            "magnetometer=(), microphone=(), payment=(), usb=()"
-        )
-        response.headers["Permissions-Policy"] = permissions
-        
-        # CSP: Allow self, Google Fonts, and data URIs for icons
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none'; "
-            "form-action 'self'; "
-            "base-uri 'self';"
-        )
-        response.headers["Content-Security-Policy"] = csp
+        response.headers.update(SECURITY_HEADERS)
         return response
 
     @app.middleware("http")

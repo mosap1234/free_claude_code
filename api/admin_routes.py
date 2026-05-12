@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from functools import lru_cache
+
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -54,7 +56,9 @@ class AdminConfigPayload(BaseModel):
         return self
 
 
+@lru_cache(maxsize=128)
 def _is_loopback_host(host: str | None) -> bool:
+    """Cached loopback detection (⚡ Bolt Optimization)."""
     if host is None:
         return False
     normalized = host.strip().strip("[]").lower()
@@ -94,11 +98,17 @@ def require_loopback_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Admin UI is local-only")
 
 
+# Pre-resolve static dir (⚡ Bolt Optimization)
+STATIC_DIR_RESOLVED = STATIC_DIR.resolve()
+_ASSET_CACHE: dict[str, Path] = {}
+
 def _asset_response(filename: str) -> FileResponse:
-    path = STATIC_DIR / filename
-    if not path.is_file():
-        raise HTTPException(status_code=404, detail="Admin asset not found")
-    return FileResponse(path)
+    if filename not in _ASSET_CACHE:
+        path = (STATIC_DIR_RESOLVED / filename).resolve()
+        if not path.is_file() or STATIC_DIR_RESOLVED not in path.parents:
+            raise HTTPException(status_code=404, detail="Admin asset not found")
+        _ASSET_CACHE[filename] = path
+    return FileResponse(_ASSET_CACHE[filename])
 
 
 @router.get("/admin", include_in_schema=False)

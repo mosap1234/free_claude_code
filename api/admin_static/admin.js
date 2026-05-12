@@ -87,27 +87,40 @@ function updateHeader(status) {
 
 function renderNav(sections) {
   const nav = byId("sectionNav");
-  nav.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  
   sections.forEach((section, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `nav-link${index === 0 ? " active" : ""}`;
     button.textContent = section.label;
+    button.dataset.section = section.id;
     button.style.animation = `slide-up 0.4s ease-out both ${index * 0.05}s`;
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".nav-link").forEach((link) => {
-        link.classList.remove("active");
-      });
-      button.classList.add("active");
-      byId(`section-${section.id}`).scrollIntoView({ behavior: "smooth" });
+    fragment.appendChild(button);
+  });
+
+  nav.innerHTML = "";
+  nav.appendChild(fragment);
+
+  // Use event delegation for navigation (⚡ Bolt Optimization: 41-50)
+  nav.addEventListener("click", (e) => {
+    const btn = e.target.closest(".nav-link");
+    if (!btn) return;
+    
+    document.querySelectorAll(".nav-link").forEach((link) => {
+      link.classList.remove("active");
     });
-    nav.appendChild(button);
+    btn.classList.add("active");
+    
+    const sectionId = btn.dataset.section;
+    byId(`section-${sectionId}`).scrollIntoView({ behavior: "smooth" });
   });
 }
 
 function renderProviders(providerStatus) {
   const grid = byId("providerGrid");
-  grid.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+  
   providerStatus.forEach((provider, index) => {
     const card = document.createElement("article");
     card.className = "provider-card";
@@ -139,8 +152,11 @@ function renderProviders(providerStatus) {
     button.addEventListener("click", () => testProvider(provider.provider_id, button));
 
     card.append(title, meta, button);
-    grid.appendChild(card);
+    fragment.appendChild(card);
   });
+  
+  grid.innerHTML = "";
+  grid.appendChild(fragment);
 }
 
 function updateProviderCard(providerId, status, label, metaText) {

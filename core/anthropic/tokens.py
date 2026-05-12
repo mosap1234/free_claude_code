@@ -7,12 +7,15 @@ from loguru import logger
 
 from .content import get_block_attr
 
+from functools import lru_cache
+
 ENCODER = tiktoken.get_encoding("cl100k_base")
 
 _DISALLOWED_SPECIAL: tuple[str, ...] = ()
 
-
+@lru_cache(maxsize=1024)
 def _count_text_tokens(text: str) -> int:
+    """Cached token count (⚡ Bolt Optimization: 31-40)."""
     return len(ENCODER.encode(text, disallowed_special=_DISALLOWED_SPECIAL))
 
 

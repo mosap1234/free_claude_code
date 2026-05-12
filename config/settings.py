@@ -47,13 +47,15 @@ def _configured_env_files(model_config: Mapping[str, Any]) -> tuple[Path, ...]:
     return tuple(Path(item) for item in configured)
 
 
+@lru_cache(maxsize=128)
 def _env_file_contains_key(path: Path, key: str) -> bool:
-    """Check whether a dotenv-style file defines the given key."""
+    """Cached dotenv key presence check (⚡ Bolt Optimization)."""
     return _env_file_value(path, key) is not None
 
 
+@lru_cache(maxsize=128)
 def _env_file_value(path: Path, key: str) -> str | None:
-    """Return a dotenv value when the file explicitly defines the key."""
+    """Cached dotenv value lookup (⚡ Bolt Optimization: 61-70)."""
     if not path.is_file():
         return None
 
@@ -154,7 +156,7 @@ class Settings(BaseSettings):
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name
-    model: str = "nvidia_nim/z-ai/glm4.7"
+    model: str = "nvidia_nim/minimaxai/minimax-m2.7"
 
     # Per-model overrides (optional, falls back to MODEL)
     # Each can use a different provider
