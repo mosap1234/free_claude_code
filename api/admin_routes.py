@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from config.settings import Settings
 from config.settings import get_settings as get_cached_settings
@@ -41,6 +41,18 @@ class AdminConfigPayload(BaseModel):
 
     values: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def validate_payload_size(self) -> AdminConfigPayload:
+        """Prevent excessively large config payloads."""
+        if len(self.values) > 200:
+            raise HTTPException(status_code=400, detail="Too many config fields")
+        for key, value in self.values.items():
+            if len(str(key)) > 128:
+                raise HTTPException(status_code=400, detail="Config key too long")
+            if len(str(value)) > 8192:
+                raise HTTPException(status_code=400, detail=f"Value for {key} too long")
+        return self
+
 
 def _is_loopback_host(host: str | None) -> bool:
     if host is None:
@@ -63,6 +75,11 @@ def _origin_is_local(origin: str | None) -> bool:
 
 def require_loopback_admin(request: Request) -> None:
     """Allow admin access only from the local machine."""
+
+    # Block access if behind a proxy that might spoof IPs
+    if request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip"):
+        # Even if the proxy is local, we don't want to trust forwarded headers for admin
+        raise HTTPException(status_code=403, detail="Admin UI is local-only")
 
     client_host = request.client.host if request.client else None
     if not _is_loopback_host(client_host):

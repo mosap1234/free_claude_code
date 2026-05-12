@@ -105,6 +105,10 @@ class CLISession:
         Yields:
             Event dictionaries from the CLI
         """
+        if len(prompt) > 120_000:
+            logger.warning("Prompt too long ({} chars), truncating", len(prompt))
+            prompt = prompt[:120_000]
+
         async with self._cli_lock:
             self._is_busy = True
             env = os.environ.copy()

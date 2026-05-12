@@ -20,6 +20,8 @@ from .admin_routes import router as admin_router
 from .routes import router
 from .runtime import AppRuntime, startup_failure_message
 from .validation_log import summarize_request_validation_body
+from .admin_routes import STATIC_DIR
+from core.rate_limit import StrictSlidingWindowLimiter
 
 
 @asynccontextmanager
@@ -96,6 +98,65 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
         app_kwargs["lifespan"] = lifespan
     app = FastAPI(**app_kwargs)
 
+    # Global rate limiters (per-instance)
+    # Admin UI: 60 requests per minute
+    admin_limiter = StrictSlidingWindowLimiter(60, 60.0)
+    # Main API: 120 requests per minute
+    api_limiter = StrictSlidingWindowLimiter(120, 60.0)
+
+    @app.middleware("http")
+    async def rate_limit_middleware(request: Request, call_next):
+        """Apply rate limiting to sensitive routes."""
+        if request.url.path.startswith("/admin/api"):
+            async with admin_limiter:
+                return await call_next(request)
+        if request.url.path.startswith("/v1"):
+            async with api_limiter:
+                return await call_next(request)
+        return await call_next(request)
+
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next):
+        """Add standard security headers to all responses."""
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-Download-Options"] = "noopen"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        response.headers["X-DNS-Prefetch-Control"] = "off"
+        
+        # HSTS: 2 years, include subdomains, preload
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+        
+        # COOP, CORP, COEP for cross-origin isolation
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        
+        # Permissions Policy: Disable sensitive features by default
+        permissions = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+        response.headers["Permissions-Policy"] = permissions
+        
+        # CSP: Allow self, Google Fonts, and data URIs for icons
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "form-action 'self'; "
+            "base-uri 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp
+        return response
+
     @app.middleware("http")
     async def trace_http_correlation(request: Request, call_next):
         """Attach HTTP identifiers and optional Claude session id to logs."""
@@ -111,6 +172,13 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
     # Register routes
     app.include_router(admin_router)
     app.include_router(router)
+
+    @app.get("/.well-known/security.txt", include_in_schema=False)
+    @app.get("/security.txt", include_in_schema=False)
+    async def security_txt():
+        """Serve RFC 9116 security.txt."""
+        path = STATIC_DIR / "security.txt"
+        return FileResponse(path, media_type="text/plain")
 
     # Exception handlers
     @app.exception_handler(RequestValidationError)

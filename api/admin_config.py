@@ -1000,6 +1000,11 @@ def write_managed_env(updates: Mapping[str, Any]) -> dict[str, Any]:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(path.suffix + ".tmp")
     temp_path.write_text(render_env_file(target_values), encoding="utf-8")
+    try:
+        # Set permissions to 0600 (owner read/write only) where supported.
+        os.chmod(temp_path, 0o600)
+    except Exception:
+        pass
     os.replace(temp_path, path)
     return {
         "applied": True,
