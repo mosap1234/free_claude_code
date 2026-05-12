@@ -1,16 +1,18 @@
-
 import pytest
 from fastapi.testclient import TestClient
+
 from api.app import create_app
+
 
 @pytest.fixture
 def client():
     app = create_app(lifespan_enabled=False)
     return TestClient(app)
 
+
 def test_security_headers(client):
     response = client.get("/")  # Any route works
-    
+
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
     assert response.headers["X-XSS-Protection"] == "1; mode=block"
@@ -23,7 +25,7 @@ def test_security_headers(client):
     assert response.headers["Cross-Origin-Resource-Policy"] == "same-origin"
     assert response.headers["Cross-Origin-Embedder-Policy"] == "require-corp"
     assert "accelerometer=()" in response.headers["Permissions-Policy"]
-    
+
     assert "Content-Security-Policy" in response.headers
     csp = response.headers["Content-Security-Policy"]
     assert "default-src 'self'" in csp

@@ -192,10 +192,19 @@ class Settings(BaseSettings):
     enable_haiku_thinking: bool | None = Field(
         default=None, validation_alias="ENABLE_HAIKU_THINKING"
     )
+    default_thinking_type: str = Field(
+        default="adaptive", validation_alias="DEFAULT_THINKING_TYPE"
+    )
+    default_thinking_display_mode: str = Field(
+        default="summarized", validation_alias="DEFAULT_THINKING_DISPLAY_MODE"
+    )
+    default_reasoning_effort: str = Field(
+        default="medium", validation_alias="DEFAULT_REASONING_EFFORT"
+    )
 
     # ==================== HTTP Client Timeouts ====================
     http_read_timeout: float = Field(
-        default=600.0, validation_alias="HTTP_READ_TIMEOUT"
+        default=1800.0, validation_alias="HTTP_READ_TIMEOUT"
     )
     http_write_timeout: float = Field(
         default=10.0, validation_alias="HTTP_WRITE_TIMEOUT"

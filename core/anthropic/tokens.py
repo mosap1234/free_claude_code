@@ -1,17 +1,17 @@
 """Token estimation for Anthropic-compatible requests."""
 
 import json
+from functools import lru_cache
 
 import tiktoken
 from loguru import logger
 
 from .content import get_block_attr
 
-from functools import lru_cache
-
 ENCODER = tiktoken.get_encoding("cl100k_base")
 
 _DISALLOWED_SPECIAL: tuple[str, ...] = ()
+
 
 @lru_cache(maxsize=1024)
 def _count_text_tokens(text: str) -> int:

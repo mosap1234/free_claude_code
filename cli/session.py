@@ -111,16 +111,18 @@ class CLISession:
 
         async with self._cli_lock:
             self._is_busy = True
-            
+
             # Efficient env creation (⚡ Bolt Optimization: 21-30)
             env = dict(os.environ)
-            env.update({
-                "ANTHROPIC_API_KEY": "sk-placeholder-key-for-proxy",
-                "ANTHROPIC_API_URL": self.api_url,
-                "TERM": "dumb",
-                "PYTHONIOENCODING": "utf-8",
-            })
-            
+            env.update(
+                {
+                    "ANTHROPIC_API_KEY": "sk-placeholder-key-for-proxy",
+                    "ANTHROPIC_API_URL": self.api_url,
+                    "TERM": "dumb",
+                    "PYTHONIOENCODING": "utf-8",
+                }
+            )
+
             if self.api_url.endswith("/v1"):
                 env["ANTHROPIC_BASE_URL"] = self.api_url[:-3]
             else:

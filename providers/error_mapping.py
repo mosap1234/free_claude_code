@@ -61,7 +61,15 @@ def map_error(
                 raw_error=str(e),
             )
         return APIError(message, status_code=500, raw_error=str(e))
-    if isinstance(e, (openai.APITimeoutError, httpx.ReadTimeout, httpx.WriteTimeout, httpx.ConnectTimeout)):
+    if isinstance(
+        e,
+        (
+            openai.APITimeoutError,
+            httpx.ReadTimeout,
+            httpx.WriteTimeout,
+            httpx.ConnectTimeout,
+        ),
+    ):
         # Return as-is; user_visible_message_for_mapped_provider_error will format correctly
         return e
 

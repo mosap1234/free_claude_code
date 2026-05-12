@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import inspect
 import ipaddress
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
-
-from functools import lru_cache
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
@@ -101,6 +100,7 @@ def require_loopback_admin(request: Request) -> None:
 # Pre-resolve static dir (⚡ Bolt Optimization)
 STATIC_DIR_RESOLVED = STATIC_DIR.resolve()
 _ASSET_CACHE: dict[str, Path] = {}
+
 
 def _asset_response(filename: str) -> FileResponse:
     if filename not in _ASSET_CACHE:

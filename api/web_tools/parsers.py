@@ -95,6 +95,7 @@ def content_text(content: Any) -> str:
 QUERY_RE = re.compile(r"query:\s*(.+)", flags=re.IGNORECASE | re.DOTALL)
 URL_RE = re.compile(r"https?://\S+")
 
+
 def extract_query(text: str) -> str:
     """Cached regex search for query (⚡ Bolt Optimization: 79-85)."""
     match = QUERY_RE.search(text)

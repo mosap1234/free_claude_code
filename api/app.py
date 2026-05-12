@@ -7,22 +7,23 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from loguru import logger
 from starlette.types import Receive, Scope, Send
 
 from config.logging_config import configure_logging
 from config.settings import get_settings
-from fastapi.middleware.gzip import GZipMiddleware
+from core.rate_limit import StrictSlidingWindowLimiter
 from core.trace import extract_claude_session_id_from_headers, trace_event
 from providers.exceptions import ProviderError
 
+from .admin_routes import STATIC_DIR
 from .admin_routes import router as admin_router
 from .routes import router
 from .runtime import AppRuntime, startup_failure_message
+from .services import _log_unexpected_service_exception
 from .validation_log import summarize_request_validation_body
-from .admin_routes import STATIC_DIR
-from core.rate_limit import StrictSlidingWindowLimiter
 
 
 @asynccontextmanager
@@ -136,34 +137,50 @@ def create_app(*, lifespan_enabled: bool = True) -> FastAPI:
     api_limiter = StrictSlidingWindowLimiter(120, 60.0)
 
     @app.middleware("http")
-    async def rate_limit_middleware(request: Request, call_next):
-        """Apply rate limiting to sensitive routes."""
-        if request.url.path.startswith("/admin/api"):
-            async with admin_limiter:
-                return await call_next(request)
-        if request.url.path.startswith("/v1"):
-            async with api_limiter:
-                return await call_next(request)
-        return await call_next(request)
+    async def unified_middleware(request: Request, call_next):
+        """Unified middleware for rate limiting, security, and tracing (⚡ Bolt Optimization).
 
-    @app.middleware("http")
-    async def add_security_headers(request: Request, call_next):
-        """Add pre-calculated security headers to all responses (⚡ Bolt Optimization)."""
-        response = await call_next(request)
-        response.headers.update(SECURITY_HEADERS)
-        return response
-
-    @app.middleware("http")
-    async def trace_http_correlation(request: Request, call_next):
-        """Attach HTTP identifiers and optional Claude session id to logs."""
+        Consolidating multiple middlewares into one reduces TaskGroup overhead and avoids
+        Starlette's 'No response returned' RuntimeError in complex middleware stacks.
+        """
         claude_sid = extract_claude_session_id_from_headers(request.headers)
+
+        async def handle_request():
+            # 1. Rate Limiting
+            if request.url.path.startswith("/admin/api"):
+                async with admin_limiter:
+                    return await call_next(request)
+            if request.url.path.startswith("/v1"):
+                async with api_limiter:
+                    return await call_next(request)
+            return await call_next(request)
+
         with logger.contextualize(
             http_method=request.method,
             http_path=request.url.path,
             claude_session_id=claude_sid,
         ):
-            response = await call_next(request)
-        return response
+            try:
+                response = await handle_request()
+            except Exception as e:
+                # Ensure we always return a response even if inner handlers crash
+                _log_unexpected_service_exception(
+                    settings, e, context="MIDDLEWARE_ERROR"
+                )
+                response = JSONResponse(
+                    status_code=500,
+                    content={
+                        "type": "error",
+                        "error": {
+                            "message": "Internal Server Error",
+                            "type": "api_error",
+                        },
+                    },
+                )
+
+            # 2. Security Headers
+            response.headers.update(SECURITY_HEADERS)
+            return response
 
     # Register routes
     app.include_router(admin_router)

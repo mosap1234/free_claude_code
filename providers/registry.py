@@ -367,7 +367,7 @@ class ProviderRegistry:
             results = await asyncio.wait_for(
                 asyncio.gather(*tasks.values(), return_exceptions=True), timeout=30.0
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             for task in tasks.values():
                 task.cancel()
             logger.warning("Provider model discovery timed out (30s)")
@@ -408,17 +408,20 @@ class ProviderRegistry:
         if tasks:
             try:
                 results = await asyncio.wait_for(
-                    asyncio.gather(*tasks.values(), return_exceptions=True), timeout=30.0
+                    asyncio.gather(*tasks.values(), return_exceptions=True),
+                    timeout=30.0,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 for task in tasks.values():
                     task.cancel()
-                failures.extend(
-                    _format_provider_query_failures(
-                        refs_by_provider[pid], TimeoutError("Validation timed out (30s)"), settings
+                for pid in tasks:
+                    failures.extend(
+                        _format_provider_query_failures(
+                            refs_by_provider[pid],
+                            TimeoutError("Validation timed out (30s)"),
+                            settings,
+                        )
                     )
-                    for pid in tasks
-                )
                 results = []
 
             for (provider_id, _task), result in zip(

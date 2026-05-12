@@ -25,10 +25,12 @@ def gateway_model_id(provider_model_ref: str) -> str:
     """Cached normal Claude model id (⚡ Bolt Optimization: 71-75)."""
     return f"{GATEWAY_MODEL_ID_PREFIX}/{provider_model_ref}"
 
+
 @lru_cache(maxsize=256)
 def no_thinking_gateway_model_id(provider_model_ref: str) -> str:
     """Cached no-thinking Claude model id (⚡ Bolt Optimization)."""
     return f"{NO_THINKING_GATEWAY_MODEL_ID_PREFIX}/{provider_model_ref}"
+
 
 @lru_cache(maxsize=512)
 def decode_gateway_model_id(model_name: str) -> DecodedGatewayModelId | None:

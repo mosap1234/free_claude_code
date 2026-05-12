@@ -24,6 +24,8 @@ _REQUEST_FIELDS = (
     "tools",
     "tool_choice",
     "thinking",
+    "effort",
+    "task_budget",
     "context_management",
     "output_config",
     "mcp_servers",
@@ -226,10 +228,15 @@ def build_base_native_anthropic_request_body(
     if "thinking" in body:
         thinking_cfg = body.pop("thinking")
         if thinking_enabled and isinstance(thinking_cfg, dict):
-            thinking_payload: dict[str, Any] = {"type": "enabled"}
+            thinking_payload: dict[str, Any] = {
+                "type": thinking_cfg.get("type") or "enabled"
+            }
             budget_tokens = thinking_cfg.get("budget_tokens")
             if isinstance(budget_tokens, int):
                 thinking_payload["budget_tokens"] = budget_tokens
+            display = thinking_cfg.get("display")
+            if isinstance(display, str):
+                thinking_payload["display"] = display
             body["thinking"] = thinking_payload
 
     if "max_tokens" not in body:
