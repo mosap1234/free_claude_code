@@ -92,7 +92,7 @@ class OpenAIChatTransport(BaseProvider):
         self._client = AsyncOpenAI(
             api_key=self._api_key,
             base_url=self._base_url,
-            max_retries=0,
+            max_retries=2,
             timeout=httpx.Timeout(
                 config.http_read_timeout,
                 connect=config.http_connect_timeout,

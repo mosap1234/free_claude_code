@@ -22,3 +22,8 @@
 **Vulnerability:** Excessively large prompts could crash the `claude` binary or consume all system memory.
 **Learning:** Subprocess arguments have limits, and large strings can cause significant latency.
 **Prevention:** Added a 120KB limit to prompts before spawning the CLI session.
+
+## 2026-05-12 - Availability: Resilience Against Upstream Timeout Stalls
+**Vulnerability:** Upstream API stalls (e.g. Nvidia NIM) can cause local server hangs, leading to resource exhaustion or denial of service for the CLI client.
+**Learning:** Relying on default HTTP timeouts (120s) for AI inference is insufficient for large-context tasks. Unhandled stalls block concurrency slots.
+**Prevention:** Increased global read timeouts to 600s and implemented proactive retries for timeout exceptions to ensure service availability during upstream instability.
