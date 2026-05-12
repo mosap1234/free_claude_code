@@ -151,6 +151,15 @@ class Settings(BaseSettings):
         validation_alias="OLLAMA_BASE_URL",
     )
 
+    # ==================== Generic OpenAI-compatible Config ====================
+    openai_compat_api_key: str = Field(
+        default="", validation_alias="OPENAI_COMPAT_API_KEY"
+    )
+    openai_compat_base_url: str = Field(
+        default="http://localhost:8000/v1",
+        validation_alias="OPENAI_COMPAT_BASE_URL",
+    )
+
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name
@@ -169,6 +178,9 @@ class Settings(BaseSettings):
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
     wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
+    openai_compat_proxy: str = Field(
+        default="", validation_alias="OPENAI_COMPAT_PROXY"
+    )
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

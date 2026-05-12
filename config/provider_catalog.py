@@ -23,6 +23,7 @@ OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1"
 LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
+OPENAI_COMPAT_DEFAULT_BASE = "http://localhost:8000/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +113,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="kimi_api_key",
         default_base_url=KIMI_DEFAULT_BASE,
         proxy_attr="kimi_proxy",
+        capabilities=("chat", "streaming", "tools"),
+    ),
+    "openai_compat": ProviderDescriptor(
+        provider_id="openai_compat",
+        transport_type="openai_chat",
+        credential_env="OPENAI_COMPAT_API_KEY",
+        credential_attr="openai_compat_api_key",
+        default_base_url=OPENAI_COMPAT_DEFAULT_BASE,
+        base_url_attr="openai_compat_base_url",
+        proxy_attr="openai_compat_proxy",
         capabilities=("chat", "streaming", "tools"),
     ),
     "wafer": ProviderDescriptor(
