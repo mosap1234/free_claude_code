@@ -2,20 +2,23 @@
 
 Use this for any local or hosted server that exposes the OpenAI
 ``/v1/chat/completions`` API (vLLM, SGLang, TGI, LiteLLM, LocalAI, etc.).
-Configure via ``OPENAI_COMPAT_BASE_URL`` and ``OPENAI_COMPAT_API_KEY``.
+Configure via ``OPENAI_COMPAT_BASE_URL`` and (optionally) ``OPENAI_COMPAT_API_KEY``.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from core.anthropic import build_base_request_body
+from core.anthropic import ReasoningReplayMode, build_base_request_body
 from core.anthropic.conversion import OpenAIConversionError
 from providers.base import ProviderConfig
+from providers.defaults import OPENAI_COMPAT_DEFAULT_BASE
 from providers.exceptions import InvalidRequestError
 from providers.openai_compat import OpenAIChatTransport
 
-OPENAI_COMPAT_DEFAULT_BASE = "http://localhost:8000/v1"
+# AsyncOpenAI rejects empty/None api_key; many local OpenAI-compatible servers
+# (vLLM, llama.cpp, etc.) ignore the value entirely.
+_OPENAI_COMPAT_PLACEHOLDER_KEY = "EMPTY"
 
 
 class OpenAICompatProvider(OpenAIChatTransport):
@@ -26,13 +29,19 @@ class OpenAICompatProvider(OpenAIChatTransport):
             config,
             provider_name="OPENAI_COMPAT",
             base_url=config.base_url or OPENAI_COMPAT_DEFAULT_BASE,
-            api_key=config.api_key,
+            api_key=config.api_key or _OPENAI_COMPAT_PLACEHOLDER_KEY,
         )
 
     def _build_request_body(
         self, request: Any, thinking_enabled: bool | None = None
     ) -> dict:
+        thinking_on = self._is_thinking_enabled(request, thinking_enabled)
         try:
-            return build_base_request_body(request)
+            return build_base_request_body(
+                request,
+                reasoning_replay=ReasoningReplayMode.REASONING_CONTENT
+                if thinking_on
+                else ReasoningReplayMode.DISABLED,
+            )
         except OpenAIConversionError as exc:
             raise InvalidRequestError(str(exc)) from exc

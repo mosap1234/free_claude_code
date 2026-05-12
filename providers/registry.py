@@ -229,6 +229,15 @@ def _model_list_provider_ids_for_settings(settings: Settings) -> tuple[str, ...]
             and _credential_for(descriptor, settings).strip()
         ):
             provider_ids.append(provider_id)
+            continue
+        # Optional-credential providers (e.g. openai_compat targeting a local
+        # server): only discover when the user has explicitly referenced them.
+        if (
+            descriptor.credential_env is None
+            and descriptor.credential_attr is not None
+            and provider_id in referenced_provider_ids
+        ):
+            provider_ids.append(provider_id)
     return tuple(provider_ids)
 
 

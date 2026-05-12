@@ -118,7 +118,9 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
     "openai_compat": ProviderDescriptor(
         provider_id="openai_compat",
         transport_type="openai_chat",
-        credential_env="OPENAI_COMPAT_API_KEY",
+        # API key intentionally optional: many local OpenAI-compatible servers
+        # (vLLM, llama.cpp, LocalAI, ...) accept requests without one. Users
+        # can still supply ``OPENAI_COMPAT_API_KEY`` for hosted endpoints.
         credential_attr="openai_compat_api_key",
         default_base_url=OPENAI_COMPAT_DEFAULT_BASE,
         base_url_attr="openai_compat_base_url",
