@@ -68,6 +68,10 @@ def require_loopback_admin(request: Request) -> None:
     if not _is_loopback_host(client_host):
         raise HTTPException(status_code=403, detail="Admin UI is local-only")
 
+    # Prevent DNS rebinding attacks by verifying the Host header
+    if not _is_loopback_host(request.url.hostname):
+        raise HTTPException(status_code=403, detail="Admin UI is local-only")
+
     origin = request.headers.get("origin")
     if not _origin_is_local(origin):
         raise HTTPException(status_code=403, detail="Admin UI is local-only")
