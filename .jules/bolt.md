@@ -14,3 +14,7 @@
 1. Increased default HTTP_READ_TIMEOUT to 600s across all providers.
 2. Modified GlobalRateLimiter to treat httpx.TimeoutException and openai.APITimeoutError as retryable events (Status 408).
 3. Increased SDK max_retries to 2 in OpenAIChatTransport to handle transient connection resets.
+
+## 2024-05-25 - Avoid redundant property lookups in high-frequency loops
+**Learning:** Repeated calls to helpers like `hasattr` and `isinstance` inside tight loops (like token counting over thousands of blocks) cause significant overhead. `hasattr` internally executes `getattr` which doubles property access time.
+**Action:** Use `getattr(obj, attr, default)` directly instead of `hasattr`, and when processing lists of mixed types (dicts vs objects), cache the `is_dict = isinstance(obj, dict)` check once per element before accessing its attributes.
