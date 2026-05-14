@@ -92,6 +92,18 @@ def _create_zai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     return ZaiProvider(config)
 
 
+def _create_astraflow(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.astraflow import AstraflowProvider
+
+    return AstraflowProvider(config)
+
+
+def _create_astraflow_cn(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.astraflow import AstraflowCNProvider
+
+    return AstraflowCNProvider(config)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -103,6 +115,8 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "wafer": _create_wafer,
     "opencode": _create_opencode,
     "zai": _create_zai,
+    "astraflow": _create_astraflow,
+    "astraflow_cn": _create_astraflow_cn,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
