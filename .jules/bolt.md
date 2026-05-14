@@ -14,3 +14,7 @@
 1. Increased default HTTP_READ_TIMEOUT to 600s across all providers.
 2. Modified GlobalRateLimiter to treat httpx.TimeoutException and openai.APITimeoutError as retryable events (Status 408).
 3. Increased SDK max_retries to 2 in OpenAIChatTransport to handle transient connection resets.
+
+## 2024-05-25 - Avoid hasattr() in High-Frequency Loops
+**Learning:** `hasattr()` in Python carries hidden overhead because it internally calls `getattr()` and catches an `AttributeError` if the attribute doesn't exist. In high-frequency paths (like counting tokens across thousands of content blocks), this exception handling slows things down significantly.
+**Action:** Replace `hasattr(obj, attr)` + `getattr(obj, attr)` with a single `getattr(obj, attr, default)`. For mixed data types, check `isinstance(obj, dict)` first to avoid raising `AttributeError` under the hood on standard dictionary accesses.
