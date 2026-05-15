@@ -97,11 +97,11 @@ async def test_cleanup_provider():
 
         provider = get_provider()
         assert isinstance(provider, NvidiaNimProvider)
-        provider._client = AsyncMock()
+        provider._clients = [AsyncMock()]
 
         await cleanup_provider()
 
-        provider._client.close.assert_called_once()
+        provider._clients[0].close.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -382,8 +382,9 @@ async def test_cleanup_provider_close_raises():
 
         provider = get_provider()
         assert isinstance(provider, NvidiaNimProvider)
-        provider._client = AsyncMock()
-        provider._client.close = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+        mock_client = AsyncMock()
+        mock_client.close = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+        provider._clients = [mock_client]
 
         # Should propagate the error
         with pytest.raises(RuntimeError, match="cleanup failed"):
@@ -445,12 +446,12 @@ async def test_cleanup_provider_cleans_all():
         assert isinstance(nim, NvidiaNimProvider)
         assert isinstance(lmstudio, LMStudioProvider)
 
-        nim._client = AsyncMock()
+        nim._clients = [AsyncMock()]
         lmstudio._client = AsyncMock()
 
         await cleanup_provider()
 
-        nim._client.close.assert_called_once()
+        nim._clients[0].close.assert_called_once()
         lmstudio._client.aclose.assert_called_once()
 
 
