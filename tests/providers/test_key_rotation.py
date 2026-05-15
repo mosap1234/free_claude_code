@@ -57,9 +57,7 @@ class TestKeyRotator:
 
     def test_round_robin_three_keys(self) -> None:
         rotator = KeyRotator(["a", "b", "c"])
-        assert [rotator.next_key() for _ in range(6)] == [
-            "a", "b", "c", "a", "b", "c"
-        ]
+        assert [rotator.next_key() for _ in range(6)] == ["a", "b", "c", "a", "b", "c"]
 
     def test_primary_key(self) -> None:
         rotator = KeyRotator(["key1", "key2", "key3"])

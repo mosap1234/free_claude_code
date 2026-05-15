@@ -14,7 +14,6 @@ from typing import Any
 import httpx
 from loguru import logger
 from openai import AsyncOpenAI
-from providers.key_rotation import KeyRotator
 
 from core.anthropic import (
     ContentType,
@@ -30,6 +29,7 @@ from providers.error_mapping import (
     map_error,
     user_visible_message_for_mapped_provider_error,
 )
+from providers.key_rotation import KeyRotator
 from providers.model_listing import extract_openai_model_ids
 from providers.rate_limit import GlobalRateLimiter
 

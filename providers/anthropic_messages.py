@@ -29,6 +29,7 @@ from providers.error_mapping import (
     user_visible_message_for_mapped_provider_error,
 )
 from providers.exceptions import ModelListResponseError
+from providers.key_rotation import KeyRotator
 from providers.model_listing import (
     ProviderModelInfo,
     extract_openai_model_ids,
@@ -77,9 +78,7 @@ class AnthropicMessagesTransport(BaseProvider):
         self._api_keys = config.api_keys or [config.api_key]
         self._key_rotator: KeyRotator | None = None
         if len(self._api_keys) > 1:
-            from providers.key_rotation import KeyRotator as _KR
-
-            self._key_rotator = _KR(self._api_keys)
+            self._key_rotator = KeyRotator(self._api_keys)
             logger.info(
                 "{}_ROTATION: {} API keys configured for round-robin",
                 provider_name,
