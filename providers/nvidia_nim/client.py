@@ -30,6 +30,7 @@ class NvidiaNimProvider(OpenAIChatTransport):
             provider_name="NIM",
             base_url=config.base_url or NVIDIA_NIM_DEFAULT_BASE,
             api_key=config.api_key,
+            api_keys=config.api_keys,
         )
         self._nim_settings = nim_settings
 

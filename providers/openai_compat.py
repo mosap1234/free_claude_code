@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 from loguru import logger
 from openai import AsyncOpenAI
+from providers.key_rotation import KeyRotator
 
 from core.anthropic import (
     ContentType,
@@ -67,10 +68,20 @@ class OpenAIChatTransport(BaseProvider):
         provider_name: str,
         base_url: str,
         api_key: str,
+        api_keys: list[str] | None = None,
     ):
         super().__init__(config)
         self._provider_name = provider_name
-        self._api_key = api_key
+
+        # Multi-key rotation support: create one AsyncOpenAI client per key
+        # so requests are distributed across keys via round-robin.
+        parsed_keys = api_keys or [api_key]
+        if not parsed_keys:
+            parsed_keys = [api_key]
+        self._api_keys = parsed_keys
+        self._api_key = parsed_keys[0]  # backward compat / primary key
+        self._key_rotator = KeyRotator(parsed_keys)
+
         self._base_url = base_url.rstrip("/")
         self._global_rate_limiter = GlobalRateLimiter.get_scoped_instance(
             provider_name.lower(),
@@ -78,35 +89,55 @@ class OpenAIChatTransport(BaseProvider):
             rate_window=config.rate_window,
             max_concurrency=config.max_concurrency,
         )
-        http_client = None
-        if config.proxy:
-            http_client = httpx.AsyncClient(
-                proxy=config.proxy,
-                timeout=httpx.Timeout(
-                    config.http_read_timeout,
-                    connect=config.http_connect_timeout,
-                    read=config.http_read_timeout,
-                    write=config.http_write_timeout,
-                ),
+
+        # Build one client per API key for true multi-key rotation.
+        self._clients: list[AsyncOpenAI] = []
+        for key in parsed_keys:
+            http_client = None
+            if config.proxy:
+                http_client = httpx.AsyncClient(
+                    proxy=config.proxy,
+                    timeout=httpx.Timeout(
+                        config.http_read_timeout,
+                        connect=config.http_connect_timeout,
+                        read=config.http_read_timeout,
+                        write=config.http_write_timeout,
+                    ),
+                )
+            self._clients.append(
+                AsyncOpenAI(
+                    api_key=key,
+                    base_url=self._base_url,
+                    max_retries=0,
+                    timeout=httpx.Timeout(
+                        config.http_read_timeout,
+                        connect=config.http_connect_timeout,
+                        read=config.http_read_timeout,
+                        write=config.http_write_timeout,
+                    ),
+                    http_client=http_client,
+                )
             )
-        self._client = AsyncOpenAI(
-            api_key=self._api_key,
-            base_url=self._base_url,
-            max_retries=0,
-            timeout=httpx.Timeout(
-                config.http_read_timeout,
-                connect=config.http_connect_timeout,
-                read=config.http_read_timeout,
-                write=config.http_write_timeout,
-            ),
-            http_client=http_client,
-        )
+        # Primary client used for model listing and other non-rotated calls.
+        self._client = self._clients[0]
+
+        if len(parsed_keys) > 1:
+            logger.info(
+                "{}_ROTATION: {} API keys configured for round-robin",
+                provider_name,
+                len(parsed_keys),
+            )
+
+    def _next_client(self) -> AsyncOpenAI:
+        """Return the next AsyncOpenAI client in round-robin order."""
+        index = next(self._key_rotator._counter) % len(self._clients)
+        return self._clients[index]
 
     async def cleanup(self) -> None:
-        """Release HTTP client resources."""
-        client = getattr(self, "_client", None)
-        if client is not None:
+        """Release HTTP client resources for all clients in the pool."""
+        for client in self._clients:
             await client.close()
+        self._clients.clear()
 
     async def list_model_ids(self) -> frozenset[str]:
         """Return model ids from the provider's OpenAI-compatible models endpoint."""
@@ -138,11 +169,16 @@ class OpenAIChatTransport(BaseProvider):
         return {}
 
     async def _create_stream(self, body: dict) -> tuple[Any, dict]:
-        """Create a streaming chat completion, optionally retrying once."""
+        """Create a streaming chat completion, optionally retrying once.
+
+        Uses round-robin key rotation: each call picks the next client
+        from the pool so requests are distributed across API keys.
+        """
+        client = self._next_client()
         try:
             create_body = self._prepare_create_body(body)
             stream = await self._global_rate_limiter.execute_with_retry(
-                self._client.chat.completions.create, **create_body, stream=True
+                client.chat.completions.create, **create_body, stream=True
             )
             return stream, body
         except Exception as error:
@@ -152,7 +188,7 @@ class OpenAIChatTransport(BaseProvider):
 
             create_retry_body = self._prepare_create_body(retry_body)
             stream = await self._global_rate_limiter.execute_with_retry(
-                self._client.chat.completions.create, **create_retry_body, stream=True
+                client.chat.completions.create, **create_retry_body, stream=True
             )
             return stream, retry_body
 
