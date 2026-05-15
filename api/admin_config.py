@@ -169,7 +169,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="opencode_api_key",
         secret=True,
-        description="OpenCode Zen curated model gateway at opencode.ai.",
+        description="OpenCode Zen curated model gateway at opencode.ai. Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "ZAI_API_KEY",
@@ -178,7 +178,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="zai_api_key",
         secret=True,
-        description="Z.ai Coding Plan API key.",
+        description="Z.ai Coding Plan API key. Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "ZAI_BASE_URL",

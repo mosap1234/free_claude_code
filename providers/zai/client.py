@@ -20,6 +20,7 @@ class ZaiProvider(OpenAIChatTransport):
             provider_name="ZAI",
             base_url=config.base_url or ZAI_DEFAULT_BASE,
             api_key=config.api_key,
+            api_keys=config.api_keys,
         )
 
     def _build_request_body(
