@@ -281,11 +281,9 @@ class ClientProtocolDriver:
         env = os.environ.copy()
         env["ANTHROPIC_BASE_URL"] = server.base_url
         env["ANTHROPIC_API_URL"] = f"{server.base_url}/v1"
-        env.pop("ANTHROPIC_API_KEY", None)
+        env.setdefault("ANTHROPIC_API_KEY", "sk-smoke-proxy")
         if config.settings.anthropic_auth_token:
             env["ANTHROPIC_AUTH_TOKEN"] = config.settings.anthropic_auth_token
-        else:
-            env.pop("ANTHROPIC_AUTH_TOKEN", None)
         return subprocess.run(
             [
                 claude_bin,
