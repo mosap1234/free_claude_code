@@ -45,6 +45,17 @@ def test_admin_page_is_loopback_only(monkeypatch, tmp_path):
     assert remote_client.get("/admin").status_code == 403
 
 
+def test_admin_page_no_longer_renders_generated_env_panel(monkeypatch, tmp_path):
+    _set_home(monkeypatch, tmp_path)
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).get("/admin")
+
+    assert response.status_code == 200
+    assert "Generated Env" not in response.text
+    assert "envPreview" not in response.text
+
+
 def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     _set_home(monkeypatch, tmp_path)
     _clear_process_config(monkeypatch)
@@ -114,6 +125,40 @@ def test_admin_apply_writes_complete_managed_env_and_masks_preview(
         "admin_url": None,
         "fields": [],
     }
+
+
+def test_admin_apply_preserves_hidden_diagnostics_and_smoke_values(
+    monkeypatch, tmp_path
+):
+    _set_home(monkeypatch, tmp_path)
+    _clear_process_config(monkeypatch)
+    env_file = tmp_path / ".fcc" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text(
+        "\n".join(
+            [
+                "MODEL=nvidia_nim/old-model",
+                "LOG_RAW_API_PAYLOADS=true",
+                "FCC_SMOKE_MODEL_ZAI=zai/smoke-model",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).post(
+        "/admin/api/config/apply",
+        json={"values": {"MODEL": "open_router/test-model"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["applied"] is True
+    text = env_file.read_text("utf-8")
+    assert "MODEL=open_router/test-model" in text
+    assert "LOG_RAW_API_PAYLOADS=true" in text
+    assert "FCC_SMOKE_MODEL_ZAI=zai/smoke-model" in text
 
 
 def test_admin_apply_restart_required_reports_automatic_restart(monkeypatch, tmp_path):
