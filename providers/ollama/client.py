@@ -19,6 +19,17 @@ class OllamaProvider(AnthropicMessagesTransport):
         )
         self._api_key = config.api_key or "ollama"
 
+    def _request_headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self._api_key and self._api_key != "ollama":
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
+
+    def _model_list_headers(self) -> dict[str, str]:
+        if self._api_key and self._api_key != "ollama":
+            return {"Authorization": f"Bearer {self._api_key}"}
+        return {}
+
     async def _send_stream_request(self, body: dict) -> httpx.Response:
         """Create a streaming native Anthropic messages response."""
         request = self._client.build_request(

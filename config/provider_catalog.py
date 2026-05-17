@@ -25,6 +25,7 @@ LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
 OPENCODE_DEFAULT_BASE = "https://opencode.ai/zen/v1"
 ZAI_DEFAULT_BASE = "https://api.z.ai/api/coding/paas/v4"
+OPENAI_DEFAULT_BASE = "https://api.openai.com/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +52,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_url="https://build.nvidia.com/settings/api-keys",
         credential_attr="nvidia_nim_api_key",
         default_base_url=NVIDIA_NIM_DEFAULT_BASE,
+        base_url_attr="nvidia_nim_base_url",
         proxy_attr="nvidia_nim_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
@@ -85,7 +87,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
     "llamacpp": ProviderDescriptor(
         provider_id="llamacpp",
         transport_type="anthropic_messages",
-        static_credential="llamacpp",
+        credential_env=None,
+        credential_attr="llamacpp_api_key",
         default_base_url=LLAMACPP_DEFAULT_BASE,
         base_url_attr="llamacpp_base_url",
         proxy_attr="llamacpp_proxy",
@@ -94,9 +97,11 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
     "ollama": ProviderDescriptor(
         provider_id="ollama",
         transport_type="anthropic_messages",
-        static_credential="ollama",
+        credential_env=None,
+        credential_attr="ollama_api_key",
         default_base_url=OLLAMA_DEFAULT_BASE,
         base_url_attr="ollama_base_url",
+        proxy_attr="ollama_proxy",
         capabilities=(
             "chat",
             "streaming",
@@ -144,6 +149,17 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=ZAI_DEFAULT_BASE,
         base_url_attr="zai_base_url",
         proxy_attr="zai_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
+    ),
+    "openai": ProviderDescriptor(
+        provider_id="openai",
+        transport_type="openai_chat",
+        credential_env="OPENAI_API_KEY",
+        credential_url="https://platform.openai.com/api-keys",
+        credential_attr="openai_api_key",
+        default_base_url=OPENAI_DEFAULT_BASE,
+        base_url_attr="openai_base_url",
+        proxy_attr="openai_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
 }

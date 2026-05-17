@@ -33,6 +33,7 @@ def resolve_provider(
     *,
     app: Starlette | None,
     settings: Settings,
+    passthrough_api_key: str = "",
 ) -> BaseProvider:
     """Resolve a provider using the app-scoped registry when ``app`` is set.
 
@@ -43,6 +44,10 @@ def resolve_provider(
 
     When ``app`` is ``None`` (no HTTP context), uses the process-level
     :data:`_providers` cache only.
+
+    When ``passthrough_api_key`` is non-empty and
+    ``settings.enable_api_key_passthrough`` is True, the client's auth token
+    replaces per-provider credentials in the upstream request.
     """
     if app is not None:
         reg = getattr(app.state, "provider_registry", None)
@@ -51,16 +56,27 @@ def resolve_provider(
                 "Provider registry is not configured. Ensure AppRuntime startup ran "
                 "or assign app.state.provider_registry for test apps."
             )
-        return _resolve_with_registry(reg, provider_type, settings)
+        return _resolve_with_registry(
+            reg, provider_type, settings, passthrough_api_key=passthrough_api_key
+        )
     return _resolve_with_registry(ProviderRegistry(_providers), provider_type, settings)
 
 
 def _resolve_with_registry(
-    registry: ProviderRegistry, provider_type: str, settings: Settings
+    registry: ProviderRegistry,
+    provider_type: str,
+    settings: Settings,
+    *,
+    passthrough_api_key: str = "",
 ) -> BaseProvider:
-    should_log_init = not registry.is_cached(provider_type)
+    cache_key = provider_type
+    if passthrough_api_key and settings.enable_api_key_passthrough:
+        cache_key = f"{provider_type}:{passthrough_api_key}"
+    should_log_init = not registry.is_cached(cache_key)
     try:
-        provider = registry.get(provider_type, settings)
+        provider = registry.get(
+            provider_type, settings, passthrough_api_key=passthrough_api_key
+        )
     except AuthenticationError as e:
         # Provider :class:`~providers.exceptions.AuthenticationError` messages are
         # curated configuration hints (env var names, docs links), not upstream noise.
@@ -88,18 +104,46 @@ def get_provider_for_type(provider_type: str) -> BaseProvider:
     return resolve_provider(provider_type, app=None, settings=get_settings())
 
 
+def _parse_bearer_token(header: str) -> str:
+    """Extract and clean a token from an Authorization or x-api-key header value."""
+    token = header
+    if header.lower().startswith("bearer "):
+        token = header.split(" ", 1)[1]
+    if token and ":" in token:
+        token = token.split(":", 1)[0]
+    return token
+
+
+def _extract_client_token(request: Request) -> str:
+    """Extract a client auth token from the request for passthrough mode."""
+    header = (
+        request.headers.get("x-api-key")
+        or request.headers.get("authorization")
+        or request.headers.get("anthropic-auth-token")
+    )
+    if not header:
+        raise HTTPException(status_code=401, detail="Missing API key")
+    return _parse_bearer_token(header)
+
+
 def require_api_key(
     request: Request, settings: Settings = Depends(get_settings)
-) -> None:
+) -> str:
     """Require a server API key (Anthropic-style).
 
     Checks `x-api-key` header or `Authorization: Bearer ...` against
     `Settings.anthropic_auth_token`. If `ANTHROPIC_AUTH_TOKEN` is empty, this is a no-op.
+
+    Returns the extracted client token for pass-through when
+    ``ENABLE_API_KEY_PASSTHROUGH`` is active.
     """
     anthropic_auth_token = settings.anthropic_auth_token
     if not anthropic_auth_token:
-        # No API key configured -> allow
-        return
+        # No server auth configured. In passthrough mode, still extract the
+        # client token from the request header so it can be forwarded upstream.
+        if settings.enable_api_key_passthrough:
+            return _extract_client_token(request)
+        return ""
 
     header = (
         request.headers.get("x-api-key")
@@ -109,14 +153,7 @@ def require_api_key(
     if not header:
         raise HTTPException(status_code=401, detail="Missing API key")
 
-    # Support both raw key in X-API-Key and Bearer token in Authorization
-    token = header
-    if header.lower().startswith("bearer "):
-        token = header.split(" ", 1)[1]
-
-    # Strip anything after the first colon to handle tokens with appended model names
-    if token and ":" in token:
-        token = token.split(":", 1)[0]
+    token = _parse_bearer_token(header)
 
     # Constant-time comparison to avoid leaking the configured token via
     # response-time differences on a per-byte mismatch (CWE-208).
@@ -124,6 +161,8 @@ def require_api_key(
         token.encode("utf-8"), anthropic_auth_token.encode("utf-8")
     ):
         raise HTTPException(status_code=401, detail="Invalid API key")
+
+    return token
 
 
 def get_provider() -> BaseProvider:

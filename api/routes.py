@@ -62,12 +62,19 @@ SUPPORTED_CLAUDE_MODELS = [
 def get_proxy_service(
     request: Request,
     settings: Settings = Depends(get_settings),
+    passthrough_api_key: str = Depends(require_api_key),
 ) -> ClaudeProxyService:
     """Build the request service for route handlers."""
+    effective_passthrough = (
+        passthrough_api_key if settings.enable_api_key_passthrough else ""
+    )
     return ClaudeProxyService(
         settings,
         provider_getter=lambda provider_type: dependencies.resolve_provider(
-            provider_type, app=request.app, settings=settings
+            provider_type,
+            app=request.app,
+            settings=settings,
+            passthrough_api_key=effective_passthrough,
         ),
         token_counter=get_token_count,
     )
@@ -167,7 +174,6 @@ def _build_models_list_response(
 async def create_message(
     request_data: MessagesRequest,
     service: ClaudeProxyService = Depends(get_proxy_service),
-    _auth=Depends(require_api_key),
 ):
     """Create a message (always streaming)."""
     return service.create_message(request_data)
@@ -183,7 +189,6 @@ async def probe_messages(_auth=Depends(require_api_key)):
 async def count_tokens(
     request_data: TokenCountRequest,
     service: ClaudeProxyService = Depends(get_proxy_service),
-    _auth=Depends(require_api_key),
 ):
     """Count tokens for a request."""
     return service.count_tokens(request_data)

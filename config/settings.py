@@ -129,6 +129,14 @@ class Settings(BaseSettings):
         validation_alias="ZAI_BASE_URL",
     )
 
+    # ==================== OpenAI Config ====================
+    openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias="OPENAI_BASE_URL",
+    )
+    openai_proxy: str = Field(default="", validation_alias="OPENAI_PROXY")
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -143,6 +151,10 @@ class Settings(BaseSettings):
 
     # ==================== NVIDIA NIM Config ====================
     nvidia_nim_api_key: str = ""
+    nvidia_nim_base_url: str = Field(
+        default="https://integrate.api.nvidia.com/v1",
+        validation_alias="NVIDIA_NIM_BASE_URL",
+    )
 
     # ==================== LM Studio Config ====================
     lm_studio_base_url: str = Field(
@@ -155,12 +167,15 @@ class Settings(BaseSettings):
         default="http://localhost:8080/v1",
         validation_alias="LLAMACPP_BASE_URL",
     )
+    llamacpp_api_key: str = Field(default="", validation_alias="LLAMACPP_API_KEY")
 
     # ==================== Ollama Config ====================
     ollama_base_url: str = Field(
         default="http://localhost:11434",
         validation_alias="OLLAMA_BASE_URL",
     )
+    ollama_api_key: str = Field(default="", validation_alias="OLLAMA_API_KEY")
+    ollama_proxy: str = Field(default="", validation_alias="OLLAMA_PROXY")
 
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
@@ -315,6 +330,12 @@ class Settings(BaseSettings):
     anthropic_auth_token: str = Field(
         default="", validation_alias="ANTHROPIC_AUTH_TOKEN"
     )
+    # When true, the client's auth token is passed through as the upstream
+    # provider bearer token, eliminating the need for separate per-provider
+    # API keys. Requires ANTHROPIC_AUTH_TOKEN to be set.
+    enable_api_key_passthrough: bool = Field(
+        default=False, validation_alias="ENABLE_API_KEY_PASSTHROUGH"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -432,6 +453,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self) -> Settings:
+        if self.enable_api_key_passthrough:
+            return self
         if (
             self.voice_note_enabled
             and self.whisper_device == "nvidia_nim"

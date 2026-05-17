@@ -92,6 +92,12 @@ def _create_zai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     return ZaiProvider(config)
 
 
+def _create_openai(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.openai import OpenAIProvider
+
+    return OpenAIProvider(config)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -103,6 +109,7 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "wafer": _create_wafer,
     "opencode": _create_opencode,
     "zai": _create_zai,
+    "openai": _create_openai,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
@@ -130,11 +137,22 @@ def _credential_for(descriptor: ProviderDescriptor, settings: Settings) -> str:
     return ""
 
 
-def _require_credential(descriptor: ProviderDescriptor, credential: str) -> None:
+def _require_credential(
+    descriptor: ProviderDescriptor,
+    credential: str,
+    *,
+    passthrough_enabled: bool = False,
+) -> None:
     if descriptor.credential_env is None:
         return
     if credential and credential.strip():
         return
+    if passthrough_enabled:
+        raise AuthenticationError(
+            "ENABLE_API_KEY_PASSTHROUGH is active but no client auth token was "
+            "provided. Ensure the request includes a valid Authorization or "
+            "x-api-key header."
+        )
     message = f"{descriptor.credential_env} is not set. Add it to your .env file."
     if descriptor.credential_url:
         message = f"{message} Get a key at {descriptor.credential_url}"
@@ -142,10 +160,19 @@ def _require_credential(descriptor: ProviderDescriptor, credential: str) -> None
 
 
 def build_provider_config(
-    descriptor: ProviderDescriptor, settings: Settings
+    descriptor: ProviderDescriptor,
+    settings: Settings,
+    *,
+    passthrough_api_key: str = "",
 ) -> ProviderConfig:
-    credential = _credential_for(descriptor, settings)
-    _require_credential(descriptor, credential)
+    passthrough_enabled = settings.enable_api_key_passthrough
+    if passthrough_api_key and passthrough_enabled:
+        credential = passthrough_api_key
+    elif passthrough_enabled:
+        credential = ""
+    else:
+        credential = _credential_for(descriptor, settings)
+    _require_credential(descriptor, credential, passthrough_enabled=passthrough_enabled)
     base_url = _string_attr(
         settings, descriptor.base_url_attr, descriptor.default_base_url or ""
     )
@@ -166,7 +193,12 @@ def build_provider_config(
     )
 
 
-def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
+def create_provider(
+    provider_id: str,
+    settings: Settings,
+    *,
+    passthrough_api_key: str = "",
+) -> BaseProvider:
     descriptor = PROVIDER_DESCRIPTORS.get(provider_id)
     if descriptor is None:
         supported = "', '".join(PROVIDER_DESCRIPTORS)
@@ -174,7 +206,9 @@ def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
             f"Unknown provider_type: '{provider_id}'. Supported: '{supported}'"
         )
 
-    config = build_provider_config(descriptor, settings)
+    config = build_provider_config(
+        descriptor, settings, passthrough_api_key=passthrough_api_key
+    )
     factory = PROVIDER_FACTORIES.get(provider_id)
     if factory is None:
         raise AssertionError(f"Unhandled provider descriptor: {provider_id}")
@@ -260,10 +294,23 @@ class ProviderRegistry:
         """Return whether a provider for this id is already in the cache."""
         return provider_id in self._providers
 
-    def get(self, provider_id: str, settings: Settings) -> BaseProvider:
-        if provider_id not in self._providers:
-            self._providers[provider_id] = create_provider(provider_id, settings)
-        return self._providers[provider_id]
+    def get(
+        self,
+        provider_id: str,
+        settings: Settings,
+        *,
+        passthrough_api_key: str = "",
+    ) -> BaseProvider:
+        # When pass-through is active, include the API key in the cache key
+        # so different client tokens get distinct provider instances.
+        cache_key = provider_id
+        if passthrough_api_key and settings.enable_api_key_passthrough:
+            cache_key = f"{provider_id}:{passthrough_api_key}"
+        if cache_key not in self._providers:
+            self._providers[cache_key] = create_provider(
+                provider_id, settings, passthrough_api_key=passthrough_api_key
+            )
+        return self._providers[cache_key]
 
     def cache_model_ids(self, provider_id: str, model_ids: Iterable[str]) -> None:
         """Store a provider model-list result for later instant API responses."""
