@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     # ==================== Z.ai Config ====================
     zai_api_key: str = Field(default="", validation_alias="ZAI_API_KEY")
 
+    # ==================== Astraflow Config ====================
+    astraflow_api_key: str = Field(default="", validation_alias="ASTRAFLOW_API_KEY")
+    astraflow_cn_api_key: str = Field(default="", validation_alias="ASTRAFLOW_CN_API_KEY")
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -178,6 +182,8 @@ class Settings(BaseSettings):
     wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
     opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
+    astraflow_proxy: str = Field(default="", validation_alias="ASTRAFLOW_PROXY")
+    astraflow_cn_proxy: str = Field(default="", validation_alias="ASTRAFLOW_CN_PROXY")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
