@@ -293,12 +293,7 @@ class Settings(BaseSettings):
     allowed_discord_channels: str | None = Field(
         default=None, validation_alias="ALLOWED_DISCORD_CHANNELS"
     )
-    claude_workspace: str = Field(
-        default_factory=lambda: str(default_claude_workspace_path()),
-        validation_alias="CLAUDE_WORKSPACE",
-    )
     allowed_dir: str = ""
-    claude_cli_bin: str = Field(default="claude", validation_alias="CLAUDE_CLI_BIN")
     max_message_log_entries_per_chat: int | None = Field(
         default=None, validation_alias="MAX_MESSAGE_LOG_ENTRIES_PER_CHAT"
     )
@@ -347,12 +342,17 @@ class Settings(BaseSettings):
             return None
         return v
 
-    @field_validator("claude_workspace", mode="before")
-    @classmethod
-    def default_blank_claude_workspace(cls, v: Any) -> Any:
-        if v == "" or v is None:
-            return str(default_claude_workspace_path())
-        return v
+    @property
+    def claude_workspace(self) -> str:
+        """Return the fixed Claude data workspace path."""
+
+        return str(default_claude_workspace_path())
+
+    @property
+    def claude_cli_bin(self) -> str:
+        """Return the fixed Claude Code binary name."""
+
+        return "claude"
 
     @field_validator("whisper_device")
     @classmethod

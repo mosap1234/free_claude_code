@@ -33,6 +33,8 @@ def _clear_process_config(monkeypatch) -> None:
         "PORT",
         "LOG_FILE",
         "ZAI_BASE_URL",
+        "CLAUDE_WORKSPACE",
+        "CLAUDE_CLI_BIN",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -79,6 +81,8 @@ def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     assert "ANTHROPIC_AUTH_TOKEN" in keys
     assert "OPENROUTER_API_KEY" in keys
     assert "ZAI_BASE_URL" not in keys
+    assert "CLAUDE_WORKSPACE" not in keys
+    assert "CLAUDE_CLI_BIN" not in keys
     assert "LOG_FILE" not in keys
     auth_field = next(
         field for field in body["fields"] if field["key"] == "ANTHROPIC_AUTH_TOKEN"
@@ -218,6 +222,38 @@ def test_admin_apply_omits_stale_zai_base_url(monkeypatch, tmp_path):
     text = env_file.read_text("utf-8")
     assert "ZAI_API_KEY=zai-secret" in text
     assert "ZAI_BASE_URL" not in text
+
+
+def test_admin_apply_omits_stale_fixed_claude_runtime_settings(monkeypatch, tmp_path):
+    _set_home(monkeypatch, tmp_path)
+    _clear_process_config(monkeypatch)
+    env_file = tmp_path / ".fcc" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text(
+        "\n".join(
+            [
+                "MODEL=open_router/test-model",
+                "CLAUDE_WORKSPACE=C:/custom/workspace",
+                "CLAUDE_CLI_BIN=claude-custom",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).post(
+        "/admin/api/config/apply",
+        json={"values": {"MODEL": "open_router/test-model"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["applied"] is True
+    text = env_file.read_text("utf-8")
+    assert "MODEL=open_router/test-model" in text
+    assert "CLAUDE_WORKSPACE" not in text
+    assert "CLAUDE_CLI_BIN" not in text
 
 
 def test_admin_apply_restart_required_reports_automatic_restart(monkeypatch, tmp_path):
