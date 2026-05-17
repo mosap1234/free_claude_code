@@ -32,6 +32,7 @@ def _clear_process_config(monkeypatch) -> None:
         "HOST",
         "PORT",
         "LOG_FILE",
+        "ZAI_BASE_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -68,6 +69,7 @@ def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     keys = {field["key"] for field in body["fields"]}
     assert "ANTHROPIC_AUTH_TOKEN" in keys
     assert "OPENROUTER_API_KEY" in keys
+    assert "ZAI_BASE_URL" not in keys
     assert "LOG_FILE" not in keys
     auth_field = next(
         field for field in body["fields"] if field["key"] == "ANTHROPIC_AUTH_TOKEN"
@@ -159,6 +161,37 @@ def test_admin_apply_preserves_hidden_diagnostics_and_smoke_values(
     assert "MODEL=open_router/test-model" in text
     assert "LOG_RAW_API_PAYLOADS=true" in text
     assert "FCC_SMOKE_MODEL_ZAI=zai/smoke-model" in text
+
+
+def test_admin_apply_omits_stale_zai_base_url(monkeypatch, tmp_path):
+    _set_home(monkeypatch, tmp_path)
+    _clear_process_config(monkeypatch)
+    env_file = tmp_path / ".fcc" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text(
+        "\n".join(
+            [
+                "MODEL=zai/glm-5.1",
+                "ZAI_API_KEY=zai-secret",
+                "ZAI_BASE_URL=https://custom.zai.invalid/v1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).post(
+        "/admin/api/config/apply",
+        json={"values": {"MODEL": "zai/glm-5.1"}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["applied"] is True
+    text = env_file.read_text("utf-8")
+    assert "ZAI_API_KEY=zai-secret" in text
+    assert "ZAI_BASE_URL" not in text
 
 
 def test_admin_apply_restart_required_reports_automatic_restart(monkeypatch, tmp_path):

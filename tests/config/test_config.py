@@ -77,6 +77,17 @@ class TestSettings:
 
         assert not hasattr(settings, "log_file")
 
+    def test_stale_zai_base_url_env_is_ignored(self, monkeypatch):
+        """Cloud Z.ai endpoint is fixed in provider metadata, not settings."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("ZAI_BASE_URL", "https://custom.zai.invalid/v1")
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+
+        settings = Settings()
+
+        assert not hasattr(settings, "zai_base_url")
+
     def test_blank_claude_workspace_uses_fcc_home(self, monkeypatch, tmp_path):
         """An explicit blank env value keeps the default workspace path."""
         from config.settings import Settings

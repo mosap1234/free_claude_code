@@ -124,10 +124,6 @@ class Settings(BaseSettings):
 
     # ==================== Z.ai Config ====================
     zai_api_key: str = Field(default="", validation_alias="ZAI_API_KEY")
-    zai_base_url: str = Field(
-        default="https://api.z.ai/api/coding/paas/v4",
-        validation_alias="ZAI_BASE_URL",
-    )
 
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"

@@ -177,14 +177,6 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         description="Z.ai Coding Plan API key.",
     ),
     ConfigFieldSpec(
-        "ZAI_BASE_URL",
-        "Z.ai Base URL",
-        "providers",
-        settings_attr="zai_base_url",
-        default="https://api.z.ai/api/coding/paas/v4",
-        description="Z.ai OpenAI-compatible Coding Plan endpoint.",
-    ),
-    ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
         "LM Studio Base URL",
         "providers",
