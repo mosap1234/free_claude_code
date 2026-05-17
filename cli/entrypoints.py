@@ -21,7 +21,7 @@ from cli.process_registry import (
     register_pid,
     unregister_pid,
 )
-from config.paths import config_dir_path, managed_env_path
+from config.paths import config_dir_path, legacy_env_paths, managed_env_path
 from config.settings import Settings, get_settings
 
 PROXY_PREFLIGHT_PATH = "/health"
@@ -49,6 +49,7 @@ def serve() -> None:
     try:
         try:
             while True:
+                _migrate_legacy_env_if_missing()
                 settings = get_settings()
                 if not _run_supervised_server(settings):
                     return
@@ -92,6 +93,14 @@ def init() -> None:
     config_dir = config_dir_path()
     env_file = managed_env_path()
 
+    migrated_from = _migrate_legacy_env_if_missing()
+    if migrated_from is not None:
+        print(f"Config migrated from {migrated_from} to {env_file}")
+        print(
+            "Edit it to set your API keys and model preferences, then run: fcc-server"
+        )
+        return
+
     if env_file.exists():
         print(f"Config already exists at {env_file}")
         print("Delete it first if you want to reset to defaults.")
@@ -104,6 +113,24 @@ def init() -> None:
     print("Edit it to set your API keys and model preferences, then run: fcc-server")
 
 
+def _migrate_legacy_env_if_missing() -> Path | None:
+    """Copy a legacy user env into the managed config path when absent."""
+
+    env_file = managed_env_path()
+    if env_file.exists():
+        return None
+
+    # TODO: Remove after the ~/.fcc/.env migration has had a release cycle.
+    for legacy_env in legacy_env_paths():
+        if not legacy_env.is_file():
+            continue
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(legacy_env, env_file)
+        return legacy_env
+
+    return None
+
+
 def _claude_child_env(
     settings: Settings, base_env: Mapping[str, str]
 ) -> dict[str, str]:
@@ -114,6 +141,7 @@ def _claude_child_env(
         for key, value in base_env.items()
         if not key.startswith("ANTHROPIC_")
     }
+    env.pop("ANTHROPIC_API_KEY", None)
     env["ANTHROPIC_BASE_URL"] = local_proxy_root_url(settings)
     env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] = "1"
     if token := settings.anthropic_auth_token.strip():
