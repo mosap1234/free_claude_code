@@ -38,6 +38,7 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to NVIDI
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
 - Ten provider backends: NVIDIA NIM, Kimi, Wafer, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, OpenCode Zen, and Z.ai.
+- **Multi-key rotation**: comma-delimit multiple API keys per provider to distribute requests across keys and avoid per-key rate limits.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint (Claude Code must opt in to Gateway model discovery; see [Model Picker](#model-picker)).
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -404,6 +405,15 @@ LM_STUDIO_BASE_URL="http://localhost:1234/v1"
 LLAMACPP_BASE_URL="http://localhost:8080/v1"
 OLLAMA_BASE_URL="http://localhost:11434"
 ```
+
+**Multi-key rotation**: comma-delimit multiple API keys to distribute requests across keys and avoid per-key rate limits. For example:
+
+```dotenv
+NVIDIA_NIM_API_KEY="nvapi-key1,nvapi-key2,nvapi-key3"
+OPENROUTER_API_KEY="sk-or-key1,sk-or-key2"
+```
+
+When multiple keys are configured, the proxy rotates through them in round-robin order. Scale `PROVIDER_RATE_LIMIT` proportionally: 3 keys at 40 RPM each → `PROVIDER_RATE_LIMIT=120`.
 
 Proxy settings are per provider:
 

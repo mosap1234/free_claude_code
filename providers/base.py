@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from config.constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from providers.model_listing import ProviderModelInfo, model_infos_from_ids
@@ -15,9 +15,14 @@ class ProviderConfig(BaseModel):
 
     Base fields apply to all providers. Provider-specific parameters
     (e.g. NIM temperature, top_p) are passed by the provider constructor.
+
+    ``api_key`` holds the primary (or only) key for backward compatibility.
+    ``api_keys`` holds the full list of keys for rotation when the user
+    configures comma-delimited values (e.g. ``"key1,key2,key3"``).
     """
 
     api_key: str
+    api_keys: list[str] = []
     base_url: str | None = None
     rate_limit: int | None = None
     rate_window: int = 60
@@ -29,6 +34,13 @@ class ProviderConfig(BaseModel):
     proxy: str = ""
     log_raw_sse_events: bool = False
     log_api_error_tracebacks: bool = False
+
+    @model_validator(mode="after")
+    def ensure_api_keys_populated(self) -> ProviderConfig:
+        """Populate ``api_keys`` from ``api_key`` when not explicitly set."""
+        if not self.api_keys and self.api_key:
+            self.api_keys = [self.api_key]
+        return self
 
 
 class BaseProvider(ABC):

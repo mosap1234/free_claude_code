@@ -144,14 +144,19 @@ def _require_credential(descriptor: ProviderDescriptor, credential: str) -> None
 def build_provider_config(
     descriptor: ProviderDescriptor, settings: Settings
 ) -> ProviderConfig:
+    from providers.key_rotation import parse_api_keys
+
     credential = _credential_for(descriptor, settings)
     _require_credential(descriptor, credential)
+    api_keys = parse_api_keys(credential)
+    primary_key = api_keys[0] if api_keys else credential
     base_url = _string_attr(
         settings, descriptor.base_url_attr, descriptor.default_base_url or ""
     )
     proxy = _string_attr(settings, descriptor.proxy_attr)
     return ProviderConfig(
-        api_key=credential,
+        api_key=primary_key,
+        api_keys=api_keys or [primary_key],
         base_url=base_url or descriptor.default_base_url,
         rate_limit=settings.provider_rate_limit,
         rate_window=settings.provider_rate_window,

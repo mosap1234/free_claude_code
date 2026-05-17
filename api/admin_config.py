@@ -124,7 +124,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="nvidia_nim_api_key",
         secret=True,
-        description="Used by NVIDIA NIM chat and optional NIM voice transcription.",
+        description="Used by NVIDIA NIM chat and optional NIM voice transcription. Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "OPENROUTER_API_KEY",
@@ -133,6 +133,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="open_router_api_key",
         secret=True,
+        description="Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "DEEPSEEK_API_KEY",
@@ -141,6 +142,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="deepseek_api_key",
         secret=True,
+        description="Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "KIMI_API_KEY",
@@ -149,6 +151,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="kimi_api_key",
         secret=True,
+        description="Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "WAFER_API_KEY",
@@ -157,6 +160,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="wafer_api_key",
         secret=True,
+        description="Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "OPENCODE_API_KEY",
@@ -165,7 +169,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="opencode_api_key",
         secret=True,
-        description="OpenCode Zen curated model gateway at opencode.ai.",
+        description="OpenCode Zen curated model gateway at opencode.ai. Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "ZAI_API_KEY",
@@ -174,7 +178,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "secret",
         settings_attr="zai_api_key",
         secret=True,
-        description="Z.ai Coding Plan API key.",
+        description="Z.ai Coding Plan API key. Comma-delimit multiple keys for round-robin rotation.",
     ),
     ConfigFieldSpec(
         "ZAI_BASE_URL",

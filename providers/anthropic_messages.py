@@ -29,6 +29,7 @@ from providers.error_mapping import (
     user_visible_message_for_mapped_provider_error,
 )
 from providers.exceptions import ModelListResponseError
+from providers.key_rotation import KeyRotator
 from providers.model_listing import (
     ProviderModelInfo,
     extract_openai_model_ids,
@@ -74,6 +75,15 @@ class AnthropicMessagesTransport(BaseProvider):
         super().__init__(config)
         self._provider_name = provider_name
         self._api_key = config.api_key
+        self._api_keys = config.api_keys or [config.api_key]
+        self._key_rotator: KeyRotator | None = None
+        if len(self._api_keys) > 1:
+            self._key_rotator = KeyRotator(self._api_keys)
+            logger.info(
+                "{}_ROTATION: {} API keys configured for round-robin",
+                provider_name,
+                len(self._api_keys),
+            )
         self._base_url = (config.base_url or default_base_url).rstrip("/")
         self._global_rate_limiter = GlobalRateLimiter.get_scoped_instance(
             provider_name.lower(),
@@ -133,6 +143,12 @@ class AnthropicMessagesTransport(BaseProvider):
         return model_infos_from_ids(
             self._extract_model_ids_from_model_list_payload(payload)
         )
+
+    def _next_api_key(self) -> str:
+        """Return the next API key in round-robin order, or the single key."""
+        if self._key_rotator is not None:
+            return self._key_rotator.next_key()
+        return self._api_key
 
     def _request_headers(self) -> dict[str, str]:
         """Return headers for the native messages request."""

@@ -20,6 +20,7 @@ class KimiProvider(OpenAIChatTransport):
             provider_name="KIMI",
             base_url=config.base_url or KIMI_DEFAULT_BASE,
             api_key=config.api_key,
+            api_keys=config.api_keys,
         )
 
     def _build_request_body(

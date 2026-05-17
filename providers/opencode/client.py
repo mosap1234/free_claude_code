@@ -20,6 +20,7 @@ class OpenCodeProvider(OpenAIChatTransport):
             provider_name="OPENCODE",
             base_url=config.base_url or OPENCODE_DEFAULT_BASE,
             api_key=config.api_key,
+            api_keys=config.api_keys,
         )
 
     def _build_request_body(
