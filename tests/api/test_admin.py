@@ -57,6 +57,15 @@ def test_admin_page_no_longer_renders_generated_env_panel(monkeypatch, tmp_path)
     assert "envPreview" not in response.text
 
 
+def test_admin_static_hides_managed_source_label():
+    script = Path("api/admin_static/admin.js").read_text(encoding="utf-8")
+
+    assert 'managed_env: "",' in script
+    assert "hasOwnProperty.call(labels, source)" in script
+    assert 'parts.push("locked")' in script
+    assert "sourceEl.textContent = source" in script
+
+
 def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     _set_home(monkeypatch, tmp_path)
     _clear_process_config(monkeypatch)
@@ -77,6 +86,23 @@ def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     assert auth_field["secret"] is True
     assert auth_field["value"] == MASKED_SECRET
     assert auth_field["source"] == "template"
+
+
+def test_admin_config_preserves_managed_env_source_contract(monkeypatch, tmp_path):
+    _set_home(monkeypatch, tmp_path)
+    _clear_process_config(monkeypatch)
+    env_file = tmp_path / ".fcc" / ".env"
+    env_file.parent.mkdir(parents=True)
+    env_file.write_text("MODEL=open_router/managed-model\n", encoding="utf-8")
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).get("/admin/api/config")
+
+    assert response.status_code == 200
+    body = response.json()
+    model_field = next(field for field in body["fields"] if field["key"] == "MODEL")
+    assert model_field["source"] == "managed_env"
+    assert model_field["locked"] is False
 
 
 def test_admin_validate_rejects_bad_model_shape(monkeypatch, tmp_path):

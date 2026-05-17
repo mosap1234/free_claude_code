@@ -39,11 +39,23 @@ function sourceLabel(source) {
     default: "default",
     template: "template",
     repo_env: "repo .env",
-    managed_env: "managed",
+    managed_env: "",
     explicit_env_file: "FCC_ENV_FILE",
     process: "process env",
   };
-  return labels[source] || source;
+  return Object.prototype.hasOwnProperty.call(labels, source) ? labels[source] : source;
+}
+
+function sourceText(field) {
+  const parts = [];
+  const label = sourceLabel(field.source);
+  if (label) {
+    parts.push(label);
+  }
+  if (field.locked) {
+    parts.push("locked");
+  }
+  return parts.join(" ");
 }
 
 function providerName(providerId) {
@@ -264,9 +276,17 @@ function renderField(field) {
 
   const label = document.createElement("label");
   label.htmlFor = `field-${field.key}`;
-  label.innerHTML = `<span>${field.label}</span><span class="field-source">${sourceLabel(
-    field.source,
-  )}${field.locked ? " locked" : ""}</span>`;
+  const labelText = document.createElement("span");
+  labelText.textContent = field.label;
+  label.appendChild(labelText);
+
+  const source = sourceText(field);
+  if (source) {
+    const sourceEl = document.createElement("span");
+    sourceEl.className = "field-source";
+    sourceEl.textContent = source;
+    label.appendChild(sourceEl);
+  }
 
   const input = inputForField(field);
   input.id = `field-${field.key}`;
