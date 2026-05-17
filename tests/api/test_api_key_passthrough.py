@@ -80,12 +80,14 @@ class TestBuildProviderConfigPassthrough:
         )
         assert config.api_key == "sk-passthrough-123"
 
-    def test_passthrough_enabled_empty_key_uses_configured_credential(self):
-        """When passthrough is enabled but key is empty, falls back to credential."""
+    def test_passthrough_enabled_empty_key_raises(self):
+        """When passthrough is enabled but key is empty, raises AuthenticationError."""
+        from providers.exceptions import AuthenticationError
+
         settings = _make_settings(enable_api_key_passthrough=True)
         descriptor = PROVIDER_CATALOG["nvidia_nim"]
-        config = build_provider_config(descriptor, settings, passthrough_api_key="")
-        assert config.api_key == "test_key"
+        with pytest.raises(AuthenticationError, match="ENABLE_API_KEY_PASSTHROUGH"):
+            build_provider_config(descriptor, settings, passthrough_api_key="")
 
     def test_passthrough_enabled_key_present_but_passthrough_disabled(self):
         """Passthrough key is ignored when enable_api_key_passthrough is False."""
@@ -190,18 +192,29 @@ class TestProviderRegistryPassthrough:
 
         assert p1 is p2
 
-    def test_passthrough_and_non_passthrough_are_distinct(self):
-        """A passthrough provider and non-passthrough provider are separate."""
+    def test_passthrough_empty_key_raises_in_registry(self):
+        """A passthrough-enabled registry raises when no client token given."""
+        from providers.exceptions import AuthenticationError
+
+        registry = ProviderRegistry()
+        settings = _make_settings(enable_api_key_passthrough=True)
+
+        with (
+            pytest.raises(AuthenticationError, match="ENABLE_API_KEY_PASSTHROUGH"),
+            patch("providers.openai_compat.AsyncOpenAI"),
+        ):
+            registry.get("nvidia_nim", settings)
+
+    def test_different_passthrough_keys_are_distinct(self):
+        """Providers with different passthrough keys are separate instances."""
         registry = ProviderRegistry()
         settings = _make_settings(enable_api_key_passthrough=True)
 
         with patch("providers.openai_compat.AsyncOpenAI"):
-            p_no_key = registry.get("nvidia_nim", settings)
-            p_with_key = registry.get(
-                "nvidia_nim", settings, passthrough_api_key="sk-passthrough"
-            )
+            p_a = registry.get("nvidia_nim", settings, passthrough_api_key="sk-aaa")
+            p_b = registry.get("nvidia_nim", settings, passthrough_api_key="sk-bbb")
 
-        assert p_no_key is not p_with_key
+        assert p_a is not p_b
 
 
 class TestRequireApiKeyReturnsToken:

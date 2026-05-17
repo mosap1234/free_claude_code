@@ -137,11 +137,22 @@ def _credential_for(descriptor: ProviderDescriptor, settings: Settings) -> str:
     return ""
 
 
-def _require_credential(descriptor: ProviderDescriptor, credential: str) -> None:
+def _require_credential(
+    descriptor: ProviderDescriptor,
+    credential: str,
+    *,
+    passthrough_enabled: bool = False,
+) -> None:
     if descriptor.credential_env is None:
         return
     if credential and credential.strip():
         return
+    if passthrough_enabled:
+        raise AuthenticationError(
+            "ENABLE_API_KEY_PASSTHROUGH is active but no client auth token was "
+            "provided. Ensure the request includes a valid Authorization or "
+            "x-api-key header."
+        )
     message = f"{descriptor.credential_env} is not set. Add it to your .env file."
     if descriptor.credential_url:
         message = f"{message} Get a key at {descriptor.credential_url}"
@@ -154,11 +165,14 @@ def build_provider_config(
     *,
     passthrough_api_key: str = "",
 ) -> ProviderConfig:
-    if passthrough_api_key and settings.enable_api_key_passthrough:
+    passthrough_enabled = settings.enable_api_key_passthrough
+    if passthrough_api_key and passthrough_enabled:
         credential = passthrough_api_key
+    elif passthrough_enabled:
+        credential = ""
     else:
         credential = _credential_for(descriptor, settings)
-        _require_credential(descriptor, credential)
+    _require_credential(descriptor, credential, passthrough_enabled=passthrough_enabled)
     base_url = _string_attr(
         settings, descriptor.base_url_attr, descriptor.default_base_url or ""
     )

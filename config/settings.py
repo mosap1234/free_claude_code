@@ -453,6 +453,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self) -> Settings:
+        if self.enable_api_key_passthrough:
+            return self
         if (
             self.voice_note_enabled
             and self.whisper_device == "nvidia_nim"

@@ -52,6 +52,8 @@ def _make_mock_settings(**overrides):
     mock.http_write_timeout = 10.0
     mock.http_connect_timeout = 10.0
     mock.enable_model_thinking = True
+    mock.enable_api_key_passthrough = False
+    mock.anthropic_auth_token = ""
     for key, value in overrides.items():
         setattr(mock, key, value)
     return mock
