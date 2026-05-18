@@ -162,10 +162,15 @@ async def local_provider_status(request: Request):
     require_loopback_admin(request)
     config = load_config_response()
     values = {field["key"]: field["value"] for field in config["fields"]}
+    verify_ssl = values.get("HTTP_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
     checks = []
     for provider_id, path in LOCAL_PROVIDER_PATHS.items():
         base_url = _local_provider_url(provider_id, values)
-        checks.append(await _check_local_provider(provider_id, base_url, path))
+        checks.append(
+            await _check_local_provider(
+                provider_id, base_url, path, verify_ssl=verify_ssl
+            )
+        )
     return {"providers": checks}
 
 
@@ -254,7 +259,7 @@ def _local_provider_url(provider_id: str, values: dict[str, str]) -> str:
 
 
 async def _check_local_provider(
-    provider_id: str, base_url: str, path: str
+    provider_id: str, base_url: str, path: str, verify_ssl: bool = True
 ) -> dict[str, Any]:
     clean_url = base_url.strip().rstrip("/")
     if not clean_url:
@@ -267,7 +272,7 @@ async def _check_local_provider(
 
     url = f"{clean_url}{path}"
     try:
-        async with httpx.AsyncClient(timeout=1.5) as client:
+        async with httpx.AsyncClient(timeout=1.5, verify=verify_ssl) as client:
             response = await client.get(url)
         ok = 200 <= response.status_code < 300
         return {

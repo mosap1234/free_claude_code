@@ -389,6 +389,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         default="60",
     ),
     ConfigFieldSpec(
+        "HTTP_VERIFY_SSL",
+        "HTTP Verify SSL",
+        "runtime",
+        "boolean",
+        settings_attr="http_verify_ssl",
+        default="true",
+        description="Enable SSL certificate verification for all HTTP requests. Set to false to bypass SSLErrors.",
+    ),
+    ConfigFieldSpec(
         "HOST",
         "Server Host",
         "runtime",

@@ -299,7 +299,7 @@ async def test_run_web_fetch_excess_redirects_raises():
 
 @pytest.mark.asyncio
 async def test_streams_web_search_server_tool_result(monkeypatch):
-    async def fake_search(query: str) -> list[dict[str, str]]:
+    async def fake_search(query: str, verify_ssl: bool = True) -> list[dict[str, str]]:
         assert query == "DeepSeek V4 model release 2026"
         return [{"title": "DeepSeek V4 Released", "url": "https://example.com/v4"}]
 
@@ -363,7 +363,9 @@ async def test_forced_web_fetch_ignores_stale_url_from_prior_user_turns(monkeypa
     """Only the latest user message supplies the URL (not earlier transcript text)."""
     target = "https://new-only.example.com/page"
 
-    async def fake_fetch(url: str, _egress: WebFetchEgressPolicy) -> dict[str, str]:
+    async def fake_fetch(
+        url: str, _egress: WebFetchEgressPolicy, verify_ssl: bool = True
+    ) -> dict[str, str]:
         assert url == target
         return {
             "url": url,
@@ -404,7 +406,9 @@ async def test_forced_web_fetch_ignores_stale_url_from_prior_user_turns(monkeypa
 
 @pytest.mark.asyncio
 async def test_streams_web_fetch_server_tool_result(monkeypatch):
-    async def fake_fetch(url: str, _egress: WebFetchEgressPolicy) -> dict[str, str]:
+    async def fake_fetch(
+        url: str, _egress: WebFetchEgressPolicy, verify_ssl: bool = True
+    ) -> dict[str, str]:
         assert url == "https://example.com/article"
         return {
             "url": url,
@@ -464,7 +468,9 @@ async def test_streams_web_fetch_server_tool_result(monkeypatch):
 async def test_streams_web_fetch_error_summary_generic_by_default(monkeypatch):
     secret = "sensitive-upstream-token"
 
-    async def boom(_url: str, _egress: WebFetchEgressPolicy) -> dict[str, str]:
+    async def boom(
+        _url: str, _egress: WebFetchEgressPolicy, verify_ssl: bool = True
+    ) -> dict[str, str]:
         raise ValueError(secret)
 
     monkeypatch.setattr("api.web_tools.outbound._run_web_fetch", boom)
@@ -522,7 +528,9 @@ async def test_streams_web_fetch_error_summary_generic_by_default(monkeypatch):
 async def test_streams_web_fetch_error_summary_verbose_includes_exception_class(
     monkeypatch,
 ):
-    async def boom(_url: str, _egress: WebFetchEgressPolicy) -> dict[str, str]:
+    async def boom(
+        _url: str, _egress: WebFetchEgressPolicy, verify_ssl: bool = True
+    ) -> dict[str, str]:
         raise OSError(5, "oops")
 
     monkeypatch.setattr("api.web_tools.outbound._run_web_fetch", boom)
