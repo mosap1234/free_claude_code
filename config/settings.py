@@ -200,7 +200,7 @@ class Settings(BaseSettings):
         default=None, validation_alias="ENABLE_HAIKU_THINKING"
     )
 
-    # ==================== HTTP Client Timeouts ====================
+    # ==================== HTTP Client Timeouts & SSL ====================
     http_read_timeout: float = Field(
         default=120.0, validation_alias="HTTP_READ_TIMEOUT"
     )
@@ -211,6 +211,7 @@ class Settings(BaseSettings):
         default=HTTP_CONNECT_TIMEOUT_DEFAULT,
         validation_alias="HTTP_CONNECT_TIMEOUT",
     )
+    http_verify_ssl: bool = Field(default=True, validation_alias="HTTP_VERIFY_SSL")
 
     # ==================== Fast Prefix Detection ====================
     fast_prefix_detection: bool = True
