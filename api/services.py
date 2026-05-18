@@ -134,6 +134,7 @@ class ClaudeProxyService:
                         routed.request,
                         input_tokens=input_tokens,
                         web_fetch_egress=egress,
+                        verify_ssl=self._settings.http_verify_ssl,
                         verbose_client_errors=self._settings.log_api_error_tracebacks,
                     ),
                 )

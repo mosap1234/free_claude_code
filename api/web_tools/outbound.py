@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import socket
+import ssl
 from collections.abc import AsyncIterator
 from urllib.parse import urljoin, urlparse
 
@@ -28,6 +29,16 @@ from .egress import (
     get_validated_stream_addrinfos_for_egress,
 )
 from .parsers import HTMLTextParser, SearchResultParser
+
+
+def _ssl_context(verify: bool) -> ssl.SSLContext | bool:
+    """返回 True（默认验证）或禁用证书验证的 SSLContext。"""
+    if verify:
+        return True
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
 
 
 def _safe_public_host_for_logs(url: str) -> str:
@@ -184,12 +195,16 @@ async def _drain_aiohttp_body_capped(
             break
 
 
-async def _run_web_search(query: str) -> list[dict[str, str]]:
+async def _run_web_search(
+    query: str,
+    verify_ssl: bool = True,
+) -> list[dict[str, str]]:
     async with (
         httpx.AsyncClient(
             timeout=_REQUEST_TIMEOUT_S,
             follow_redirects=True,
             headers=_WEB_TOOL_HTTP_HEADERS,
+            verify=verify_ssl,
         ) as client,
         client.stream(
             "GET",
@@ -207,7 +222,9 @@ async def _run_web_search(query: str) -> list[dict[str, str]]:
     return parser.results[:_MAX_SEARCH_RESULTS]
 
 
-async def _run_web_fetch(url: str, egress: WebFetchEgressPolicy) -> dict[str, str]:
+async def _run_web_fetch(
+    url: str, egress: WebFetchEgressPolicy, verify_ssl: bool = True
+) -> dict[str, str]:
     """Fetch URL with manual redirects; each hop is DNS-pinned to validated addresses."""
     current_url = url
     redirect_hops = 0
@@ -223,6 +240,7 @@ async def _run_web_fetch(url: str, egress: WebFetchEgressPolicy) -> dict[str, st
         connector = TCPConnector(
             resolver=resolver,
             force_close=True,
+            ssl=_ssl_context(verify_ssl),
         )
         try:
             async with (
