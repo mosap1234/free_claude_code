@@ -168,6 +168,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         description="OpenCode Zen curated model gateway at opencode.ai.",
     ),
     ConfigFieldSpec(
+        "BASETEN_API_KEY",
+        "BASETEN API Key",
+        "providers",
+        "secret",
+        settings_attr="baseten_api_key",
+        secret=True,
+        description="Baseten API key for custom-hosted OpenAI-compatible endpoints. Base URL is configured separately.",
+    ),
+    ConfigFieldSpec(
         "ZAI_API_KEY",
         "Z.ai API Key",
         "providers",

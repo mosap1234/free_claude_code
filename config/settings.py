@@ -128,6 +128,10 @@ class Settings(BaseSettings):
     # ==================== Fireworks AI Config ====================
     fireworks_api_key: str = Field(default="", validation_alias="FIREWORKS_API_KEY")
 
+    # ==================== Baseten Config ====================
+    baseten_api_key: str = Field(default="", validation_alias="BASETEN_API_KEY")
+
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -182,6 +186,8 @@ class Settings(BaseSettings):
     opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
     fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")
+    baseten_proxy: str = Field(default="", validation_alias="BASETEN_PROXY")
+
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")

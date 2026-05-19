@@ -208,6 +208,15 @@ def _preflight_proxy(proxy_root_url: str) -> str | None:
     return None
 
 
+def source_env_variables() -> None:
+    """This should print all environment variables that the proxy needs to work, so that the user can eval it in their shell."""
+    settings = get_settings()
+    env = _claude_child_env(settings, os.environ)
+    for i in env:
+        if i.startswith("ANTHROPIC_") or i.startswith("CLAUDE_CODE_"):
+            print(f"{i}={env[i]}")
+
+
 def launch_claude(argv: Sequence[str] | None = None) -> None:
     """Launch Claude Code with Free Claude Code proxy environment variables."""
 

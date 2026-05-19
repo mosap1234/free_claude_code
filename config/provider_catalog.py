@@ -20,6 +20,7 @@ DEEPSEEK_ANTHROPIC_DEFAULT_BASE = "https://api.deepseek.com/anthropic"
 # Historical export name: DeepSeek upstream is the native Anthropic path above.
 DEEPSEEK_DEFAULT_BASE = DEEPSEEK_ANTHROPIC_DEFAULT_BASE
 FIREWORKS_DEFAULT_BASE = "https://api.fireworks.ai/inference/v1"
+BASETEN_DEFAULT_BASE = "https://inference.baseten.co/v1"
 OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1"
 LMSTUDIO_DEFAULT_BASE = "http://localhost:1234/v1"
 LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
@@ -156,6 +157,17 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         proxy_attr="fireworks_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
+    "baseten": ProviderDescriptor(
+        provider_id="baseten",
+        transport_type="openai_chat",
+        credential_env="BASETEN_API_KEY",
+        credential_url="https://baseten.co/settings",
+        credential_attr="baseten_api_key",
+        default_base_url=BASETEN_DEFAULT_BASE,
+        proxy_attr="baseten_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
+    ),
+
 }
 
 # Order matches docs / historical error text; must match PROVIDER_CATALOG keys.

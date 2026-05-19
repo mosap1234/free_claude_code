@@ -98,6 +98,12 @@ def _create_fireworks(config: ProviderConfig, _settings: Settings) -> BaseProvid
     return FireworksProvider(config)
 
 
+def _create_baseten(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.baseten import BasetenProvider
+
+    return BasetenProvider(config)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -110,6 +116,7 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "opencode": _create_opencode,
     "zai": _create_zai,
     "fireworks": _create_fireworks,
+    "baseten": _create_baseten,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
