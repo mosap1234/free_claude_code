@@ -1,5 +1,7 @@
 """Centralized configuration using Pydantic Settings."""
 
+from __future__ import annotations
+
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -122,6 +124,9 @@ class Settings(BaseSettings):
     # ==================== OpenCode Zen Config ====================
     opencode_api_key: str = Field(default="", validation_alias="OPENCODE_API_KEY")
 
+    # ==================== OpenCode Go Config ====================
+    opencode_go_api_key: str = Field(default="", validation_alias="OPENCODE_GO_API_KEY")
+
     # ==================== Z.ai Config ====================
     zai_api_key: str = Field(default="", validation_alias="ZAI_API_KEY")
 
@@ -180,6 +185,7 @@ class Settings(BaseSettings):
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
     wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
     opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
+    opencode_go_proxy: str = Field(default="", validation_alias="OPENCODE_GO_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
     fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")
 
