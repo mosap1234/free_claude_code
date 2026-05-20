@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from messaging.platforms.factory import create_messaging_platform
+from providers.agentrouter import AgentRouterProvider
 from providers.base import BaseProvider
 from providers.deepseek import DeepSeekProvider
 from providers.llamacpp import LlamaCppProvider
@@ -77,6 +78,7 @@ def test_provider_and_platform_registries_include_advertised_builtins() -> None:
         "llamacpp": LlamaCppProvider,
         "ollama": OllamaProvider,
         "wafer": WaferProvider,
+        "agentrouter": AgentRouterProvider,
         "opencode": OpenCodeProvider,
         "zai": ZaiProvider,
     }

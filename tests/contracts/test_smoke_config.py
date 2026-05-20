@@ -27,6 +27,7 @@ def _settings(**overrides):
         "open_router_api_key": "",
         "deepseek_api_key": "",
         "wafer_api_key": "",
+        "agentrouter_api_key": "",
         "opencode_api_key": "",
         "zai_api_key": "",
         "lm_studio_base_url": "",
@@ -117,6 +118,22 @@ def test_wafer_provider_configuration_uses_api_key(monkeypatch) -> None:
     models = config.provider_smoke_models()
     assert models[0].provider == "wafer"
     assert models[0].full_model == PROVIDER_SMOKE_DEFAULT_MODELS["wafer"]
+
+
+def test_agentrouter_provider_configuration_uses_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("FCC_SMOKE_MODEL_AGENTROUTER", raising=False)
+    config = _smoke_config(
+        settings=_settings(
+            model="ollama/llama3.1",
+            ollama_base_url="",
+            agentrouter_api_key="agentrouter-key",
+        )
+    )
+
+    assert config.has_provider_configuration("agentrouter")
+    models = config.provider_smoke_models()
+    assert models[0].provider == "agentrouter"
+    assert models[0].full_model == PROVIDER_SMOKE_DEFAULT_MODELS["agentrouter"]
 
 
 def test_provider_smoke_model_override_accepts_model_name_without_prefix(

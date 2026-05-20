@@ -119,6 +119,9 @@ class Settings(BaseSettings):
     # ==================== Wafer Config ====================
     wafer_api_key: str = Field(default="", validation_alias="WAFER_API_KEY")
 
+    # ==================== AgentRouter Config ====================
+    agentrouter_api_key: str = Field(default="", validation_alias="AGENTROUTER_API_KEY")
+
     # ==================== OpenCode Zen Config ====================
     opencode_api_key: str = Field(default="", validation_alias="OPENCODE_API_KEY")
 
@@ -179,6 +182,7 @@ class Settings(BaseSettings):
     llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
     kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
     wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
+    agentrouter_proxy: str = Field(default="", validation_alias="AGENTROUTER_PROXY")
     opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
     fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")

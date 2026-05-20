@@ -124,6 +124,21 @@ def test_model_router_routes_wafer_provider_model_directly(settings):
     assert routed.resolved.provider_model_ref == "wafer/DeepSeek-V4-Pro"
 
 
+def test_model_router_routes_agentrouter_provider_model_directly(settings):
+    routed = ModelRouter(settings).resolve_messages_request(
+        MessagesRequest(
+            model="agentrouter/deepseek-v4-pro",
+            max_tokens=100,
+            messages=[Message(role="user", content="hello")],
+        )
+    )
+
+    assert routed.request.model == "deepseek-v4-pro"
+    assert routed.resolved.provider_id == "agentrouter"
+    assert routed.resolved.provider_model == "deepseek-v4-pro"
+    assert routed.resolved.provider_model_ref == "agentrouter/deepseek-v4-pro"
+
+
 def test_model_router_routes_gateway_encoded_provider_model_directly(settings):
     routed = ModelRouter(settings).resolve_messages_request(
         MessagesRequest(

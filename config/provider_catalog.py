@@ -15,6 +15,7 @@ TransportType = Literal["openai_chat", "anthropic_messages"]
 NVIDIA_NIM_DEFAULT_BASE = "https://integrate.api.nvidia.com/v1"
 KIMI_DEFAULT_BASE = "https://api.moonshot.ai/v1"
 WAFER_DEFAULT_BASE = "https://pass.wafer.ai/v1"
+AGENTROUTER_DEFAULT_BASE = "https://agentrouter.org/v1"
 # DeepSeek Anthropic-compatible Messages API (not OpenAI ``/v1`` chat completions).
 DEEPSEEK_ANTHROPIC_DEFAULT_BASE = "https://api.deepseek.com/anthropic"
 # Historical export name: DeepSeek upstream is the native Anthropic path above.
@@ -125,6 +126,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="wafer_api_key",
         default_base_url=WAFER_DEFAULT_BASE,
         proxy_attr="wafer_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "native_anthropic"),
+    ),
+    "agentrouter": ProviderDescriptor(
+        provider_id="agentrouter",
+        transport_type="anthropic_messages",
+        credential_env="AGENTROUTER_API_KEY",
+        credential_url="https://agentrouter.org/console/token",
+        credential_attr="agentrouter_api_key",
+        default_base_url=AGENTROUTER_DEFAULT_BASE,
+        proxy_attr="agentrouter_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "native_anthropic"),
     ),
     "opencode": ProviderDescriptor(

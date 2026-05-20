@@ -67,6 +67,7 @@ function providerName(providerId) {
     ollama: "Ollama",
     kimi: "Kimi",
     wafer: "Wafer",
+    agentrouter: "AgentRouter",
     opencode: "OpenCode Zen",
     zai: "Z.ai",
   };

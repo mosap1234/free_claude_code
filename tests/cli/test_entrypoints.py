@@ -1,5 +1,6 @@
 """Tests for cli/entrypoints.py — fcc-init scaffolding logic."""
 
+import json
 import tomllib
 from pathlib import Path
 from types import SimpleNamespace
@@ -325,6 +326,24 @@ def test_claude_child_env_removes_blank_configured_auth_token() -> None:
     assert "ANTHROPIC_API_KEY" not in env
 
 
+def test_claude_proxy_settings_payload_overrides_user_anthropic_env() -> None:
+    from cli.entrypoints import _claude_proxy_settings_payload
+
+    payload = _claude_proxy_settings_payload(
+        _launcher_settings(port=9191, token=" proxy-token ")
+    )
+
+    env = payload["env"]
+    assert env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9191"
+    assert env["ANTHROPIC_AUTH_TOKEN"] == "proxy-token"
+    assert env["ANTHROPIC_API_KEY"] == ""
+    assert env["ANTHROPIC_DEFAULT_OPUS_MODEL"] == ""
+    assert env["ANTHROPIC_DEFAULT_SONNET_MODEL"] == ""
+    assert env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] == ""
+    assert env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
+    assert env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "190000"
+
+
 def test_launch_claude_passes_args_and_child_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -351,7 +370,11 @@ def test_launch_claude_passes_args_and_child_env(
 
     assert exc_info.value.code == 7
     popen.assert_called_once()
-    assert popen.call_args.args[0] == ["resolved-claude.cmd", "--model", "sonnet"]
+    command = popen.call_args.args[0]
+    assert command[:3] == ["resolved-claude.cmd", "--model", "sonnet"]
+    assert command[3] == "--settings"
+    settings_path = Path(command[4])
+    assert not settings_path.exists()
     child_env = popen.call_args.kwargs["env"]
     assert child_env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9191"
     assert child_env["ANTHROPIC_AUTH_TOKEN"] == "proxy-token"
@@ -360,6 +383,22 @@ def test_launch_claude_passes_args_and_child_env(
     assert child_env["KEEP_ME"] == "yes"
     register_pid.assert_called_once_with(12345)
     unregister_pid.assert_called_once_with(12345)
+
+
+def test_write_claude_proxy_settings_file_contains_json_and_is_unlinked(
+    tmp_path: Path,
+) -> None:
+    from cli.entrypoints import _write_claude_proxy_settings_file
+
+    settings_path = _write_claude_proxy_settings_file(
+        _launcher_settings(port=9191, token="proxy-token"),
+        directory=tmp_path,
+    )
+
+    payload = json.loads(settings_path.read_text("utf-8"))
+    assert payload["env"]["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9191"
+    assert payload["env"]["ANTHROPIC_AUTH_TOKEN"] == "proxy-token"
+    settings_path.unlink()
 
 
 def test_launch_claude_keyboard_interrupt_kills_child_tree() -> None:

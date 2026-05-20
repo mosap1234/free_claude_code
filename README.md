@@ -164,7 +164,13 @@ Popular examples:
 
 This provider uses Wafer's Anthropic-compatible endpoint at `https://pass.wafer.ai/v1/messages`.
 
-### 4. [OpenRouter](https://openrouter.ai/)
+### 4. [AgentRouter](https://agentrouter.org/)
+
+Get a token at [agentrouter.org/console/token](https://agentrouter.org/console/token). In the Admin UI, paste it into `AGENTROUTER_API_KEY`, then set `MODEL` to an AgentRouter model slug such as `agentrouter/deepseek-v4-pro`.
+
+This provider uses AgentRouter's Anthropic-compatible endpoint at `https://agentrouter.org/v1/messages`.
+
+### 5. [OpenRouter](https://openrouter.ai/)
 
 Get a key at [openrouter.ai/keys](https://openrouter.ai/keys).
 
@@ -172,7 +178,7 @@ In the Admin UI, paste it into `OPENROUTER_API_KEY`, then set `MODEL` to an Open
 
 Browse [all models](https://openrouter.ai/models) or [free models](https://openrouter.ai/collections/free-models).
 
-### 5. [DeepSeek](https://platform.deepseek.com/)
+### 6. [DeepSeek](https://platform.deepseek.com/)
 
 Get a key at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys).
 
@@ -180,13 +186,13 @@ In the Admin UI, paste it into `DEEPSEEK_API_KEY`, then set `MODEL` to a DeepSee
 
 This provider uses DeepSeek's Anthropic-compatible endpoint, not the OpenAI chat-completions endpoint.
 
-### 6. [LM Studio](https://lmstudio.ai/)
+### 7. [LM Studio](https://lmstudio.ai/)
 
 Start LM Studio's local server and load a model. In the Admin UI, keep or update `LM_STUDIO_BASE_URL`, then set `MODEL` to the model identifier shown by LM Studio, prefixed with `lmstudio/`.
 
 Prefer models with tool-use support for Claude Code workflows.
 
-### 7. [llama.cpp](https://github.com/ggml-org/llama.cpp)
+### 8. [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 Start `llama-server` with an Anthropic-compatible `/v1/messages` endpoint and enough context for Claude Code requests.
 
@@ -194,7 +200,7 @@ In the Admin UI, keep or update `LLAMACPP_BASE_URL`, then set `MODEL` to the loc
 
 For local coding models, context size matters. If llama.cpp returns HTTP 400 for normal Claude Code requests, increase `--ctx-size` and verify the model/server build supports the requested features.
 
-### 8. [Ollama](https://ollama.com/)
+### 9. [Ollama](https://ollama.com/)
 
 Run Ollama and pull a model:
 
@@ -207,7 +213,7 @@ In the Admin UI, keep or update `OLLAMA_BASE_URL`, then set `MODEL` to the same 
 
 `OLLAMA_BASE_URL` is the Ollama server root; do not append `/v1`. Example model slugs include `ollama/llama3.1` and `ollama/llama3.1:8b`.
 
-### 9. [OpenCode Zen](https://opencode.ai/)
+### 10. [OpenCode Zen](https://opencode.ai/)
 
 Get an API key at [opencode.ai/auth](https://opencode.ai/auth).
 
@@ -226,7 +232,7 @@ Popular examples:
 
 Browse available models at [opencode.ai](https://opencode.ai).
 
-### 10. [Z.ai](https://z.ai/)
+### 11. [Z.ai](https://z.ai/)
 
 Get an API key at [Z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list).
 
@@ -241,7 +247,7 @@ Popular examples:
 
 Browse models at [Z.ai](https://z.ai).
 
-### 11. Mix Providers By Model Tier
+### 12. Mix Providers By Model Tier
 
 Each model tier can use a different provider by setting `MODEL_OPUS`, `MODEL_SONNET`, and `MODEL_HAIKU` in the Admin UI. Leave a tier blank to inherit `MODEL`.
 

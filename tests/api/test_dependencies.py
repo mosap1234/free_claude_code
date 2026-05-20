@@ -15,6 +15,7 @@ from api.dependencies import (
     resolve_provider,
 )
 from config.nim import NimSettings
+from providers.agentrouter import AgentRouterProvider
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import ServiceUnavailableError, UnknownProviderTypeError
 from providers.lmstudio import LMStudioProvider
@@ -37,6 +38,7 @@ def _make_mock_settings(**overrides):
     mock.open_router_api_key = "test_openrouter_key"
     mock.deepseek_api_key = "test_deepseek_key"
     mock.wafer_api_key = "test_wafer_key"
+    mock.agentrouter_api_key = "test_agentrouter_key"
     mock.opencode_api_key = "test_opencode_key"
     mock.zai_api_key = "test_zai_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
@@ -45,6 +47,7 @@ def _make_mock_settings(**overrides):
     mock.llamacpp_proxy = ""
     mock.kimi_proxy = ""
     mock.wafer_proxy = ""
+    mock.agentrouter_proxy = ""
     mock.opencode_proxy = ""
     mock.zai_proxy = ""
     mock.nim = NimSettings()
@@ -212,6 +215,19 @@ async def test_get_provider_wafer():
 
 
 @pytest.mark.asyncio
+async def test_get_provider_agentrouter():
+    """Test that provider_type=agentrouter returns AgentRouterProvider."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(provider_type="agentrouter")
+
+        provider = get_provider()
+
+        assert isinstance(provider, AgentRouterProvider)
+        assert provider._base_url == "https://agentrouter.org/v1"
+        assert provider._api_key == "test_agentrouter_key"
+
+
+@pytest.mark.asyncio
 async def test_get_provider_lmstudio_uses_lm_studio_base_url():
     """LM Studio provider uses lm_studio_base_url from settings."""
     with patch("api.dependencies.get_settings") as mock_settings:
@@ -362,6 +378,23 @@ async def test_get_provider_wafer_missing_api_key():
         assert exc_info.value.status_code == 503
         assert "WAFER_API_KEY" in exc_info.value.detail
         assert "wafer.ai" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_get_provider_agentrouter_missing_api_key():
+    """AgentRouter with empty API key raises HTTPException 503."""
+    with patch("api.dependencies.get_settings") as mock_settings:
+        mock_settings.return_value = _make_mock_settings(
+            provider_type="agentrouter",
+            agentrouter_api_key="",
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            get_provider()
+
+        assert exc_info.value.status_code == 503
+        assert "AGENTROUTER_API_KEY" in exc_info.value.detail
+        assert "agentrouter.org" in exc_info.value.detail
 
 
 @pytest.mark.asyncio

@@ -272,6 +272,14 @@ class TestSettings:
         settings = Settings()
         assert settings.wafer_api_key == "wafer-key"
 
+    def test_agentrouter_api_key_from_env(self, monkeypatch):
+        """AGENTROUTER_API_KEY env var is loaded into settings."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("AGENTROUTER_API_KEY", "agentrouter-key")
+        settings = Settings()
+        assert settings.agentrouter_api_key == "agentrouter-key"
+
     def test_per_model_thinking_from_env(self, monkeypatch):
         """Per-model thinking env vars are loaded into settings."""
         from config.settings import Settings
@@ -622,6 +630,11 @@ class TestPerModelMapping:
             ),
             ({"MODEL": "deepseek/deepseek-chat"}, "deepseek/deepseek-chat", None),
             ({"MODEL": "wafer/DeepSeek-V4-Pro"}, "wafer/DeepSeek-V4-Pro", None),
+            (
+                {"MODEL": "agentrouter/deepseek-v4-pro"},
+                "agentrouter/deepseek-v4-pro",
+                None,
+            ),
             ({"MODEL": "lmstudio/qwen2.5-7b"}, "lmstudio/qwen2.5-7b", None),
             ({"MODEL": "llamacpp/local-model"}, "llamacpp/local-model", None),
             ({"MODEL": "ollama/llama3.1"}, "ollama/llama3.1", None),
@@ -763,6 +776,9 @@ class TestPerModelMapping:
         assert Settings.parse_provider_type("llamacpp/model") == "llamacpp"
         assert Settings.parse_provider_type("ollama/llama3.1") == "ollama"
         assert Settings.parse_provider_type("wafer/DeepSeek-V4-Pro") == "wafer"
+        assert (
+            Settings.parse_provider_type("agentrouter/deepseek-v4-pro") == "agentrouter"
+        )
 
     def test_parse_model_name(self):
         """parse_model_name extracts model name from model string."""
@@ -774,6 +790,10 @@ class TestPerModelMapping:
         assert Settings.parse_model_name("llamacpp/model") == "model"
         assert Settings.parse_model_name("ollama/llama3.1") == "llama3.1"
         assert Settings.parse_model_name("wafer/DeepSeek-V4-Pro") == "DeepSeek-V4-Pro"
+        assert (
+            Settings.parse_model_name("agentrouter/deepseek-v4-pro")
+            == "deepseek-v4-pro"
+        )
 
     def test_configured_chat_model_refs_collects_unique_models_with_sources(
         self, monkeypatch

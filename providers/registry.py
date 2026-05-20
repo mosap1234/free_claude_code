@@ -80,6 +80,12 @@ def _create_wafer(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     return WaferProvider(config)
 
 
+def _create_agentrouter(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+    from providers.agentrouter import AgentRouterProvider
+
+    return AgentRouterProvider(config)
+
+
 def _create_opencode(config: ProviderConfig, _settings: Settings) -> BaseProvider:
     from providers.opencode import OpenCodeProvider
 
@@ -107,6 +113,7 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "ollama": _create_ollama,
     "kimi": _create_kimi,
     "wafer": _create_wafer,
+    "agentrouter": _create_agentrouter,
     "opencode": _create_opencode,
     "zai": _create_zai,
     "fireworks": _create_fireworks,

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
@@ -188,6 +190,44 @@ def _claude_child_env(
     return env
 
 
+def _claude_proxy_settings_payload(settings: Settings) -> dict[str, dict[str, str]]:
+    """Return temporary Claude Code settings that override user Anthropic env config."""
+
+    env = {
+        "ANTHROPIC_BASE_URL": local_proxy_root_url(settings),
+        # Blank API-key/default-model envs override user settings without editing them.
+        "ANTHROPIC_API_KEY": "",
+        "ANTHROPIC_DEFAULT_OPUS_MODEL": "",
+        "ANTHROPIC_DEFAULT_SONNET_MODEL": "",
+        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "",
+        "CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY": "1",
+        "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "190000",
+    }
+    if token := settings.anthropic_auth_token.strip():
+        env["ANTHROPIC_AUTH_TOKEN"] = token
+    else:
+        env["ANTHROPIC_AUTH_TOKEN"] = ""
+    return {"env": env}
+
+
+def _write_claude_proxy_settings_file(
+    settings: Settings, *, directory: Path | None = None
+) -> Path:
+    """Write a temporary Claude Code settings override for ``fcc-claude``."""
+
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        prefix="fcc-claude-settings-",
+        suffix=".json",
+        delete=False,
+        dir=str(directory) if directory is not None else None,
+    ) as file:
+        json.dump(_claude_proxy_settings_payload(settings), file)
+        file.write("\n")
+        return Path(file.name)
+
+
 def _preflight_proxy(proxy_root_url: str) -> str | None:
     """Return an error message when the local proxy health check is unreachable."""
 
@@ -234,7 +274,8 @@ def launch_claude(argv: Sequence[str] | None = None) -> None:
         )
         raise SystemExit(127)
 
-    command = [claude_command, *args]
+    settings_file = _write_claude_proxy_settings_file(settings)
+    command = [claude_command, *args, "--settings", str(settings_file)]
     env = _claude_child_env(settings, os.environ)
     process: subprocess.Popen[bytes] | None = None
     try:
@@ -260,5 +301,6 @@ def launch_claude(argv: Sequence[str] | None = None) -> None:
     finally:
         if process is not None and process.pid:
             unregister_pid(process.pid)
+        settings_file.unlink(missing_ok=True)
 
     raise SystemExit(return_code)

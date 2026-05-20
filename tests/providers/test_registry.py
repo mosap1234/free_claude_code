@@ -5,8 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from config.nim import NimSettings
-from config.provider_catalog import ZAI_DEFAULT_BASE
+from config.provider_catalog import AGENTROUTER_DEFAULT_BASE, ZAI_DEFAULT_BASE
 from config.provider_ids import SUPPORTED_PROVIDER_IDS
+from providers.agentrouter import AgentRouterProvider
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import UnknownProviderTypeError
 from providers.llamacpp import LlamaCppProvider
@@ -33,6 +34,7 @@ def _make_settings(**overrides):
     mock.open_router_api_key = "test_openrouter_key"
     mock.deepseek_api_key = "test_deepseek_key"
     mock.wafer_api_key = "test_wafer_key"
+    mock.agentrouter_api_key = "test_agentrouter_key"
     mock.opencode_api_key = "test_opencode_key"
     mock.zai_api_key = "test_zai_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
@@ -44,6 +46,7 @@ def _make_settings(**overrides):
     mock.llamacpp_proxy = ""
     mock.kimi_proxy = ""
     mock.wafer_proxy = ""
+    mock.agentrouter_proxy = ""
     mock.opencode_proxy = ""
     mock.zai_proxy = ""
     mock.provider_rate_limit = 40
@@ -91,6 +94,15 @@ def test_ollama_descriptor_uses_native_anthropic_transport():
     assert "native_anthropic" in descriptor.capabilities
 
 
+def test_agentrouter_descriptor_uses_anthropic_compatible_base_url():
+    descriptor = PROVIDER_DESCRIPTORS["agentrouter"]
+
+    assert descriptor.transport_type == "anthropic_messages"
+    assert descriptor.default_base_url == AGENTROUTER_DEFAULT_BASE
+    assert descriptor.credential_attr == "agentrouter_api_key"
+    assert "native_anthropic" in descriptor.capabilities
+
+
 def test_zai_descriptor_uses_fixed_cloud_base_url():
     descriptor = PROVIDER_DESCRIPTORS["zai"]
 
@@ -125,6 +137,7 @@ def test_create_provider_instantiates_each_builtin():
         "llamacpp": LlamaCppProvider,
         "ollama": OllamaProvider,
         "wafer": WaferProvider,
+        "agentrouter": AgentRouterProvider,
         "opencode": OpenCodeProvider,
         "zai": ZaiProvider,
     }
