@@ -27,6 +27,7 @@ LLAMACPP_DEFAULT_BASE = "http://localhost:8080/v1"
 OLLAMA_DEFAULT_BASE = "http://localhost:11434"
 OPENCODE_DEFAULT_BASE = "https://opencode.ai/zen/v1"
 ZAI_DEFAULT_BASE = "https://api.z.ai/api/coding/paas/v4"
+CLOUDFLARE_DEFAULT_BASE = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +146,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="zai_api_key",
         default_base_url=ZAI_DEFAULT_BASE,
         proxy_attr="zai_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
+    ),
+    "cloudflare": ProviderDescriptor(
+        provider_id="cloudflare",
+        transport_type="openai_chat",
+        credential_env="CLOUDFLARE_API_KEY",
+        credential_attr="cloudflare_api_key",
+        # Note: base_url requires account_id, so we don't set a default_base_url here
+        # Instead, we'll construct it in the provider using the account_id from settings
+        proxy_attr="cloudflare_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
     "fireworks": ProviderDescriptor(

@@ -152,3 +152,7 @@ def _create_fireworks(config: ProviderConfig, _settings: Settings) -> BaseProvid
     ),
 
 ```
+
+1. Last but not least
+
+You should update the `try_claude/.github/workflows/claude.yml` and add to the env in `Run translation server`
