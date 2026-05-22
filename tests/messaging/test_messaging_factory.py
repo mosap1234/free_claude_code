@@ -1,6 +1,8 @@
 """Tests for messaging platform factory."""
 
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from messaging.platforms.factory import (
     MessagingPlatformOptions,
@@ -11,9 +13,28 @@ from messaging.platforms.factory import (
 class TestCreateMessagingPlatform:
     """Tests for create_messaging_platform factory function."""
 
+    def test_telegram_with_token_requires_nim_backend(self):
+        mock_platform = MagicMock()
+        with (
+            patch("messaging.platforms.telegram.platform.TELEGRAM_AVAILABLE", True),
+            patch(
+                "messaging.platforms.telegram.TelegramPlatform",
+                return_value=mock_platform,
+            ),
+            pytest.raises(TypeError),
+        ):
+            create_messaging_platform(
+                "telegram",
+                MessagingPlatformOptions(
+                    telegram_bot_token="x",
+                    nim_transcription_backend=None,
+                ),
+            )
+
     def test_telegram_with_token(self):
         """Create Telegram platform when bot_token is provided."""
         mock_platform = MagicMock()
+        nim = MagicMock()
         with (
             patch("messaging.platforms.telegram.platform.TELEGRAM_AVAILABLE", True),
             patch(
@@ -29,6 +50,7 @@ class TestCreateMessagingPlatform:
                     voice_note_enabled=False,
                     whisper_model="large-v3",
                     whisper_device="cuda",
+                    nim_transcription_backend=nim,
                 ),
             )
 
@@ -41,7 +63,7 @@ class TestCreateMessagingPlatform:
             whisper_device="cuda",
             hf_token="",
             nvidia_nim_api_key="",
-            nim_backend=ANY,
+            nim_backend=nim,
             messaging_rate_limit=1,
             messaging_rate_window=1.0,
             log_raw_messaging_content=False,
@@ -64,6 +86,7 @@ class TestCreateMessagingPlatform:
     def test_discord_with_token(self):
         """Create Discord platform when discord_bot_token is provided."""
         mock_platform = MagicMock()
+        nim = MagicMock()
         with (
             patch("messaging.platforms.discord.DISCORD_AVAILABLE", True),
             patch(
@@ -79,6 +102,7 @@ class TestCreateMessagingPlatform:
                     voice_note_enabled=False,
                     whisper_model="small",
                     whisper_device="nvidia_nim",
+                    nim_transcription_backend=nim,
                 ),
             )
 
@@ -91,7 +115,7 @@ class TestCreateMessagingPlatform:
             whisper_device="nvidia_nim",
             hf_token="",
             nvidia_nim_api_key="",
-            nim_backend=ANY,
+            nim_backend=nim,
             messaging_rate_limit=1,
             messaging_rate_window=1.0,
             log_raw_messaging_content=False,

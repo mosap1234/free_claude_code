@@ -52,7 +52,7 @@ const MISSED_ENTITIES: Array<[string, string, string, string]> = [
   ['model listing', 'ProviderModelInfo, extract_*_model_ids', 'Parse /v1/models upstream responses', 'ProviderRegistry refresh'],
   ['registry helpers', 'build_provider_config, create_provider', 'Descriptor → ProviderConfig → factory', 'ProviderCatalog'],
   ['providers.defaults', 'URL constant re-exports', 'Adapter default base URLs from catalog', 'config.provider_catalog'],
-  ['AnthropicToOpenAIConverter', 'core/anthropic/conversion.py', 'Messages → OpenAI chat body', 'OpenAIChatTransport'],
+  ['AnthropicToOpenAIConverter', 'core/anthropic/conversion/*', 'Messages → OpenAI chat body (+ golden fixtures)', 'OpenAIChatTransport'],
   ['SSE pipeline', 'SSEBuilder, ContentBlockManager, HeuristicToolParser', 'OpenAI chunk → Anthropic SSE', 'OpenAIChatTransport'],
   ['native SSE policy', 'EmittedNativeSseTracker, NativeSseBlockPolicyState', 'Native upstream SSE normalization', 'AnthropicMessagesTransport'],
   ['provider_stream_error', 'iter_provider_stream_error_sse_events', 'Error events as SSE on stream failure', 'transports'],
@@ -65,15 +65,22 @@ const MISSED_ENTITIES: Array<[string, string, string, string]> = [
   ['ClaudeCliConfig + CLISession', 'cli/session.py', 'Single subprocess + stream-json parser', 'CLISessionManager'],
   ['process_registry', 'register_pid, kill_pid_tree_best_effort', 'Track/orphan-kill CLI children on shutdown', 'fcc-server, server.py'],
   ['IncomingMessage', 'messaging/models.py', 'Platform inbound DTO', 'platforms → handler'],
-  ['platform factory', 'create_messaging_platform, MessagingPlatformOptions', 'Wire runtime settings → Telegram/Discord', 'AppRuntime'],
+  ['platform factory', 'create_messaging_platform, MessagingPlatformOptions, nim transcription inject', 'Runtime composes backends; messaging stays import-clean', 'AppRuntime'],
   ['CLI protocols', 'CLISession, SessionManagerInterface', 'Decouple messaging from cli package imports', 'handler, platforms.base'],
   ['event pipeline', 'event_parser, node_event_pipeline, cli_event_constants', 'CLI JSON events → handler actions', 'handler'],
+  ['incoming turn', 'incoming_turn.dispatch_incoming_user_message', 'Splits handler ingress from tree enqueue wiring', 'ClaudeMessageHandler'],
   ['bot commands', 'command_dispatcher, commands (/stop /stats /clear)', 'Slash-command routing', 'handler'],
-  ['transcript', 'TranscriptBuffer + Segment types, ThrottledTranscriptEditor', 'Ordered live transcript + throttled edits', 'handler, RenderingProfile'],
+  ['transcript', 'transcript_segments, transcript_buffer, ThrottledTranscriptEditor', 'Ordered live transcript + throttled edits', 'handler, RenderingProfile'],
   ['rendering', 'RenderingProfile, telegram/discord markdown, markdown_tables', 'Platform-specific markdown/status formatting', 'platforms'],
   ['voice / ASR', 'VoiceTranscriptionService, TranscriptionBackend, transcription.py', 'Voice notes → text (Whisper local or NIM via factory)', 'platforms, handler'],
   ['tree internals', 'TreeRepository, TreeQueueProcessor, MessageNode/Tree/State', 'Per-thread queue, node lifecycle', 'TreeQueueManager'],
   ['safe_diagnostics', 'format_exception_for_log', 'Redacted exception logging for messaging', 'limiter, handler'],
+  [
+    'discoverability',
+    'README Architecture + MISSED_entities',
+    'Architecture prose + canvas labels track imports after structural PRs',
+    'contract suites',
+  ],
 ];
 
 const DAG_NODES = [

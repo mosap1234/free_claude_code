@@ -81,6 +81,8 @@ class AnthropicMessagesTransport(BaseProvider):
             rate_window=config.rate_window,
             max_concurrency=config.max_concurrency,
         )
+        if config.native_stream_chunk_mode is not None:
+            self.stream_chunk_mode = config.native_stream_chunk_mode
         self._client = httpx.AsyncClient(
             base_url=self._base_url,
             proxy=config.proxy or None,

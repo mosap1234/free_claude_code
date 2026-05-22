@@ -11,8 +11,11 @@ from dotenv import dotenv_values
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .admin_optimization_settings import AdminOptimizationSettings
+from .bot_settings import BotSettings
 from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from .messaging_settings import MessagingSettings
+from .model_routing_settings import ModelRoutingSettings
 from .nim import NimSettings
 from .observability_settings import ObservabilitySettings
 from .paths import default_claude_workspace_path, managed_env_path
@@ -540,6 +543,47 @@ class Settings(BaseSettings):
             log_messaging_error_details=self.log_messaging_error_details,
             debug_platform_edits=self.debug_platform_edits,
             debug_subagent_stack=self.debug_subagent_stack,
+        )
+
+    @property
+    def model_routing_bundle(self) -> ModelRoutingSettings:
+        """Model tiers and thinking knobs grouped for dashboards and manifests."""
+        return ModelRoutingSettings(
+            model=self.model,
+            model_opus=self.model_opus,
+            model_sonnet=self.model_sonnet,
+            model_haiku=self.model_haiku,
+            enable_model_thinking=self.enable_model_thinking,
+            enable_opus_thinking=self.enable_opus_thinking,
+            enable_sonnet_thinking=self.enable_sonnet_thinking,
+            enable_haiku_thinking=self.enable_haiku_thinking,
+        )
+
+    @property
+    def bot_bundle(self) -> BotSettings:
+        """Bots, workspace guard rails, and voice-note configuration."""
+        return BotSettings(
+            telegram_bot_token=self.telegram_bot_token,
+            allowed_telegram_user_id=self.allowed_telegram_user_id,
+            discord_bot_token=self.discord_bot_token,
+            allowed_discord_channels=self.allowed_discord_channels,
+            allowed_dir=self.allowed_dir,
+            max_message_log_entries_per_chat=self.max_message_log_entries_per_chat,
+            voice_note_enabled=self.voice_note_enabled,
+            whisper_device=self.whisper_device,
+            whisper_model=self.whisper_model,
+            hf_token=self.hf_token,
+        )
+
+    @property
+    def admin_optimization_bundle(self) -> AdminOptimizationSettings:
+        """Admin-visible proxy shortcuts unrelated to throughput rate limits."""
+        return AdminOptimizationSettings(
+            fast_prefix_detection=self.fast_prefix_detection,
+            enable_network_probe_mock=self.enable_network_probe_mock,
+            enable_title_generation_skip=self.enable_title_generation_skip,
+            enable_suggestion_mode_skip=self.enable_suggestion_mode_skip,
+            enable_filepath_extraction_mock=self.enable_filepath_extraction_mock,
         )
 
     @computed_field

@@ -1,4 +1,4 @@
-"""Package import contract tests (static AST; dynamic ``importlib`` loads are not scanned)."""
+"""Package import contract tests (plus targeted messaging scans for runtime ``importlib`` loads)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ _API_ALLOWED_PROVIDER_MODULES = frozenset(
         "providers",
         "providers.base",
         "providers.exceptions",
+        "providers.nvidia_nim.transcription_backend",
         "providers.registry",
         "providers.rate_limit",
     }

@@ -91,3 +91,27 @@ def test_pyproject_first_party_packages_match_packaged_roots() -> None:
     }
     expected = {"api", "cli", "config", "core", "messaging", "providers", "smoke"}
     assert configured == expected
+
+
+def test_catalog_native_stream_chunk_profiles_match_lm_family(monkeypatch) -> None:
+    from config.provider_catalog import PROVIDER_CATALOG
+    from config.settings import Settings
+    from providers.anthropic_messages import AnthropicMessagesTransport
+    from providers.registry import create_provider
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setitem(Settings.model_config, "env_file", ())
+    settings = Settings()
+
+    profiles = {
+        "lmstudio": "line",
+        "llamacpp": "line",
+        "ollama": "line",
+        "open_router": "event",
+    }
+    for pid, expected_mode in profiles.items():
+        descriptor = PROVIDER_CATALOG[pid]
+        assert descriptor.native_stream_chunk_mode == expected_mode
+        provider = create_provider(pid, settings)
+        assert isinstance(provider, AnthropicMessagesTransport)
+        assert provider.stream_chunk_mode == expected_mode

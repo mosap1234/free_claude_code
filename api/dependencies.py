@@ -1,4 +1,13 @@
-"""Dependency injection for FastAPI."""
+"""Dependency injection for FastAPI.
+
+Production HTTP handlers must resolve upstream models through
+:class:`~providers.registry.ProviderRegistry` owned by :class:`~api.runtime.AppRuntime`
+via :func:`resolve_provider` and an explicit ``Starlette`` app instance.
+
+:func:`get_provider` / :func:`get_provider_for_type` intentionally target the small
+:class:`~api.provider_process_cache`-backed fallback for scripts, smoke harnesses,
+and unit tests — they must not appear in modules like ``api.routes`` or ``api.services``.
+"""
 
 import secrets
 

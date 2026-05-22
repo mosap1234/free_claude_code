@@ -1,0 +1,81 @@
+"""Admin fields: runtime+core."""
+
+from api.admin.manifest_types import ConfigFieldSpec
+
+FIELDS: tuple[ConfigFieldSpec, ...] = (
+    ConfigFieldSpec(
+        "ANTHROPIC_AUTH_TOKEN",
+        "API/CLI Auth Token",
+        "runtime",
+        "secret",
+        settings_attr="anthropic_auth_token",
+        default="freecc",
+        secret=True,
+        description="Protects Claude/API access. It is not admin-page login.",
+    ),
+    ConfigFieldSpec(
+        "PROVIDER_RATE_LIMIT",
+        "Provider Rate Limit",
+        "runtime",
+        "number",
+        settings_attr="provider_rate_limit",
+        default="1",
+    ),
+    ConfigFieldSpec(
+        "PROVIDER_RATE_WINDOW",
+        "Provider Rate Window",
+        "runtime",
+        "number",
+        settings_attr="provider_rate_window",
+        default="3",
+    ),
+    ConfigFieldSpec(
+        "PROVIDER_MAX_CONCURRENCY",
+        "Provider Max Concurrency",
+        "runtime",
+        "number",
+        settings_attr="provider_max_concurrency",
+        default="5",
+    ),
+    ConfigFieldSpec(
+        "HTTP_READ_TIMEOUT",
+        "HTTP Read Timeout",
+        "runtime",
+        "number",
+        settings_attr="http_read_timeout",
+        default="300",
+    ),
+    ConfigFieldSpec(
+        "HTTP_WRITE_TIMEOUT",
+        "HTTP Write Timeout",
+        "runtime",
+        "number",
+        settings_attr="http_write_timeout",
+        default="60",
+    ),
+    ConfigFieldSpec(
+        "HTTP_CONNECT_TIMEOUT",
+        "HTTP Connect Timeout",
+        "runtime",
+        "number",
+        settings_attr="http_connect_timeout",
+        default="60",
+    ),
+    ConfigFieldSpec(
+        "HOST",
+        "Server Host",
+        "runtime",
+        settings_attr="host",
+        default="0.0.0.0",
+        restart_required=True,
+    ),
+    ConfigFieldSpec(
+        "PORT",
+        "Server Port",
+        "runtime",
+        "number",
+        settings_attr="port",
+        default="8082",
+        restart_required=True,
+    ),
+)

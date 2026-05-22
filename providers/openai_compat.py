@@ -32,29 +32,7 @@ from providers.error_mapping import (
 from providers.model_listing import extract_openai_model_ids
 from providers.rate_limit import GlobalRateLimiter
 
-
-def _iter_heuristic_tool_use_sse(
-    sse: SSEBuilder, tool_use: dict[str, Any]
-) -> Iterator[str]:
-    """Emit SSE for one heuristic tool_use block (closes open text/thinking first)."""
-    if tool_use.get("name") == "Task" and isinstance(tool_use.get("input"), dict):
-        task_input = tool_use["input"]
-        if task_input.get("run_in_background") is not False:
-            task_input["run_in_background"] = False
-    yield from sse.close_content_blocks()
-    block_idx = sse.blocks.allocate_index()
-    yield sse.content_block_start(
-        block_idx,
-        "tool_use",
-        id=tool_use["id"],
-        name=tool_use["name"],
-    )
-    yield sse.content_block_delta(
-        block_idx,
-        "input_json_delta",
-        json.dumps(tool_use["input"]),
-    )
-    yield sse.content_block_stop(block_idx)
+from .openai_compat_heuristic_sse import iter_heuristic_tool_use_sse
 
 
 class OpenAIChatTransport(BaseProvider):
@@ -430,7 +408,7 @@ class OpenAIChatTransport(BaseProvider):
                                     yield sse.emit_text_delta(filtered_text)
 
                                 for tool_use in detected_tools:
-                                    for event in _iter_heuristic_tool_use_sse(
+                                    for event in iter_heuristic_tool_use_sse(
                                         sse, tool_use
                                     ):
                                         yield event
@@ -504,7 +482,7 @@ class OpenAIChatTransport(BaseProvider):
                 yield sse.emit_text_delta(remaining.content)
 
         for tool_use in heuristic_parser.flush():
-            for event in _iter_heuristic_tool_use_sse(sse, tool_use):
+            for event in iter_heuristic_tool_use_sse(sse, tool_use):
                 yield event
 
         has_started_tool = any(s.started for s in sse.blocks.tool_states.values())

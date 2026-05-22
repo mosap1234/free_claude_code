@@ -1,0 +1,78 @@
+"""Admin fields: diagnostics."""
+
+from api.admin.manifest_types import ConfigFieldSpec
+
+FIELDS: tuple[ConfigFieldSpec, ...] = (
+    ConfigFieldSpec(
+        "DEBUG_PLATFORM_EDITS",
+        "Debug Platform Edits",
+        "diagnostics",
+        "boolean",
+        settings_attr="debug_platform_edits",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "DEBUG_SUBAGENT_STACK",
+        "Debug Subagent Stack",
+        "diagnostics",
+        "boolean",
+        settings_attr="debug_subagent_stack",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_RAW_API_PAYLOADS",
+        "Log Raw API Payloads",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_raw_api_payloads",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_RAW_SSE_EVENTS",
+        "Log Raw SSE Events",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_raw_sse_events",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_API_ERROR_TRACEBACKS",
+        "Log API Error Tracebacks",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_api_error_tracebacks",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_RAW_MESSAGING_CONTENT",
+        "Log Raw Messaging Content",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_raw_messaging_content",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_RAW_CLI_DIAGNOSTICS",
+        "Log Raw CLI Diagnostics",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_raw_cli_diagnostics",
+        default="false",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "LOG_MESSAGING_ERROR_DETAILS",
+        "Log Messaging Error Details",
+        "diagnostics",
+        "boolean",
+        settings_attr="log_messaging_error_details",
+        default="false",
+        advanced=True,
+    ),
+)

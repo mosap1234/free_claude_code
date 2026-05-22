@@ -1,0 +1,82 @@
+"""Admin fields: messaging."""
+
+from api.admin.manifest_types import ConfigFieldSpec
+
+FIELDS: tuple[ConfigFieldSpec, ...] = (
+    ConfigFieldSpec(
+        "MESSAGING_PLATFORM",
+        "Messaging Platform",
+        "messaging",
+        "select",
+        settings_attr="messaging_platform",
+        default="discord",
+        options=("telegram", "discord", "none"),
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "MESSAGING_RATE_LIMIT",
+        "Messaging Rate Limit",
+        "messaging",
+        "number",
+        settings_attr="messaging_rate_limit",
+        default="1",
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "MESSAGING_RATE_WINDOW",
+        "Messaging Rate Window",
+        "messaging",
+        "number",
+        settings_attr="messaging_rate_window",
+        default="1",
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "TELEGRAM_BOT_TOKEN",
+        "Telegram Bot Token",
+        "messaging",
+        "secret",
+        settings_attr="telegram_bot_token",
+        secret=True,
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "ALLOWED_TELEGRAM_USER_ID",
+        "Allowed Telegram User ID",
+        "messaging",
+        settings_attr="allowed_telegram_user_id",
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "DISCORD_BOT_TOKEN",
+        "Discord Bot Token",
+        "messaging",
+        "secret",
+        settings_attr="discord_bot_token",
+        secret=True,
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "ALLOWED_DISCORD_CHANNELS",
+        "Allowed Discord Channels",
+        "messaging",
+        settings_attr="allowed_discord_channels",
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "ALLOWED_DIR",
+        "Allowed Directory",
+        "messaging",
+        settings_attr="allowed_dir",
+        session_sensitive=True,
+    ),
+    ConfigFieldSpec(
+        "MAX_MESSAGE_LOG_ENTRIES_PER_CHAT",
+        "Max Message Log Entries",
+        "messaging",
+        "number",
+        settings_attr="max_message_log_entries_per_chat",
+        advanced=True,
+        session_sensitive=True,
+    ),
+)

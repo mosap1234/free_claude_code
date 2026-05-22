@@ -1,0 +1,19 @@
+{
+  "max_tokens": 100,
+  "messages": [
+    {
+      "content": "SYS",
+      "role": "system"
+    },
+    {
+      "content": "hello",
+      "role": "user"
+    },
+    {
+      "content": "hi",
+      "role": "assistant"
+    }
+  ],
+  "model": "claude-opus-4-latest",
+  "temperature": 0.3
+}

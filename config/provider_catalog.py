@@ -11,6 +11,8 @@ from typing import Literal
 
 TransportType = Literal["openai_chat", "anthropic_messages"]
 
+NativeStreamChunkMode = Literal["line", "event"]
+
 # Default upstream base URLs (also re-exported via :mod:`providers.defaults`)
 NVIDIA_NIM_DEFAULT_BASE = "https://integrate.api.nvidia.com/v1"
 KIMI_DEFAULT_BASE = "https://api.moonshot.ai/v1"
@@ -45,6 +47,8 @@ class ProviderDescriptor:
     default_base_url: str | None = None
     base_url_attr: str | None = None
     proxy_attr: str | None = None
+    #: Observable SSE framing for native Anthropic ``/messages`` adapters (catalog-driven).
+    native_stream_chunk_mode: NativeStreamChunkMode | None = None
 
 
 PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
@@ -69,6 +73,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="open_router_api_key",
         default_base_url=OPENROUTER_DEFAULT_BASE,
         proxy_attr="open_router_proxy",
+        native_stream_chunk_mode="event",
     ),
     "deepseek": ProviderDescriptor(
         provider_id="deepseek",
@@ -89,6 +94,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=LMSTUDIO_DEFAULT_BASE,
         base_url_attr="lm_studio_base_url",
         proxy_attr="lmstudio_proxy",
+        native_stream_chunk_mode="line",
     ),
     "llamacpp": ProviderDescriptor(
         provider_id="llamacpp",
@@ -99,6 +105,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=LLAMACPP_DEFAULT_BASE,
         base_url_attr="llamacpp_base_url",
         proxy_attr="llamacpp_proxy",
+        native_stream_chunk_mode="line",
     ),
     "ollama": ProviderDescriptor(
         provider_id="ollama",
@@ -115,6 +122,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         static_credential="ollama",
         default_base_url=OLLAMA_DEFAULT_BASE,
         base_url_attr="ollama_base_url",
+        native_stream_chunk_mode="line",
     ),
     "kimi": ProviderDescriptor(
         provider_id="kimi",

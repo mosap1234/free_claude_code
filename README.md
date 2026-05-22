@@ -394,6 +394,16 @@ Important pieces:
 
 ## Development
 
+### Architecture (composition)
+
+- **Entry points:** packaged **`fcc-server`** / **`fcc-claude`** (see `cli/entrypoints.py`) load the FastAPI ASGI stack; **`server.py`** is the uvicorn-compatible shim exporting `create_asgi_app()`.
+- **`api.runtime.AppRuntime`** is the lifespan owner: attaches `provider_registry` to **`request.app.state`**, starts optional Telegram/Discord by injecting **`MessagingPlatformOptions.nim_transcription_backend`**, restores tree sessions, and coordinates shutdown cleanup.
+- **Living map:** committed canvas [`canvases/entity-architecture-map.canvas.tsx`](canvases/entity-architecture-map.canvas.tsx) — whenever you move modules or composition wiring, refresh the canvas row titles in the **same hygiene pass** as the import contract suites below.
+- **Contracts:** layered import rules live in **`tests/contracts/test_import_boundaries.py`** and **`tests/contracts/test_architecture_contracts.py`**; keep both green on refactors.
+- **Two rate limiters (intentionally separate):**
+  - **Provider throughput + upstream concurrency:** **`GlobalRateLimiter`** in **`providers/rate_limit.py`** (shared by OpenAI-chat and native‑Anthropic HTTP transports).
+  - **Outbound bot pacing + dedupe queue:** **`MessagingRateLimiter`** in **`messaging/limiter.py`** (Telegram / Discord sends).
+
 ### 1. Project Structure
 
 ```text

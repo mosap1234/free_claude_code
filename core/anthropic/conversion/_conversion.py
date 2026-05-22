@@ -2,25 +2,14 @@
 
 import json
 from dataclasses import dataclass, field
-from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
-from .content import get_block_attr, get_block_type
-from .utils import set_if_not_none
+from core.anthropic.content import get_block_attr, get_block_type
+from core.anthropic.utils import set_if_not_none
 
-
-class OpenAIConversionError(Exception):
-    """Raised when Anthropic content cannot be converted to OpenAI chat without data loss."""
-
-
-class ReasoningReplayMode(StrEnum):
-    """How assistant reasoning history is replayed to OpenAI-compatible providers."""
-
-    DISABLED = "disabled"
-    THINK_TAGS = "think_tags"
-    REASONING_CONTENT = "reasoning_content"
+from .types import OpenAIConversionError, ReasoningReplayMode
 
 
 def _openai_reject_native_only_top_level_fields(request_data: Any) -> None:

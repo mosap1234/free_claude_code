@@ -2,12 +2,14 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
 from config.constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from providers.model_listing import ProviderModelInfo, model_infos_from_ids
+
+NativeStreamChunkMode = Literal["line", "event"]
 
 
 class ProviderConfig(BaseModel):
@@ -29,6 +31,7 @@ class ProviderConfig(BaseModel):
     proxy: str = ""
     log_raw_sse_events: bool = False
     log_api_error_tracebacks: bool = False
+    native_stream_chunk_mode: NativeStreamChunkMode | None = None
 
 
 class BaseProvider(ABC):

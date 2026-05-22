@@ -14,6 +14,7 @@ from loguru import logger
 from api.admin_urls import local_admin_url
 from config.settings import Settings, get_settings
 from providers.exceptions import ServiceUnavailableError
+from providers.nvidia_nim.transcription_backend import NvidiaNimTranscriptionBackend
 from providers.registry import ProviderRegistry
 
 if TYPE_CHECKING:
@@ -193,6 +194,7 @@ class AppRuntime:
                     whisper_device=self.settings.whisper_device,
                     hf_token=self.settings.hf_token,
                     nvidia_nim_api_key=self.settings.nvidia_nim_api_key,
+                    nim_transcription_backend=NvidiaNimTranscriptionBackend(),
                     messaging_rate_limit=self.settings.messaging_rate_limit,
                     messaging_rate_window=self.settings.messaging_rate_window,
                     log_raw_messaging_content=self.settings.log_raw_messaging_content,

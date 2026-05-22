@@ -80,6 +80,34 @@ class TestSettings:
         assert bundle.debug_subagent_stack is settings.debug_subagent_stack
         assert bundle.log_raw_sse_events is settings.log_raw_sse_events
 
+    def test_model_bot_and_admin_bundles_mirror_flat_settings(self, monkeypatch):
+        from config.settings import Settings
+
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+        monkeypatch.setenv("MODEL", "nvidia_nim/demo/model-x")
+        monkeypatch.setenv("MODEL_OPUS", "open_router/foo/bar")
+        monkeypatch.setenv("ENABLE_MODEL_THINKING", "false")
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "secret-token")
+        monkeypatch.setenv("VOICE_NOTE_ENABLED", "false")
+        monkeypatch.setenv("FAST_PREFIX_DETECTION", "false")
+        monkeypatch.setenv("ENABLE_NETWORK_PROBE_MOCK", "false")
+
+        settings = Settings()
+        routing = settings.model_routing_bundle
+        assert routing.model == settings.model
+        assert routing.model_opus == settings.model_opus
+        assert routing.enable_model_thinking is settings.enable_model_thinking
+
+        bot = settings.bot_bundle
+        assert bot.telegram_bot_token == settings.telegram_bot_token
+        assert bot.voice_note_enabled is settings.voice_note_enabled
+
+        admin_opts = settings.admin_optimization_bundle
+        assert admin_opts.fast_prefix_detection is settings.fast_prefix_detection
+        assert (
+            admin_opts.enable_network_probe_mock is settings.enable_network_probe_mock
+        )
+
     def test_default_claude_workspace_uses_fcc_home(self, monkeypatch, tmp_path):
         """Unset CLAUDE_WORKSPACE stores agent data under ~/.fcc."""
         from config.settings import Settings

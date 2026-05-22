@@ -1,12 +1,13 @@
 """Anthropic protocol helpers shared across API, providers, and integrations."""
 
-from .content import extract_text_from_content, get_block_attr, get_block_type
-from .conversion import (
+from core.anthropic.conversion import (
     AnthropicToOpenAIConverter,
     OpenAIConversionError,
     ReasoningReplayMode,
     build_base_request_body,
 )
+
+from .content import extract_text_from_content, get_block_attr, get_block_type
 from .errors import (
     append_request_id,
     format_user_error_preview,
