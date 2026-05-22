@@ -3,8 +3,8 @@
 This note inventories first-party-style providers that inherit
 `AnthropicMessagesTransport` (`providers/anthropic_messages.py`) today. The goal
 is to **dedupe deltas** (headers, `stream_chunk_mode`, request body builders, and
-sanitize hooks) using small strategy modules or catalog flags *before* swapping
-to the official `anthropic` Python SDK for non–`api.anthropic.com` hosts.
+sanitize hooks) using small strategy modules or catalog flags alongside the shared
+**`httpx` + SSE** pipeline (`core/anthropic`).
 
 ## Subclasses (manual `httpx` streaming)
 
@@ -26,6 +26,3 @@ not use this inheritance chain.
    one-off subclass branches when differences are headers or stream flags only.
 2. Never cross-import adapter `*_request.py` modules from each other—shared shaping
    belongs in **`core/anthropic`** builders (`AGENTS.md`).
-3. Optional **Anthropic SDK spike** stays limited to true `api.anthropic.com`
-   streaming bridged onto existing SSE string emission helpers; catalog’d OpenRouter /
-   LM Studio / Ollama paths remain on **`httpx`** transports.
