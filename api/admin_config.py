@@ -372,6 +372,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "OPENAI_PROXY",
+        "OpenAI Proxy",
+        "providers",
+        "secret",
+        settings_attr="openai_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
         "ZAI_PROXY",
         "Z.ai Proxy",
         "providers",
