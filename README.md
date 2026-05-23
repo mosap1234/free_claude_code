@@ -37,7 +37,7 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
 ## What You Get
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
-- Eleven provider backends: NVIDIA NIM, Kimi, Wafer, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, OpenCode Zen, OpenCode Go, and Z.ai.
+- Twelve provider backends: NVIDIA NIM, Kimi, Wafer, OpenRouter, DeepSeek, LM Studio, llama.cpp, Ollama, OpenCode Zen, OpenCode Go, Z.ai, and OpenAI.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint (Claude Code must opt in to Gateway model discovery; see [Model Picker](#model-picker)).
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -235,7 +235,20 @@ Popular examples:
 
 Browse models at [Z.ai](https://z.ai).
 
-### 12. Mix Providers By Model Tier
+### 12. [OpenAI](https://platform.openai.com/)
+
+Get a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+
+In the Admin UI, paste it into `OPENAI_API_KEY`, then set `MODEL` to an OpenAI model slug such as `openai/gpt-5.4`.
+
+Popular examples:
+
+- `openai/gpt-5.4`
+- `openai/gpt-5.4-mini`
+
+Browse models at [platform.openai.com/docs/models](https://platform.openai.com/docs/models).
+
+### 13. Mix Providers By Model Tier
 
 Each model tier can use a different provider by setting `MODEL_OPUS`, `MODEL_SONNET`, and `MODEL_HAIKU` in the Admin UI. Leave a tier blank to inherit `MODEL`.
 
@@ -387,7 +400,7 @@ Important pieces:
 
 - FastAPI exposes Anthropic-compatible routes such as `/v1/messages`, `/v1/messages/count_tokens`, and `/v1/models`.
 - Model routing resolves the Claude model name to `MODEL_OPUS`, `MODEL_SONNET`, `MODEL_HAIKU`, or `MODEL`.
-- NIM, OpenCode Zen, OpenCode Go, Z.ai use OpenAI chat streaming translated into Anthropic SSE.
+- NIM, OpenCode Zen, OpenCode Go, Z.ai, and OpenAI use OpenAI chat streaming translated into Anthropic SSE.
 - Wafer, OpenRouter, DeepSeek, LM Studio, llama.cpp, and Ollama use Anthropic Messages style transports.
 - The proxy normalizes thinking blocks, tool calls, token usage metadata, and provider errors into the shape Claude Code expects.
 - Request optimizations answer trivial Claude Code probes locally to save latency and quota.
