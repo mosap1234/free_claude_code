@@ -185,6 +185,10 @@ def _claude_child_env(
     env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "190000"
     if token := settings.anthropic_auth_token.strip():
         env["ANTHROPIC_AUTH_TOKEN"] = token
+
+    # Pass through CLAUDE_CONFIG_DIR if configured
+    if settings.claude_config_dir:
+        env["CLAUDE_CONFIG_DIR"] = settings.claude_config_dir
     return env
 
 
