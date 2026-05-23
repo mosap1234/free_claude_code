@@ -15,6 +15,7 @@ from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
 from providers.opencode import OpenCodeProvider
+from providers.openai import OpenAIProvider
 from providers.registry import (
     PROVIDER_DESCRIPTORS,
     ProviderRegistry,
@@ -155,6 +156,7 @@ def test_create_provider_instantiates_each_builtin():
         "opencode": OpenCodeProvider,
         "opencode_go": OpenCodeProvider,
         "zai": ZaiProvider,
+        "openai": OpenAIProvider,
     }
 
     with (

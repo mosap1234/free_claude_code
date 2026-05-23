@@ -162,6 +162,12 @@ class Settings(BaseSettings):
         validation_alias="OLLAMA_BASE_URL",
     )
 
+    # ==================== OpenAI Config ====================
+    openai_api_key: str = Field(
+        default="",
+        validation_alias="OPENAI_API_KEY",
+    )
+
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name
@@ -184,6 +190,7 @@ class Settings(BaseSettings):
     opencode_go_proxy: str = Field(default="", validation_alias="OPENCODE_GO_PROXY")
     zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
     fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")
+    openai_proxy: str = Field(default="", validation_alias="OPENAI_PROXY")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
