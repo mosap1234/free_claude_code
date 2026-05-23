@@ -252,6 +252,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         ),
     ),
     ConfigFieldSpec(
+        "OPENAI_API_KEY",
+        "OpenAI API Key",
+        "providers",
+        "secret",
+        settings_attr="openai_api_key",
+        secret=True,
+        description="OpenAI API key.",
+    ),
+    ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
         "LM Studio Base URL",
         "providers",
