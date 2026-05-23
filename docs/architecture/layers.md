@@ -44,7 +44,7 @@ For where to add HTTP-layer code versus pipelines, see **`docs/architecture/api-
 
 | Source | Prefer |
 |--------|--------|
-| Application flow, correlated request logs | **`loguru`** (including structured events via **`core/trace.py`**). |
+| Application flow, correlated request logs | **`loguru`** (including structured events via **`core/trace.py`**); optional OTLP exporter path via **`api/telemetry_otlp`** when `STRUCTURED_TRACE_SINK=otlp_http` (install `--extra observability`). |
 | Framework-owned adapters (same stream uvicorn configures) | **`stdlib.logging`** only where bridging into the server logger is unavoidable. |
 
 **`loguru`** remains the structured default; stdlib **`logging`** appears intentionally for uvicorn-controlled surfaces (example: Admin UI banner). Do not sprinkle `logging.getLogger` in domain/protocol code (`core`, `providers`) without a deliberate reason documented next to the call.

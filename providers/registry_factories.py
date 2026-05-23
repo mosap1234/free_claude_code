@@ -30,16 +30,27 @@ def _create_deepseek(config: ProviderConfig, _settings: Settings) -> BaseProvide
     return DeepSeekProvider(config)
 
 
-def _create_lmstudio(config: ProviderConfig, _settings: Settings) -> BaseProvider:
+def _instantiate_catalog_thin_native_messages(
+    provider_id: str, config: ProviderConfig, _settings: Settings
+) -> BaseProvider:
+    """Build thin catalog shells (LM Studio, llama.cpp) sharing one implementation."""
+    from providers.llamacpp import LlamaCppProvider
     from providers.lmstudio import LMStudioProvider
 
-    return LMStudioProvider(config)
+    if provider_id == "lmstudio":
+        return LMStudioProvider(config)
+    if provider_id == "llamacpp":
+        return LlamaCppProvider(config)
+    msg = f"unsupported thin native catalog id: {provider_id!r}"
+    raise AssertionError(msg)
 
 
-def _create_llamacpp(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.llamacpp import LlamaCppProvider
+def _create_lmstudio(config: ProviderConfig, settings: Settings) -> BaseProvider:
+    return _instantiate_catalog_thin_native_messages("lmstudio", config, settings)
 
-    return LlamaCppProvider(config)
+
+def _create_llamacpp(config: ProviderConfig, settings: Settings) -> BaseProvider:
+    return _instantiate_catalog_thin_native_messages("llamacpp", config, settings)
 
 
 def _create_ollama(config: ProviderConfig, _settings: Settings) -> BaseProvider:

@@ -31,6 +31,8 @@ _RUNTIME_EXTRAS = {
     "log_messaging_error_details": False,
     "configured_chat_model_refs": lambda: (),
     "structured_trace_sink": "default",
+    "otlp_exporter_endpoint": None,
+    "otlp_exporter_service_name": "free-claude-code",
 }
 
 

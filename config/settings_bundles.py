@@ -35,6 +35,8 @@ def build_observability_bundle(settings: Settings) -> ObservabilitySettings:
         debug_platform_edits=settings.debug_platform_edits,
         debug_subagent_stack=settings.debug_subagent_stack,
         structured_trace_sink=settings.structured_trace_sink,
+        otlp_exporter_endpoint=settings.otlp_exporter_endpoint,
+        otlp_exporter_service_name=settings.otlp_exporter_service_name,
     )
 
 

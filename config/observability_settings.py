@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-StructuredTraceSink = Literal["default", "noop"]
+StructuredTraceSink = Literal["default", "noop", "otlp_http"]
 
 
 class ObservabilitySettings(BaseModel):
@@ -23,3 +23,5 @@ class ObservabilitySettings(BaseModel):
     debug_platform_edits: bool
     debug_subagent_stack: bool
     structured_trace_sink: StructuredTraceSink
+    otlp_exporter_endpoint: str | None
+    otlp_exporter_service_name: str

@@ -109,6 +109,32 @@ class TestSettings:
         assert bundle.structured_trace_sink == "noop"
         assert bundle.structured_trace_sink is settings.structured_trace_sink
 
+    def test_structured_trace_otlp_requires_exporter_endpoint(self, monkeypatch):
+        from config.settings import Settings
+
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+        monkeypatch.setenv("STRUCTURED_TRACE_SINK", "otlp_http")
+        monkeypatch.delenv("FCC_OTLP_EXPORTER_ENDPOINT", raising=False)
+
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_observability_bundle_reflects_otlp_fields(self, monkeypatch):
+        from config.settings import Settings
+
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+        monkeypatch.setenv("STRUCTURED_TRACE_SINK", "otlp_http")
+        monkeypatch.setenv(
+            "FCC_OTLP_EXPORTER_ENDPOINT", "https://collector/x/v1/traces"
+        )
+        monkeypatch.setenv("FCC_OTLP_SERVICE_NAME", "unit-test-service")
+
+        settings = Settings()
+        bundle = settings.observability_bundle
+        assert bundle.structured_trace_sink == "otlp_http"
+        assert bundle.otlp_exporter_endpoint == settings.otlp_exporter_endpoint
+        assert bundle.otlp_exporter_service_name == settings.otlp_exporter_service_name
+
     def test_model_bot_and_admin_bundles_mirror_flat_settings(self, monkeypatch):
         from config.settings import Settings
 

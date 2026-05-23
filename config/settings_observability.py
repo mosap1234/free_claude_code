@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Self
+
+from pydantic import BaseModel, Field, model_validator
 
 from .observability_settings import StructuredTraceSink
 
@@ -36,3 +38,25 @@ class ObservabilityMixin(BaseModel):
     structured_trace_sink: StructuredTraceSink = Field(
         default="default", validation_alias="STRUCTURED_TRACE_SINK"
     )
+    #: OTLP HTTP trace endpoint (typically ``…/v1/traces``) when ``STRUCTURED_TRACE_SINK=otlp_http``.
+    otlp_exporter_endpoint: str | None = Field(
+        default=None,
+        validation_alias="FCC_OTLP_EXPORTER_ENDPOINT",
+    )
+    #: ``service.name`` resource value for OTLP spans.
+    otlp_exporter_service_name: str = Field(
+        default="free-claude-code",
+        validation_alias="FCC_OTLP_SERVICE_NAME",
+    )
+
+    @model_validator(mode="after")
+    def _otlp_requires_endpoint(self) -> Self:
+        if self.structured_trace_sink != "otlp_http":
+            return self
+        if not (self.otlp_exporter_endpoint or "").strip():
+            msg = (
+                "structured_trace_sink=otlp_http requires FCC_OTLP_EXPORTER_ENDPOINT "
+                "( OTLP HTTP /v1/traces URL )"
+            )
+            raise ValueError(msg)
+        return self

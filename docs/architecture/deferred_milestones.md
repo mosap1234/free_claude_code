@@ -4,8 +4,8 @@ Work intentionally **not** bundled with the consolidated roadmap implementation.
 
 | Item | Reference |
 |------|-----------|
-| Native Anthropic HTTP adapter collapse | [providers/notes/native_anthropic_http_providers.md](../../providers/notes/native_anthropic_http_providers.md), IMPROVEMENT_PLAN Phase 3b |
-| Observability port (trace backend abstraction) | Pluggable sink [`core/observability.py`](../../core/observability.py) + [`core/trace.py`](../../core/trace.py); `STRUCTURED_TRACE_SINK` (`default`/`noop`) wired from [`api/trace_sink.py`](../../api/trace_sink.py) during [`AppRuntime.startup`](../../api/runtime.py). OTLP / remote backends still backlog. |
+| Native Anthropic HTTP adapter collapse | Partial — LM Studio / llama.cpp share [`catalog_thin_native_messages.py`](../../providers/catalog_thin_native_messages.py); further Phase 3b deltas in [native_anthropic_http_providers.md](../../providers/notes/native_anthropic_http_providers.md) / IMPROVEMENT_PLAN |
+| Observability port (trace backend abstraction) | Pluggable sink [`core/observability.py`](../../core/observability.py) + [`core/trace.py`](../../core/trace.py). `STRUCTURED_TRACE_SINK` (`default` / `noop` / `otlp_http`) wired by [`api/trace_sink.py`](../../api/trace_sink.py). OTLP uses [`api/telemetry_otlp.py`](../../api/telemetry_otlp.py) with optional-deps `observability` (`uv sync --extra observability`). Sampling / richer span modeling still backlog. |
 | Global exception handlers + settings | Mitigated — [`api/app.py`](../../api/app.py) exception handlers call explicit [`get_settings()`](../../config/settings.py): `Depends(get_settings)` is not relied on inside those globals. FastAPI quirks remain vendor-side only. |
 | Packaging `smoke` in the wheel | Intentionally dev-only per IMPROVEMENT_PLAN |
 | Further slim `config/settings.py` | Mixins exist; additional thin-down is optional (see [STATUS.md](STATUS.md)) |

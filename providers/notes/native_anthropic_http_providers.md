@@ -11,8 +11,8 @@ sanitize hooks) using small strategy modules or catalog flags alongside the shar
 
 | Adapter | Module | Typical stream / body notes |
 | --- | --- | --- |
-| `LmStudioProvider` | `providers/lmstudio/client.py` | Local LM Studio native messages |
-| `LlamaCppProvider` | `providers/llamacpp/client.py` | llama.cpp server compatibility |
+| `LmStudioProvider` | `providers/lmstudio/client.py` | Subclass of shared [`catalog_thin_native_messages`](../catalog_thin_native_messages.py) catalogue shell |
+| `LlamaCppProvider` | `providers/llamacpp/client.py` | Same shared catalogue shell (distinct `provider_id`) |
 | `OllamaProvider` | `providers/ollama/client.py` | Ollama native `/v1/messages` quirks |
 | `OpenRouterProvider` | `providers/open_router/client.py` | `stream_chunk_mode="event"` tier |
 | `DeepSeekProvider` | `providers/deepseek/client.py` | Request sanitization (`deepseek/request`) |
@@ -31,18 +31,20 @@ Frozen view of **`PROVIDER_CATALOG`** fields that already drive native HTTP beha
 | --- | --- | --- | --- |
 | `open_router` | `event` | `anthropic_bearer_sse` | `OpenRouter`: event-mode SSE transforms, bespoke model list + request body [`open_router/request.py`](../../providers/open_router/request.py) |
 | `deepseek` | (default `line`) | `anthropic_x_api_key_sse` | Custom model-list URL; body via [`deepseek/request.py`](../../providers/deepseek/request.py) |
-| `lmstudio` | `line` | `messages_minimal` | Thin shell (default URL + registry id only) |
-| `llamacpp` | `line` | `messages_minimal` | Thin shell (distinct default URL / credential static) |
+| `lmstudio` | `line` | `messages_minimal` | Shared [`catalog_thin_native_messages`](../../providers/catalog_thin_native_messages.py) shell (`LMStudioProvider` façade) |
+| `llamacpp` | `line` | `messages_minimal` | Same shared shell (`LlamaCppProvider` façade); factory [`registry_factories._instantiate_catalog_thin_native_messages`](../../providers/registry_factories.py) |
 | `ollama` | `line` | `messages_minimal` | Custom `_send_stream_request` + model list path |
 | `wafer` | (default `line`) | `anthropic_bearer_sse` | Default body injects ``thinking``; bearer model-list |
 
-**Collapse candidates:** `lmstudio` and `llamacpp` share the same catalog fingerprints
-today—eligible for one catalog-bound factory partial once regression tests exist for both.
+**Collapsed:** LM Studio / llama.cpp deltas live in [`catalog_thin_native_messages.py`](../../providers/catalog_thin_native_messages.py); registry binds via `_instantiate_catalog_thin_native_messages`; public subclasses remain stable for `isinstance` / imports.
 
-### Golden / regression checklist (manual until automated matrix lands)
+### Golden / regression matrix (automated subset)
 
-Run native transport / conversion tests (`tests/providers/test_*` for adapters above plus
-SSE golden suites if present) whenever changing shared transport or catalog defaults.
+```bash
+uv run pytest -m native_sse_matrix
+```
+
+Also run native adapter suites (`tests/providers/test_*`) and SSE/conversion golden tests whenever changing [`anthropic_messages_transport`](../../providers/anthropic_messages_transport.py) or catalog defaults.
 
 ---
 

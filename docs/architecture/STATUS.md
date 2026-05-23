@@ -9,9 +9,10 @@ Snapshot of items from [IMPROVEMENT_PLAN Definition of done](IMPROVEMENT_PLAN.md
 | At least four OpenAI-chat providers use catalog factory | Done | See [`providers/registry_factories.py`](../../providers/registry_factories.py) (`_instantiate_catalog_openai_chat`, catalog-bound partials); re-exported from [`providers/registry.py`](../../providers/registry.py). |
 | `api/runtime.py` under ~220 lines; bootstrap in `messaging/bootstrap.py` | Done | Lifecycle helpers [`api/runtime_lifecycle.py`](../../api/runtime_lifecycle.py); [`api/runtime.py`](../../api/runtime.py) ~185 lines. Bootstrap in [`messaging/bootstrap.py`](../../messaging/bootstrap.py). |
 | `reload_settings()` at all reload sites | Done | Admin, CLI entrypoints, smoke config (see codebase grep). Tests in [`tests/config/test_config.py`](../../tests/config/test_config.py). |
-| `docs/architecture/` layers, provider resolution, messaging | Done | [`layers.md`](layers.md), [`messaging.md`](messaging.md), [`api-package.md`](api-package.md), [`admin.md`](admin.md). |
+| `docs/architecture/` layers, provider resolution, messaging | Done | [`layers.md`](layers.md), [`messaging.md`](messaging.md) (package map + composition roots), [`api-package.md`](api-package.md), [`admin.md`](admin.md). |
 | `tests/contracts/test_provider_wiring.py` alignment guards | Done | Catalog / admin credential / factories. |
 | Import-boundary contract tests green | Maintain | [`tests/contracts/test_import_boundaries.py`](../../tests/contracts/test_import_boundaries.py). |
+| Native messages SSE regression | Maintain | Marker `native_sse_matrix`: `uv run pytest -m native_sse_matrix` exercises line vs event chunk replay ([`providers/notes/native_anthropic_http_providers.md`](../../providers/notes/native_anthropic_http_providers.md)). |
 
 ## Consolidated roadmap (post–IMPROVEMENT_PLAN)
 

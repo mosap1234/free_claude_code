@@ -7,7 +7,7 @@ Orchestration and HTTP-facing code for the Claude-compatible gateway lives under
 | Location | Responsibility |
 |----------|------------------|
 | [`api/routes.py`](../../api/routes.py) | Thin route handlers and shared route-level dependencies (e.g. `get_proxy_service`). Avoid provider construction here; delegate to [`api.dependencies`](../../api.dependencies) and services. |
-| [`api/message_create_pipeline.py`](../../api/message_create_pipeline.py) | Ordered steps for **`POST /v1/messages`**: optimizations, web tools branch, upstream streaming. Preserve precedence when extending. |
+| [`api/message_create_pipeline.py`](../../api/message_create_pipeline.py) | Ordered steps for **`POST /v1/messages`**: optimizations, web tools branch, upstream streaming. Preserve precedence when extending. Optional façade [`api/pipeline/__init__.py`](../../api/pipeline/__init__.py) re-exports identical symbols for navigation-only imports. |
 | [`api/services.py`](../../api/services.py) | `ClaudeProxyService` façade (`create_message`, `count_tokens`). |
 | [`api/runtime.py`](../../api/runtime.py) | `AppRuntime` lifecycle: startup/shutdown ordering, registering `provider_registry` on `app.state`. |
 | [`api/messaging_startup.py`](../../api/messaging_startup.py) | Messaging stack wired **after** platform bootstrap from `messaging`: CLI session manager, handler, `platform.start()`. Keeps [`messaging/bootstrap.py`](../../messaging/bootstrap.py) free of `cli` imports (import contract). |
