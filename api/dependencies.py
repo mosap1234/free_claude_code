@@ -30,10 +30,10 @@ from providers.exceptions import (
 )
 from providers.registry import PROVIDER_DESCRIPTORS, ProviderRegistry
 
-from .resolver_exceptions import (
-    GatewayInvalidApiKey,
-    GatewayMissingApiKey,
-    ResolverProviderAuthUnavailable,
+from .ingress_errors import (
+    GatewayInvalidProxyApiKey,
+    GatewayMissingProxyApiKey,
+    ProviderResolutionAuthFailure,
 )
 
 # Process-level provider cache: :mod:`api.provider_process_cache`.
@@ -96,7 +96,7 @@ def _resolve_with_registry(
         # Provider :class:`~providers.exceptions.AuthenticationError` messages are
         # curated configuration hints (env var names, docs links), not upstream noise.
         detail = str(e).strip() or get_user_facing_error_message(e)
-        raise ResolverProviderAuthUnavailable(detail) from e
+        raise ProviderResolutionAuthFailure(detail) from e
     except UnknownProviderTypeError:
         logger.error(
             "Unknown provider_type: '{}'. Supported: {}",
@@ -144,7 +144,7 @@ def require_api_key(
         or request.headers.get("anthropic-auth-token")
     )
     if not header:
-        raise GatewayMissingApiKey()
+        raise GatewayMissingProxyApiKey()
 
     # Support both raw key in X-API-Key and Bearer token in Authorization
     token = header
@@ -160,7 +160,7 @@ def require_api_key(
     if not secrets.compare_digest(
         token.encode("utf-8"), anthropic_auth_token.encode("utf-8")
     ):
-        raise GatewayInvalidApiKey()
+        raise GatewayInvalidProxyApiKey()
 
 
 def get_process_cached_provider() -> BaseProvider:

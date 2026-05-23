@@ -1,6 +1,9 @@
-"""Tree data structures for message queue.
+"""Tree data structures for the Discord/Telegram message queue.
 
-Contains MessageState, MessageNode, and MessageTree classes.
+**Start here** for in-memory tree state: :class:`MessageTree`, :class:`MessageNode`,
+and :class:`MessageState`.
+For orchestration (locking, repository, processor wiring), use
+:class:`messaging.trees.manager.TreeQueueManager` in ``manager.py``.
 """
 
 import asyncio

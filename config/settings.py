@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
-from dotenv import dotenv_values
 from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,10 +15,14 @@ from .bot_settings import BotSettings
 from .messaging_settings import MessagingSettings
 from .model_routing_settings import ModelRoutingSettings
 from .observability_settings import ObservabilitySettings
-from .paths import default_claude_workspace_path, managed_env_path
-from .provider_ids import SUPPORTED_PROVIDER_IDS
+from .paths import default_claude_workspace_path
 from .server_runtime_settings import ProviderThroughputSettings, ServerRuntimeSettings
 from .settings_credentials import ProviderCredentialsMixin
+from .settings_env import (
+    dotenv_last_value_for_key,
+    env_files_list,
+    removed_env_var_migration_error,
+)
 from .settings_http import HttpAndThroughputMixin
 from .settings_local_providers import LocalProviderEndpointsMixin
 from .settings_messaging import MessagingAndBotsMixin
@@ -31,6 +32,16 @@ from .settings_observability import ObservabilityMixin
 from .settings_optimizations import RequestOptimizationsMixin
 from .settings_proxies import ProviderProxyMixin
 from .settings_server import ServerBindMixin
+from .settings_validators import (
+    parse_empty_str_optional,
+    reset_empty_log_cap_optional,
+    validate_gateway_model_prefixed,
+    validate_messaging_platform_value,
+    validate_ollama_base_url_value,
+    validate_positive_messaging_rate_limit,
+    validate_positive_messaging_rate_window,
+    validate_whisper_device_value,
+)
 from .settings_voice import VoiceNoteMixin
 from .settings_web_tools import WebServerToolsMixin
 from .web_fetch_settings import WebFetchSettings, normalize_web_fetch_allowed_schemes
@@ -44,83 +55,6 @@ class ConfiguredChatModelRef:
     provider_id: str
     model_id: str
     sources: tuple[str, ...]
-
-
-def _env_files() -> tuple[Path, ...]:
-    """Return env file paths in priority order (later overrides earlier)."""
-    files: list[Path] = [
-        Path(".env"),
-        managed_env_path(),
-    ]
-    if explicit := os.environ.get("FCC_ENV_FILE"):
-        files.append(Path(explicit))
-    return tuple(files)
-
-
-def _configured_env_files(model_config: Mapping[str, Any]) -> tuple[Path, ...]:
-    """Return the currently configured env files for Settings."""
-    configured = model_config.get("env_file")
-    if configured is None:
-        return ()
-    if isinstance(configured, (str, Path)):
-        return (Path(configured),)
-    return tuple(Path(item) for item in configured)
-
-
-def _env_file_contains_key(path: Path, key: str) -> bool:
-    """Check whether a dotenv-style file defines the given key."""
-    return _env_file_value(path, key) is not None
-
-
-def _env_file_value(path: Path, key: str) -> str | None:
-    """Return a dotenv value when the file explicitly defines the key."""
-    if not path.is_file():
-        return None
-
-    try:
-        values = dotenv_values(path)
-    except OSError:
-        return None
-
-    if key not in values:
-        return None
-    value = values[key]
-    return "" if value is None else value
-
-
-def _env_file_override(model_config: Mapping[str, Any], key: str) -> str | None:
-    """Return the last configured dotenv value that explicitly defines a key."""
-    configured_value: str | None = None
-    for env_file in _configured_env_files(model_config):
-        value = _env_file_value(env_file, key)
-        if value is not None:
-            configured_value = value
-    return configured_value
-
-
-def _removed_env_var_message(model_config: Mapping[str, Any]) -> str | None:
-    """Return a migration error for removed env vars, if present."""
-    removed_keys = ("NIM_ENABLE_THINKING", "ENABLE_THINKING")
-    replacement = (
-        "ENABLE_MODEL_THINKING, ENABLE_OPUS_THINKING, "
-        "ENABLE_SONNET_THINKING, or ENABLE_HAIKU_THINKING"
-    )
-
-    for removed_key in removed_keys:
-        if removed_key in os.environ:
-            return (
-                f"{removed_key} has been removed in this release. "
-                f"Rename it to {replacement}."
-            )
-
-        for env_file in _configured_env_files(model_config):
-            if _env_file_contains_key(env_file, removed_key):
-                return (
-                    f"{removed_key} has been removed in this release. "
-                    f"Rename it to {replacement}. Found in {env_file}."
-                )
-
-    return None
 
 
 class Settings(
@@ -144,7 +78,7 @@ class Settings(
     @classmethod
     def reject_removed_env_vars(cls, data: Any) -> Any:
         """Fail fast when removed environment variables are still configured."""
-        if message := _removed_env_var_message(cls.model_config):
+        if message := removed_env_var_migration_error(cls.model_config):
             raise ValueError(message)
         return data
 
@@ -163,16 +97,12 @@ class Settings(
     )
     @classmethod
     def parse_optional_str(cls, v: Any) -> Any:
-        if v == "":
-            return None
-        return v
+        return parse_empty_str_optional(v)
 
     @field_validator("max_message_log_entries_per_chat", mode="before")
     @classmethod
     def parse_optional_log_cap(cls, v: Any) -> Any:
-        if v == "" or v is None:
-            return None
-        return v
+        return reset_empty_log_cap_optional(v)
 
     @property
     def claude_workspace(self) -> str:
@@ -189,34 +119,22 @@ class Settings(
     @field_validator("whisper_device")
     @classmethod
     def validate_whisper_device(cls, v: str) -> str:
-        if v not in ("cpu", "cuda", "nvidia_nim"):
-            raise ValueError(
-                f"whisper_device must be 'cpu', 'cuda', or 'nvidia_nim', got {v!r}"
-            )
-        return v
+        return validate_whisper_device_value(v)
 
     @field_validator("messaging_platform")
     @classmethod
     def validate_messaging_platform(cls, v: str) -> str:
-        if v not in ("telegram", "discord", "none"):
-            raise ValueError(
-                f"messaging_platform must be 'telegram', 'discord', or 'none', got {v!r}"
-            )
-        return v
+        return validate_messaging_platform_value(v)
 
     @field_validator("messaging_rate_limit")
     @classmethod
     def validate_messaging_rate_limit(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("messaging_rate_limit must be > 0")
-        return v
+        return validate_positive_messaging_rate_limit(v)
 
     @field_validator("messaging_rate_window")
     @classmethod
     def validate_messaging_rate_window(cls, v: float) -> float:
-        if v <= 0:
-            raise ValueError("messaging_rate_window must be > 0")
-        return float(v)
+        return validate_positive_messaging_rate_window(v)
 
     @field_validator("web_fetch_allowed_schemes")
     @classmethod
@@ -226,29 +144,12 @@ class Settings(
     @field_validator("ollama_base_url")
     @classmethod
     def validate_ollama_base_url(cls, v: str) -> str:
-        if v.rstrip("/").endswith("/v1"):
-            raise ValueError(
-                "OLLAMA_BASE_URL must be the Ollama root URL for native Anthropic "
-                "messages, e.g. http://localhost:11434 (without /v1)."
-            )
-        return v
+        return validate_ollama_base_url_value(v)
 
     @field_validator("model", "model_opus", "model_sonnet", "model_haiku")
     @classmethod
     def validate_model_format(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        if "/" not in v:
-            raise ValueError(
-                f"Model must be prefixed with provider type. "
-                f"Valid providers: {', '.join(SUPPORTED_PROVIDER_IDS)}. "
-                f"Format: provider_type/model/name"
-            )
-        provider = v.split("/", 1)[0]
-        if provider not in SUPPORTED_PROVIDER_IDS:
-            supported = ", ".join(f"'{p}'" for p in SUPPORTED_PROVIDER_IDS)
-            raise ValueError(f"Invalid provider: '{provider}'. Supported: {supported}")
-        return v
+        return validate_gateway_model_prefixed(v)
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self) -> Settings:
@@ -266,14 +167,19 @@ class Settings(
     @model_validator(mode="after")
     def prefer_dotenv_anthropic_auth_token(self) -> Settings:
         """Let explicit .env auth config override stale shell/client tokens."""
-        dotenv_value = _env_file_override(self.model_config, "ANTHROPIC_AUTH_TOKEN")
+        dotenv_value = dotenv_last_value_for_key(
+            self.model_config, "ANTHROPIC_AUTH_TOKEN"
+        )
         if dotenv_value is not None:
             self.anthropic_auth_token = dotenv_value
         return self
 
     def uses_process_anthropic_auth_token(self) -> bool:
         """Return whether proxy auth came from process env, not dotenv config."""
-        if _env_file_override(self.model_config, "ANTHROPIC_AUTH_TOKEN") is not None:
+        if (
+            dotenv_last_value_for_key(self.model_config, "ANTHROPIC_AUTH_TOKEN")
+            is not None
+        ):
             return False
         return bool(os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 
@@ -445,7 +351,7 @@ class Settings(
         return model_string.split("/", 1)[1]
 
     model_config = SettingsConfigDict(
-        env_file=_env_files(),
+        env_file=env_files_list(),
         env_file_encoding="utf-8",
         extra="ignore",
     )

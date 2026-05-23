@@ -11,7 +11,7 @@ from starlette.datastructures import State
 import api.dependencies as deps
 import api.provider_process_cache as ppc
 from api.dependencies import resolve_provider
-from api.resolver_exceptions import ResolverProviderAuthUnavailable
+from api.ingress_errors import ProviderResolutionAuthFailure
 from config.nim import NimSettings
 from providers.exceptions import UnknownProviderTypeError
 from providers.registry import ProviderRegistry
@@ -69,9 +69,9 @@ def test_resolver_provider_auth_unavailable_par_app_vs_process(
     starlette_app.state = State()
     starlette_app.state.provider_registry = ProviderRegistry(shared)
 
-    with pytest.raises(ResolverProviderAuthUnavailable) as pc:
+    with pytest.raises(ProviderResolutionAuthFailure) as pc:
         resolve_provider("nvidia_nim", app=None, settings=settings)
-    with pytest.raises(ResolverProviderAuthUnavailable) as app_exc:
+    with pytest.raises(ProviderResolutionAuthFailure) as app_exc:
         resolve_provider(
             "nvidia_nim",
             app=starlette_app,

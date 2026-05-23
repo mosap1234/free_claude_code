@@ -3,7 +3,6 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 from starlette.applications import Starlette
 from starlette.datastructures import State
 
@@ -14,6 +13,7 @@ from api.dependencies import (
     get_settings,
     resolve_provider,
 )
+from api.ingress_errors import ProviderResolutionAuthFailure
 from config.nim import NimSettings
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import ServiceUnavailableError, UnknownProviderTypeError
@@ -293,7 +293,7 @@ async def test_get_provider_nvidia_nim_missing_api_key():
     with patch("api.dependencies.get_settings") as mock_settings:
         mock_settings.return_value = _make_mock_settings(nvidia_nim_api_key="")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider()
 
         assert exc_info.value.status_code == 503
@@ -307,7 +307,7 @@ async def test_get_provider_nvidia_nim_whitespace_only_api_key():
     with patch("api.dependencies.get_settings") as mock_settings:
         mock_settings.return_value = _make_mock_settings(nvidia_nim_api_key="   ")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider()
 
         assert exc_info.value.status_code == 503
@@ -323,7 +323,7 @@ async def test_get_provider_open_router_missing_api_key():
             open_router_api_key="",
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider()
 
         assert exc_info.value.status_code == 503
@@ -340,7 +340,7 @@ async def test_get_provider_deepseek_missing_api_key():
             deepseek_api_key="",
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider()
 
         assert exc_info.value.status_code == 503
@@ -357,7 +357,7 @@ async def test_get_provider_wafer_missing_api_key():
             wafer_api_key="",
         )
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider()
 
         assert exc_info.value.status_code == 503
@@ -427,7 +427,7 @@ async def test_get_provider_for_type_missing_key_raises_503():
     with patch("api.dependencies.get_settings") as mock_settings:
         mock_settings.return_value = _make_mock_settings(open_router_api_key="")
 
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(ProviderResolutionAuthFailure) as exc_info:
             get_provider_for_type("open_router")
 
         assert exc_info.value.status_code == 503

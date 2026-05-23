@@ -15,6 +15,7 @@ from core.anthropic import get_token_count, get_user_facing_error_message
 from core.trace import api_messages_request_snapshot, trace_event
 from providers.exceptions import ProviderError
 
+from .ingress_errors import IngressDetailError
 from .message_create_pipeline import (
     OPENAI_CHAT_UPSTREAM_IDS as _PIPELINE_OPENAI_IDS,
 )
@@ -95,7 +96,7 @@ class ClaudeProxyService:
                 provider_getter=self._provider_getter,
                 token_counter=self._token_counter,
             )
-        except ProviderError:
+        except ProviderError, IngressDetailError:
             raise
         except Exception as e:
             _log_unexpected_service_exception(
@@ -135,7 +136,7 @@ class ClaudeProxyService:
                     snapshot=api_messages_request_snapshot(routed.request),
                 )
                 return TokenCountResponse(input_tokens=tokens)
-            except ProviderError:
+            except ProviderError, IngressDetailError:
                 raise
             except Exception as e:
                 _log_unexpected_service_exception(

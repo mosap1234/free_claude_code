@@ -4,7 +4,7 @@ Snapshot of items from [IMPROVEMENT_PLAN Definition of done](IMPROVEMENT_PLAN.md
 
 | Criterion | Status | Notes |
 |-----------|--------|-------|
-| `config/settings.py` under ~200 lines (composition only) | Partial | Mixins live in `config/settings_*.py`; `settings.py` remains ~463 lines due to validators, `Settings` composite class, bundles, `get_settings`/`reload_settings`. Further slimming optional. |
+| `config/settings.py` composition hub (~320 lines target) | Partial | Mixins live in `config/settings_*.py`; validators in [`config/settings_validators.py`](../../config/settings_validators.py); dotenv/migration guards in [`config/settings_env.py`](../../config/settings_env.py); [`config/settings.py`](../../config/settings.py) is glue + bundles (~315 lines). |
 | `core/anthropic/conversion/_conversion.py` removed | Done | Submodules live under [`core/anthropic/conversion/](../../core/anthropic/conversion/). |
 | At least four OpenAI-chat providers use catalog factory | Done | See [`providers/registry.py`](../../providers/registry.py) `_instantiate_catalog_openai_chat` / `PARTIAL`/catalog rows. |
 | `api/runtime.py` under ~220 lines; bootstrap in `messaging/bootstrap.py` | Partial | Bootstrap options + tree restore remain in [`messaging/bootstrap.py`](../../messaging/bootstrap.py); CLI + handler wiring in [`api/messaging_startup.py`](../../api/messaging_startup.py); [`api/runtime.py`](../../api/runtime.py) ~256 lines. |
@@ -17,9 +17,9 @@ Snapshot of items from [IMPROVEMENT_PLAN Definition of done](IMPROVEMENT_PLAN.md
 
 | Track | Purpose |
 |-------|---------|
-| Transport vs resolver errors | [`api/resolver_exceptions.py`](../../api/resolver_exceptions.py): subclasses of `HTTPException` centralizing resolver and gateway-auth responses. |
+| Transport vs ingress errors | Done | [`api/ingress_errors.py`](../../api/ingress_errors.py) + [`api/ingress_handlers.py`](../../api/ingress_handlers.py): domain ingress errors → `{"detail": ...}`. Uncaught [`ProviderError`](../../providers/exceptions.py) still uses Anthropic JSON in [`api/app.py`](../../api/app.py). |
 | Admin env persistence split | [`api/admin_env_read.py`](../../api/admin_env_read.py), [`api/admin_env_write.py`](../../api/admin_env_write.py), [`api/admin_env_shared.py`](../../api/admin_env_shared.py); stable façade [`api/admin_persistence.py`](../../api/admin_persistence.py). |
 | Resolver semantics tests | [`tests/contracts/test_provider_resolution_semantics.py`](../../tests/contracts/test_provider_resolution_semantics.py). |
-| Native messages transport helpers | [`providers/native_messages_support.py`](../../providers/native_messages_support.py) extracted from [`providers/anthropic_messages.py`](../../providers/anthropic_messages.py); further `openai_compat` decomposition optional. |
+| Native messages + OpenAI-compat helpers | [`providers/native_messages_support.py`](../../providers/native_messages_support.py); tool-arg streaming split [`providers/openai_compat_tool_args.py`](../../providers/openai_compat_tool_args.py) + [`providers/openai_compat.py`](../../providers/openai_compat.py). |
 
 **Deferred milestones:** [`deferred_milestones.md`](deferred_milestones.md).
