@@ -212,7 +212,6 @@ def test_serve_supervisor_restarts_when_app_requests_restart() -> None:
 
     settings = _launcher_settings()
     get_settings = MagicMock(side_effect=[settings, settings])
-    get_settings.cache_clear = MagicMock()
     servers: list[object] = []
 
     class FakeServer:
@@ -231,6 +230,7 @@ def test_serve_supervisor_restarts_when_app_requests_restart() -> None:
 
     with (
         patch.object(entrypoints, "get_settings", get_settings),
+        patch.object(entrypoints, "reload_settings") as reload_mock,
         patch.object(entrypoints.uvicorn, "Config", side_effect=fake_config),
         patch.object(entrypoints.uvicorn, "Server", side_effect=FakeServer),
         patch.object(entrypoints, "_schedule_open_admin_browser"),
@@ -239,7 +239,7 @@ def test_serve_supervisor_restarts_when_app_requests_restart() -> None:
         entrypoints.serve()
 
     assert len(servers) == 2
-    get_settings.cache_clear.assert_called_once()
+    reload_mock.assert_called_once()
     kill_all.assert_called_once()
 
 
@@ -251,7 +251,6 @@ def test_serve_migrates_legacy_env_before_loading_settings(tmp_path: Path) -> No
     legacy_env.write_text("MODEL=deepseek/deepseek-chat\n", encoding="utf-8")
     settings = _launcher_settings()
     get_settings = MagicMock(return_value=settings)
-    get_settings.cache_clear = MagicMock()
 
     with (
         patch("pathlib.Path.home", return_value=tmp_path),
@@ -272,10 +271,10 @@ def test_serve_handles_keyboard_interrupt_without_traceback() -> None:
 
     settings = _launcher_settings()
     get_settings = MagicMock(return_value=settings)
-    get_settings.cache_clear = MagicMock()
 
     with (
         patch.object(entrypoints, "get_settings", get_settings),
+        patch.object(entrypoints, "reload_settings") as reload_mock,
         patch.object(
             entrypoints,
             "_run_supervised_server",
@@ -285,7 +284,7 @@ def test_serve_handles_keyboard_interrupt_without_traceback() -> None:
     ):
         entrypoints.serve()
 
-    get_settings.cache_clear.assert_not_called()
+    reload_mock.assert_not_called()
     kill_all.assert_called_once()
 
 

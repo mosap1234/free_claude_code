@@ -117,7 +117,7 @@ async def test_startup_installs_claude_proxy_runtime_after_success(tmp_path):
         patch.object(ProviderRegistry, "start_model_list_refresh"),
         patch.object(ProviderRegistry, "cleanup", new=AsyncMock()),
         patch(
-            "messaging.platforms.factory.create_messaging_platform",
+            "messaging.bootstrap.create_messaging_platform",
             return_value=None,
         ),
     ):

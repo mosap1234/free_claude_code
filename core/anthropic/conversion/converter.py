@@ -1,150 +1,29 @@
-"""Message and tool format converters."""
+"""Anthropic Messages ⇄ OpenAI chat conversation conversion."""
+
+from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel
-
 from core.anthropic.content import get_block_attr, get_block_type
-from core.anthropic.utils import set_if_not_none
 
+from .pending import PendingAfterTools
+from .reasoning import _clean_reasoning_content, _think_tag_content
+from .tool_helpers import (
+    _serialize_tool_result_content,
+    _tool_input_schema,
+)
+from .tool_helpers import (
+    deferred_post_tool_blocks as _deferred_post_tool_blocks,
+)
+from .tool_helpers import (
+    index_first_tool_use as _index_first_tool_use,
+)
+from .tool_helpers import (
+    iter_tool_uses_in_order as _iter_tool_uses_in_order,
+)
 from .types import OpenAIConversionError, ReasoningReplayMode
-
-
-def _openai_reject_native_only_top_level_fields(request_data: Any) -> None:
-    """OpenAI chat providers may only convert known top-level request fields.
-
-    First-class model fields (e.g. ``context_management``) are not forwarded to
-    the OpenAI API but are allowed so clients do not hit spurious 400s.
-    Unknown extra keys (``__pydantic_extra__``) are still rejected.
-    """
-    if not isinstance(request_data, BaseModel):
-        return
-    extra = getattr(request_data, "__pydantic_extra__", None)
-    if not extra:
-        return
-    raise OpenAIConversionError(
-        "OpenAI chat conversion does not support these top-level request fields: "
-        f"{sorted(str(k) for k in extra)}. Use a native Anthropic transport provider."
-    )
-
-
-def _tool_name(tool: Any) -> str:
-    return str(getattr(tool, "name", "") or "")
-
-
-def _tool_input_schema(tool: Any) -> dict[str, Any]:
-    schema = getattr(tool, "input_schema", None)
-    if isinstance(schema, dict):
-        return schema
-    return {"type": "object", "properties": {}}
-
-
-def _serialize_tool_result_content(tool_content: Any) -> str:
-    """Serialize tool_result content for OpenAI ``role: tool`` messages (stable JSON for structured values)."""
-    if tool_content is None:
-        return ""
-    if isinstance(tool_content, str):
-        return tool_content
-    if isinstance(tool_content, dict):
-        return json.dumps(tool_content, ensure_ascii=False)
-    if isinstance(tool_content, list):
-        parts: list[str] = []
-        for item in tool_content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                parts.append(str(item.get("text", "")))
-            elif isinstance(item, dict):
-                parts.append(json.dumps(item, ensure_ascii=False))
-            else:
-                parts.append(str(item))
-        return "\n".join(parts)
-    return str(tool_content)
-
-
-def _clean_reasoning_content(value: Any) -> str | None:
-    if not isinstance(value, str):
-        return None
-    return value if value else None
-
-
-def _think_tag_content(reasoning: str) -> str:
-    return f"<think>\n{reasoning}\n</think>"
-
-
-@dataclass
-class _PendingAfterTools:
-    """Assistant content that appears after ``tool_use`` in an Anthropic message.
-
-    OpenAI ``chat.completions`` cannot place assistant text after ``tool_calls`` in the
-    same message, so it is deferred until the corresponding ``role: tool`` results have
-    been replayed in order.
-    """
-
-    # Tool use IDs still missing a ``role: tool`` result before post-tool text may be replayed.
-    remaining_tool_ids: set[str] = field(default_factory=set)
-    deferred_blocks: list[Any] = field(default_factory=list)
-    top_level_reasoning: str | None = None
-    reasoning_replay: ReasoningReplayMode = ReasoningReplayMode.THINK_TAGS
-    # True after deferred assistant text has been added to the OpenAI transcript.
-    deferred_emitted: bool = False
-
-    def needs_deferred(self) -> bool:
-        return bool(self.deferred_blocks) and not self.deferred_emitted
-
-
-def _index_first_tool_use(blocks: list[Any]) -> int | None:
-    for i, block in enumerate(blocks):
-        if get_block_type(block) == "tool_use":
-            return i
-    return None
-
-
-def _iter_tool_uses_in_order(blocks: list[Any]) -> list[dict[str, Any]]:
-    tool_calls: list[dict[str, Any]] = []
-    for block in blocks:
-        if get_block_type(block) == "tool_use":
-            tool_input = get_block_attr(block, "input", {})
-            tool_calls.append(
-                {
-                    "id": get_block_attr(block, "id"),
-                    "type": "function",
-                    "function": {
-                        "name": get_block_attr(block, "name"),
-                        "arguments": json.dumps(tool_input)
-                        if isinstance(tool_input, dict)
-                        else str(tool_input),
-                    },
-                }
-            )
-    return tool_calls
-
-
-def _deferred_post_tool_blocks(
-    content: list[Any], *, first_tool_index: int
-) -> list[Any]:
-    return [
-        b
-        for i, b in enumerate(content)
-        if i > first_tool_index and get_block_type(b) != "tool_use"
-    ]
-
-
-def _assert_no_forbidden_assistant_block(block: Any) -> None:
-    block_type = get_block_type(block)
-    if block_type == "image":
-        raise OpenAIConversionError(
-            "Assistant image blocks are not supported for OpenAI chat conversion."
-        )
-    if block_type in (
-        "server_tool_use",
-        "web_search_tool_result",
-        "web_fetch_tool_result",
-    ):
-        raise OpenAIConversionError(
-            "OpenAI chat conversion does not support Anthropic server tool blocks "
-            f"({block_type!r} in an assistant message). Use a native Anthropic transport provider."
-        )
+from .validation import _assert_no_forbidden_assistant_block
 
 
 class AnthropicToOpenAIConverter:
@@ -157,7 +36,7 @@ class AnthropicToOpenAIConverter:
         reasoning_replay: ReasoningReplayMode = ReasoningReplayMode.THINK_TAGS,
     ) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = []
-        pending: _PendingAfterTools | None = None
+        pending: PendingAfterTools | None = None
 
         for msg in messages:
             role = msg.role
@@ -274,7 +153,7 @@ class AnthropicToOpenAIConverter:
         first_tool_index: int,
         reasoning_content: str | None,
         reasoning_replay: ReasoningReplayMode,
-    ) -> tuple[list[dict[str, Any]], _PendingAfterTools | None]:
+    ) -> tuple[list[dict[str, Any]], PendingAfterTools | None]:
         pre = content[:first_tool_index]
         tool_calls = _iter_tool_uses_in_order(content)
         if not tool_calls:
@@ -286,7 +165,7 @@ class AnthropicToOpenAIConverter:
                 ),
                 None,
             )
-        deferred_blocks = _deferred_post_tool_blocks(
+        deferred_blks = _deferred_post_tool_blocks(
             content, first_tool_index=first_tool_index
         )
 
@@ -309,16 +188,16 @@ class AnthropicToOpenAIConverter:
         pre_msg["tool_calls"] = tool_calls
         if tool_calls and pre_msg.get("content") == " ":
             pre_msg["content"] = ""
-        pnd: _PendingAfterTools | None = None
-        if deferred_blocks:
+        pnd: PendingAfterTools | None = None
+        if deferred_blks:
             res_ids: set[str] = set()
             for tc in tool_calls:
                 tid = tc.get("id")
                 if tid is not None and str(tid).strip() != "":
                     res_ids.add(str(tid))
-            pnd = _PendingAfterTools(
+            pnd = PendingAfterTools(
                 remaining_tool_ids=res_ids,
-                deferred_blocks=deferred_blocks,
+                deferred_blocks=deferred_blks,
                 top_level_reasoning=reasoning_content,
                 reasoning_replay=reasoning_replay,
             )
@@ -386,7 +265,7 @@ class AnthropicToOpenAIConverter:
 
     @staticmethod
     def _deferred_post_tool_to_messages(
-        pending: _PendingAfterTools,
+        pending: PendingAfterTools,
     ) -> list[dict[str, Any]]:
         if not pending.deferred_blocks:
             return []
@@ -398,7 +277,7 @@ class AnthropicToOpenAIConverter:
 
     @staticmethod
     def _convert_user_message_with_injection(
-        content: list[Any], pending: _PendingAfterTools
+        content: list[Any], pending: PendingAfterTools
     ) -> dict[str, Any]:
         """Convert user list blocks, emitting deferred assistant after all tool results."""
         if not pending.needs_deferred() or not pending.remaining_tool_ids:
@@ -537,45 +416,3 @@ class AnthropicToOpenAIConverter:
             if text_parts:
                 return {"role": "system", "content": "\n\n".join(text_parts).strip()}
         return None
-
-
-def build_base_request_body(
-    request_data: Any,
-    *,
-    default_max_tokens: int | None = None,
-    reasoning_replay: ReasoningReplayMode = ReasoningReplayMode.THINK_TAGS,
-) -> dict[str, Any]:
-    """Build the common parts of an OpenAI-format request body."""
-    _openai_reject_native_only_top_level_fields(request_data)
-    messages = AnthropicToOpenAIConverter.convert_messages(
-        request_data.messages,
-        reasoning_replay=reasoning_replay,
-    )
-
-    system = getattr(request_data, "system", None)
-    if system:
-        system_msg = AnthropicToOpenAIConverter.convert_system_prompt(system)
-        if system_msg:
-            messages.insert(0, system_msg)
-
-    body: dict[str, Any] = {"model": request_data.model, "messages": messages}
-
-    max_tokens = getattr(request_data, "max_tokens", None)
-    set_if_not_none(body, "max_tokens", max_tokens or default_max_tokens)
-    set_if_not_none(body, "temperature", getattr(request_data, "temperature", None))
-    set_if_not_none(body, "top_p", getattr(request_data, "top_p", None))
-
-    stop_sequences = getattr(request_data, "stop_sequences", None)
-    if stop_sequences:
-        body["stop"] = stop_sequences
-
-    tools = getattr(request_data, "tools", None)
-    if tools:
-        body["tools"] = AnthropicToOpenAIConverter.convert_tools(tools)
-    tool_choice = getattr(request_data, "tool_choice", None)
-    if tool_choice:
-        body["tool_choice"] = AnthropicToOpenAIConverter.convert_tool_choice(
-            tool_choice
-        )
-
-    return body

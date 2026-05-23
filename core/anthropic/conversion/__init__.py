@@ -1,6 +1,7 @@
 """Anthropic Messages ⇄ OpenAI chat helpers."""
 
-from ._conversion import AnthropicToOpenAIConverter, build_base_request_body
+from .converter import AnthropicToOpenAIConverter
+from .request_body import build_base_request_body
 from .types import OpenAIConversionError, ReasoningReplayMode
 
 __all__ = [

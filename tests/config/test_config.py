@@ -22,6 +22,31 @@ class TestSettings:
         settings = Settings()
         assert settings is not None
 
+    def test_mixin_fields_registered_on_settings(self):
+        from config.settings import Settings
+
+        for name in (
+            "open_router_api_key",
+            "messaging_platform",
+            "nim",
+            "voice_note_enabled",
+            "anthropic_auth_token",
+        ):
+            assert name in Settings.model_fields
+
+    def test_reload_settings_refreshes_from_env(self, monkeypatch):
+        from config.settings import Settings, get_settings, reload_settings
+
+        get_settings.cache_clear()
+        monkeypatch.setitem(Settings.model_config, "env_file", ())
+        monkeypatch.setenv("MODEL", "nvidia_nim/first/models")
+        s1 = get_settings()
+        assert s1.model == "nvidia_nim/first/models"
+        monkeypatch.setenv("MODEL", "nvidia_nim/second/models")
+        s2 = reload_settings()
+        assert s2.model == "nvidia_nim/second/models"
+        assert get_settings() is s2
+
     def test_default_values(self, monkeypatch):
         """Test default values are set and have correct types."""
         from config.settings import Settings

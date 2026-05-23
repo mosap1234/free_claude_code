@@ -14,14 +14,12 @@ from loguru import logger
 from api.admin_urls import local_admin_url
 from config.settings import Settings, get_settings
 from providers.exceptions import ServiceUnavailableError
-from providers.nvidia_nim.transcription_backend import NvidiaNimTranscriptionBackend
 from providers.registry import ProviderRegistry
 
 if TYPE_CHECKING:
     from cli.manager import CLISessionManager
     from messaging.handler import ClaudeMessageHandler
     from messaging.platforms.base import MessagingPlatform
-    from messaging.session import SessionStore
 
 _SHUTDOWN_TIMEOUT_S = 5.0
 
@@ -196,31 +194,9 @@ class AppRuntime:
 
     async def _start_messaging_if_configured(self) -> None:
         try:
-            from messaging.platforms.factory import (
-                MessagingPlatformOptions,
-                create_messaging_platform,
-            )
+            from messaging.bootstrap import create_optional_messaging_platform
 
-            self.messaging_platform = create_messaging_platform(
-                self.settings.messaging_platform,
-                MessagingPlatformOptions(
-                    telegram_bot_token=self.settings.telegram_bot_token,
-                    allowed_telegram_user_id=self.settings.allowed_telegram_user_id,
-                    discord_bot_token=self.settings.discord_bot_token,
-                    allowed_discord_channels=self.settings.allowed_discord_channels,
-                    voice_note_enabled=self.settings.voice_note_enabled,
-                    whisper_model=self.settings.whisper_model,
-                    whisper_device=self.settings.whisper_device,
-                    hf_token=self.settings.hf_token,
-                    nvidia_nim_api_key=self.settings.nvidia_nim_api_key,
-                    nim_transcription_backend=NvidiaNimTranscriptionBackend(),
-                    messaging_rate_limit=self.settings.messaging_rate_limit,
-                    messaging_rate_window=self.settings.messaging_rate_window,
-                    log_raw_messaging_content=self.settings.log_raw_messaging_content,
-                    log_api_error_tracebacks=self.settings.log_api_error_tracebacks,
-                    log_messaging_error_details=self.settings.log_messaging_error_details,
-                ),
-            )
+            self.messaging_platform = create_optional_messaging_platform(self.settings)
 
             if self.messaging_platform:
                 await self._start_message_handler()
@@ -247,6 +223,7 @@ class AppRuntime:
 
     async def _start_message_handler(self) -> None:
         from cli.manager import CLISessionManager
+        from messaging.bootstrap import restore_tree_queue_state
         from messaging.handler import ClaudeMessageHandler
         from messaging.session import SessionStore
 
@@ -293,38 +270,11 @@ class AppRuntime:
             log_raw_cli_diagnostics=self.settings.log_raw_cli_diagnostics,
             log_messaging_error_details=self.settings.log_messaging_error_details,
         )
-        self._restore_tree_state(session_store)
+        restore_tree_queue_state(self.settings, self.message_handler, session_store)
 
         platform.on_message(self.message_handler.handle_message)
         await platform.start()
         logger.info(f"{platform.name} platform started with message handler")
-
-    def _restore_tree_state(self, session_store: SessionStore) -> None:
-        saved_trees = session_store.get_all_trees()
-        if not saved_trees:
-            return
-        if self.message_handler is None:
-            return
-
-        logger.info(f"Restoring {len(saved_trees)} conversation trees...")
-        from messaging.trees.queue_manager import TreeQueueManager
-
-        self.message_handler.replace_tree_queue(
-            TreeQueueManager.from_dict(
-                {
-                    "trees": saved_trees,
-                    "node_to_tree": session_store.get_node_mapping(),
-                },
-                queue_update_callback=self.message_handler.update_queue_positions,
-                node_started_callback=self.message_handler.mark_node_processing,
-                log_messaging_error_details=self.settings.log_messaging_error_details,
-            )
-        )
-        if self.message_handler.tree_queue.cleanup_stale_nodes() > 0:
-            tree_data = self.message_handler.tree_queue.to_dict()
-            session_store.sync_from_tree_data(
-                tree_data["trees"], tree_data["node_to_tree"]
-            )
 
     def _publish_state(self) -> None:
         self.app.state.messaging_platform = self.messaging_platform

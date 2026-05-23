@@ -4,9 +4,12 @@ Production HTTP handlers must resolve upstream models through
 :class:`~providers.registry.ProviderRegistry` owned by :class:`~api.runtime.AppRuntime`
 via :func:`resolve_provider` and an explicit ``Starlette`` app instance.
 
-:func:`get_provider` / :func:`get_provider_for_type` intentionally target the small
-:class:`~api.provider_process_cache`-backed fallback for scripts, smoke harnesses,
-and unit tests — they must not appear in modules like ``api.routes`` or ``api.services``.
+:func:`get_process_cached_provider` / :func:`get_process_cached_provider_for_type`
+intentionally target the small :class:`~api.provider_process_cache`-backed fallback
+for scripts, smoke harnesses, and unit tests — they must not appear in modules like
+``api.routes`` or ``api.services``.
+
+Legacy aliases :func:`get_provider` / :func:`get_provider_for_type` remain exported.
 """
 
 import secrets
@@ -91,7 +94,7 @@ def _resolve_with_registry(
     return provider
 
 
-def get_provider_for_type(provider_type: str) -> BaseProvider:
+def get_process_cached_provider_for_type(provider_type: str) -> BaseProvider:
     """Get or create a provider in the process-level cache (no ``app``/Request).
 
     HTTP route handlers should call :func:`resolve_provider` with the active
@@ -99,6 +102,12 @@ def get_provider_for_type(provider_type: str) -> BaseProvider:
     process-wide cache.
     """
     return resolve_provider(provider_type, app=None, settings=get_settings())
+
+
+def get_provider_for_type(provider_type: str) -> BaseProvider:
+    """Deprecated: use :func:`get_process_cached_provider_for_type`."""
+
+    return get_process_cached_provider_for_type(provider_type)
 
 
 def require_api_key(
@@ -139,14 +148,20 @@ def require_api_key(
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
-def get_provider() -> BaseProvider:
+def get_process_cached_provider() -> BaseProvider:
     """Get or create the default provider (``MODEL`` / ``provider_type``).
 
     Process-cache helper for scripts, unit tests, and non-FastAPI callers. HTTP
     handlers must use :func:`resolve_provider` with :attr:`request.app` so the
     app-scoped :class:`~providers.registry.ProviderRegistry` is used.
     """
-    return get_provider_for_type(get_settings().provider_type)
+    return get_process_cached_provider_for_type(get_settings().provider_type)
+
+
+def get_provider() -> BaseProvider:
+    """Deprecated: use :func:`get_process_cached_provider`."""
+
+    return get_process_cached_provider()
 
 
 async def cleanup_provider():

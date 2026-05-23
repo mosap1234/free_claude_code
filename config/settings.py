@@ -1,5 +1,7 @@
 """Centralized configuration using Pydantic Settings."""
 
+from __future__ import annotations
+
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -8,19 +10,29 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import dotenv_values
-from pydantic import Field, computed_field, field_validator, model_validator
+from pydantic import computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .admin_optimization_settings import AdminOptimizationSettings
 from .bot_settings import BotSettings
-from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from .messaging_settings import MessagingSettings
 from .model_routing_settings import ModelRoutingSettings
-from .nim import NimSettings
 from .observability_settings import ObservabilitySettings
 from .paths import default_claude_workspace_path, managed_env_path
 from .provider_ids import SUPPORTED_PROVIDER_IDS
 from .server_runtime_settings import ProviderThroughputSettings, ServerRuntimeSettings
+from .settings_credentials import ProviderCredentialsMixin
+from .settings_http import HttpAndThroughputMixin
+from .settings_local_providers import LocalProviderEndpointsMixin
+from .settings_messaging import MessagingAndBotsMixin
+from .settings_model_routing import ModelRoutingMixin
+from .settings_nim_chat import NimChatMixin
+from .settings_observability import ObservabilityMixin
+from .settings_optimizations import RequestOptimizationsMixin
+from .settings_proxies import ProviderProxyMixin
+from .settings_server import ServerBindMixin
+from .settings_voice import VoiceNoteMixin
+from .settings_web_tools import WebServerToolsMixin
 from .web_fetch_settings import WebFetchSettings, normalize_web_fetch_allowed_schemes
 
 
@@ -111,214 +123,22 @@ def _removed_env_var_message(model_config: Mapping[str, Any]) -> str | None:
     return None
 
 
-class Settings(BaseSettings):
+class Settings(
+    ProviderCredentialsMixin,
+    LocalProviderEndpointsMixin,
+    ProviderProxyMixin,
+    ModelRoutingMixin,
+    HttpAndThroughputMixin,
+    RequestOptimizationsMixin,
+    WebServerToolsMixin,
+    ObservabilityMixin,
+    NimChatMixin,
+    VoiceNoteMixin,
+    MessagingAndBotsMixin,
+    ServerBindMixin,
+    BaseSettings,
+):
     """Application settings loaded from environment variables."""
-
-    # ==================== OpenRouter Config ====================
-    open_router_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
-
-    # ==================== DeepSeek Config ====================
-    deepseek_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
-
-    # ==================== Kimi Config ====================
-    kimi_api_key: str = Field(default="", validation_alias="KIMI_API_KEY")
-
-    # ==================== Wafer Config ====================
-    wafer_api_key: str = Field(default="", validation_alias="WAFER_API_KEY")
-
-    # ==================== OpenCode Zen / OpenCode Go ====================
-    # Same key from opencode.ai/auth; zen uses prefix ``opencode/``, Go uses ``opencode_go/``.
-    opencode_api_key: str = Field(default="", validation_alias="OPENCODE_API_KEY")
-
-    # ==================== Z.ai Config ====================
-    zai_api_key: str = Field(default="", validation_alias="ZAI_API_KEY")
-
-    # ==================== Fireworks AI Config ====================
-    fireworks_api_key: str = Field(default="", validation_alias="FIREWORKS_API_KEY")
-
-    # ==================== Messaging Platform Selection ====================
-    # Valid: "telegram" | "discord" | "none"
-    messaging_platform: str = Field(
-        default="discord", validation_alias="MESSAGING_PLATFORM"
-    )
-    messaging_rate_limit: int = Field(
-        default=1, validation_alias="MESSAGING_RATE_LIMIT"
-    )
-    messaging_rate_window: float = Field(
-        default=1.0, validation_alias="MESSAGING_RATE_WINDOW"
-    )
-
-    # ==================== NVIDIA NIM Config ====================
-    nvidia_nim_api_key: str = ""
-
-    # ==================== LM Studio Config ====================
-    lm_studio_base_url: str = Field(
-        default="http://localhost:1234/v1",
-        validation_alias="LM_STUDIO_BASE_URL",
-    )
-
-    # ==================== Llama.cpp Config ====================
-    llamacpp_base_url: str = Field(
-        default="http://localhost:8080/v1",
-        validation_alias="LLAMACPP_BASE_URL",
-    )
-
-    # ==================== Ollama Config ====================
-    ollama_base_url: str = Field(
-        default="http://localhost:11434",
-        validation_alias="OLLAMA_BASE_URL",
-    )
-
-    # ==================== Model ====================
-    # All Claude model requests are mapped to this single model (fallback)
-    # Format: provider_type/model/name
-    model: str = "nvidia_nim/z-ai/glm4.7"
-
-    # Per-model overrides (optional, falls back to MODEL)
-    # Each can use a different provider
-    model_opus: str | None = Field(default=None, validation_alias="MODEL_OPUS")
-    model_sonnet: str | None = Field(default=None, validation_alias="MODEL_SONNET")
-    model_haiku: str | None = Field(default=None, validation_alias="MODEL_HAIKU")
-
-    # ==================== Per-Provider Proxy ====================
-    nvidia_nim_proxy: str = Field(default="", validation_alias="NVIDIA_NIM_PROXY")
-    open_router_proxy: str = Field(default="", validation_alias="OPENROUTER_PROXY")
-    lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
-    llamacpp_proxy: str = Field(default="", validation_alias="LLAMACPP_PROXY")
-    kimi_proxy: str = Field(default="", validation_alias="KIMI_PROXY")
-    wafer_proxy: str = Field(default="", validation_alias="WAFER_PROXY")
-    opencode_proxy: str = Field(default="", validation_alias="OPENCODE_PROXY")
-    opencode_go_proxy: str = Field(default="", validation_alias="OPENCODE_GO_PROXY")
-    zai_proxy: str = Field(default="", validation_alias="ZAI_PROXY")
-    fireworks_proxy: str = Field(default="", validation_alias="FIREWORKS_PROXY")
-
-    # ==================== Provider Rate Limiting ====================
-    provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
-    provider_rate_window: int = Field(
-        default=60, validation_alias="PROVIDER_RATE_WINDOW"
-    )
-    provider_max_concurrency: int = Field(
-        default=5, validation_alias="PROVIDER_MAX_CONCURRENCY"
-    )
-    enable_model_thinking: bool = Field(
-        default=True, validation_alias="ENABLE_MODEL_THINKING"
-    )
-    enable_opus_thinking: bool | None = Field(
-        default=None, validation_alias="ENABLE_OPUS_THINKING"
-    )
-    enable_sonnet_thinking: bool | None = Field(
-        default=None, validation_alias="ENABLE_SONNET_THINKING"
-    )
-    enable_haiku_thinking: bool | None = Field(
-        default=None, validation_alias="ENABLE_HAIKU_THINKING"
-    )
-
-    # ==================== HTTP Client Timeouts ====================
-    http_read_timeout: float = Field(
-        default=120.0, validation_alias="HTTP_READ_TIMEOUT"
-    )
-    http_write_timeout: float = Field(
-        default=10.0, validation_alias="HTTP_WRITE_TIMEOUT"
-    )
-    http_connect_timeout: float = Field(
-        default=HTTP_CONNECT_TIMEOUT_DEFAULT,
-        validation_alias="HTTP_CONNECT_TIMEOUT",
-    )
-
-    # ==================== Fast Prefix Detection ====================
-    fast_prefix_detection: bool = True
-
-    # ==================== Optimizations ====================
-    enable_network_probe_mock: bool = True
-    enable_title_generation_skip: bool = True
-    enable_suggestion_mode_skip: bool = True
-    enable_filepath_extraction_mock: bool = True
-
-    # ==================== Local web server tools (web_search / web_fetch) ====================
-    # Off by default: these tools perform outbound HTTP from the proxy (SSRF risk).
-    enable_web_server_tools: bool = Field(
-        default=False, validation_alias="ENABLE_WEB_SERVER_TOOLS"
-    )
-    # Comma-separated URL schemes allowed for web_fetch (default: http,https).
-    web_fetch_allowed_schemes: str = Field(
-        default="http,https", validation_alias="WEB_FETCH_ALLOWED_SCHEMES"
-    )
-    # When true, skip private/loopback/link-local IP blocking for web_fetch (lab only).
-    web_fetch_allow_private_networks: bool = Field(
-        default=False, validation_alias="WEB_FETCH_ALLOW_PRIVATE_NETWORKS"
-    )
-
-    # ==================== Debug / diagnostic logging (avoid sensitive content) ====================
-    # When false (default), API and SSE helpers log only metadata (counts, lengths, ids).
-    log_raw_api_payloads: bool = Field(
-        default=False, validation_alias="LOG_RAW_API_PAYLOADS"
-    )
-    log_raw_sse_events: bool = Field(
-        default=False, validation_alias="LOG_RAW_SSE_EVENTS"
-    )
-    # When false (default), unhandled exceptions log only type + route metadata (no message/traceback).
-    log_api_error_tracebacks: bool = Field(
-        default=False, validation_alias="LOG_API_ERROR_TRACEBACKS"
-    )
-    # When false (default), messaging logs omit text/transcription previews (metadata only).
-    log_raw_messaging_content: bool = Field(
-        default=False, validation_alias="LOG_RAW_MESSAGING_CONTENT"
-    )
-    # When true, log full Claude CLI stderr, non-JSON lines, and parser error text.
-    log_raw_cli_diagnostics: bool = Field(
-        default=False, validation_alias="LOG_RAW_CLI_DIAGNOSTICS"
-    )
-    # When true, log exception text / CLI error strings in messaging (may leak user content).
-    log_messaging_error_details: bool = Field(
-        default=False, validation_alias="LOG_MESSAGING_ERROR_DETAILS"
-    )
-    debug_platform_edits: bool = Field(
-        default=False, validation_alias="DEBUG_PLATFORM_EDITS"
-    )
-    debug_subagent_stack: bool = Field(
-        default=False, validation_alias="DEBUG_SUBAGENT_STACK"
-    )
-
-    # ==================== NIM Settings ====================
-    nim: NimSettings = Field(default_factory=NimSettings)
-
-    # ==================== Voice Note Transcription ====================
-    voice_note_enabled: bool = Field(
-        default=True, validation_alias="VOICE_NOTE_ENABLED"
-    )
-    # Device: "cpu" | "cuda" | "nvidia_nim"
-    # - "cpu"/"cuda": local Whisper (requires voice_local extra: uv sync --extra voice_local)
-    # - "nvidia_nim": NVIDIA NIM Whisper API (requires voice extra: uv sync --extra voice)
-    whisper_device: str = Field(default="cpu", validation_alias="WHISPER_DEVICE")
-    # Whisper model ID or short name (for local Whisper) or NVIDIA NIM model (for nvidia_nim)
-    # Local Whisper: "tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"
-    # NVIDIA NIM: "nvidia/parakeet-ctc-1.1b-asr", "openai/whisper-large-v3", etc.
-    whisper_model: str = Field(default="base", validation_alias="WHISPER_MODEL")
-    # Hugging Face token for faster model downloads (optional, for local Whisper)
-    hf_token: str = Field(default="", validation_alias="HF_TOKEN")
-
-    # ==================== Bot Wrapper Config ====================
-    telegram_bot_token: str | None = None
-    allowed_telegram_user_id: str | None = None
-    discord_bot_token: str | None = Field(
-        default=None, validation_alias="DISCORD_BOT_TOKEN"
-    )
-    allowed_discord_channels: str | None = Field(
-        default=None, validation_alias="ALLOWED_DISCORD_CHANNELS"
-    )
-    allowed_dir: str = ""
-    max_message_log_entries_per_chat: int | None = Field(
-        default=None, validation_alias="MAX_MESSAGE_LOG_ENTRIES_PER_CHAT"
-    )
-
-    # ==================== Server ====================
-    host: str = "0.0.0.0"
-    port: int = 8082
-    # Optional server API key to protect endpoints (Anthropic-style)
-    # Set via env `ANTHROPIC_AUTH_TOKEN`. When empty, no auth is required.
-    anthropic_auth_token: str = Field(
-        default="", validation_alias="ANTHROPIC_AUTH_TOKEN"
-    )
 
     @model_validator(mode="before")
     @classmethod
@@ -328,7 +148,6 @@ class Settings(BaseSettings):
             raise ValueError(message)
         return data
 
-    # Handle empty strings for optional string fields
     @field_validator(
         "telegram_bot_token",
         "allowed_telegram_user_id",
@@ -636,3 +455,9 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
+def reload_settings() -> Settings:
+    """Clear cached settings and return a fresh ``Settings()`` instance."""
+    get_settings.cache_clear()
+    return get_settings()

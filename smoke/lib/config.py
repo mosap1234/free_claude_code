@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from config.provider_catalog import PROVIDER_CATALOG, SUPPORTED_PROVIDER_IDS
-from config.settings import Settings, get_settings
+from config.settings import Settings, get_settings, reload_settings
 
 DEFAULT_TARGETS = frozenset(
     {
@@ -134,8 +134,7 @@ class SmokeConfig:
     @classmethod
     def load(cls) -> SmokeConfig:
         root = Path(__file__).resolve().parents[2]
-        get_settings.cache_clear()
-        settings = get_settings()
+        settings = reload_settings()
         return cls(
             root=root,
             results_dir=root / ".smoke-results",

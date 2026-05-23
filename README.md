@@ -422,8 +422,11 @@ free-claude-code/
 ├── messaging/             # Discord/Telegram adapters, sessions, voice
 ├── cli/                   # Package entry points and Claude process management
 ├── config/                # Settings, provider catalog, logging
+├── smoke/                 # Opt-in live checks (development only; not in the PyPI wheel)
 └── tests/                 # Unit and contract tests
 ```
+
+The **`smoke/`** directory is exercised by optional live/smoke pytest markers (`-m live`, etc.). It is **not** listed under `[tool.hatch.build.targets.wheel] packages = [...]` in `pyproject.toml` — only **`api`, `cli`, `config`, `core`, `messaging`, `providers`** ship in installs.
 
 ### 2. Run From Source
 

@@ -57,6 +57,10 @@ class ProviderDescriptor:
     native_stream_chunk_mode: NativeStreamChunkMode | None = None
     #: Anthropic-compatible ``/messages`` request headers when using native transports.
     native_messages_header_profile: NativeMessagesHeaderProfile | None = None
+    #: AsyncOpenAI telemetry label used by :class:`CatalogOpenAIChatProvider`.
+    openai_chat_provider_label: str | None = None
+    #: Dot path to ``build_request_body`` module (function name ``build_request_body``).
+    openai_request_module: str | None = None
 
 
 PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
@@ -147,6 +151,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="kimi_api_key",
         default_base_url=KIMI_DEFAULT_BASE,
         proxy_attr="kimi_proxy",
+        openai_chat_provider_label="KIMI",
+        openai_request_module="providers.kimi.request",
     ),
     "wafer": ProviderDescriptor(
         provider_id="wafer",
@@ -170,6 +176,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="opencode_api_key",
         default_base_url=OPENCODE_DEFAULT_BASE,
         proxy_attr="opencode_proxy",
+        openai_chat_provider_label="OPENCODE",
+        openai_request_module="providers.opencode.request",
     ),
     "opencode_go": ProviderDescriptor(
         provider_id="opencode_go",
@@ -181,6 +189,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="opencode_api_key",
         default_base_url=OPENCODE_GO_DEFAULT_BASE,
         proxy_attr="opencode_go_proxy",
+        openai_chat_provider_label="OPENCODE_GO",
+        openai_request_module="providers.opencode.request",
     ),
     "zai": ProviderDescriptor(
         provider_id="zai",
@@ -191,6 +201,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="zai_api_key",
         default_base_url=ZAI_DEFAULT_BASE,
         proxy_attr="zai_proxy",
+        openai_chat_provider_label="ZAI",
+        openai_request_module="providers.zai.request",
     ),
     "fireworks": ProviderDescriptor(
         provider_id="fireworks",
@@ -202,6 +214,8 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="fireworks_api_key",
         default_base_url=FIREWORKS_DEFAULT_BASE,
         proxy_attr="fireworks_proxy",
+        openai_chat_provider_label="FIREWORKS",
+        openai_request_module="providers.fireworks.request",
     ),
 }
 

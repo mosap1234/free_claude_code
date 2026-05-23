@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from config.settings import Settings
+from config.settings import Settings, reload_settings
 from config.settings import get_settings as get_cached_settings
 from providers.rate_limit import GlobalRateLimiter
 from providers.registry import ProviderRegistry
@@ -131,7 +131,7 @@ async def apply_admin_config(
     if not result["applied"]:
         return result
 
-    get_cached_settings.cache_clear()
+    reload_settings()
     restart = _restart_metadata(result["pending_fields"], request)
     result["restart"] = restart
     if restart["required"] and restart["automatic"]:

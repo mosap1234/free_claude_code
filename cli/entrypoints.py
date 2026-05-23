@@ -25,7 +25,7 @@ from cli.process_registry import (
     unregister_pid,
 )
 from config.paths import config_dir_path, legacy_env_paths, managed_env_path
-from config.settings import Settings, get_settings
+from config.settings import Settings, get_settings, reload_settings
 
 PROXY_PREFLIGHT_PATH = "/health"
 PROXY_PREFLIGHT_TIMEOUT_SECONDS = 1.5
@@ -60,7 +60,7 @@ def serve() -> None:
                 ):
                     return
                 opened_admin_browser = True
-                get_settings.cache_clear()
+                reload_settings()
         except KeyboardInterrupt:
             return
     finally:
