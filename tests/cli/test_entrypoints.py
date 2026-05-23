@@ -521,7 +521,7 @@ def test_launch_claude_includes_claude_config_dir_in_child_env(
         patch("cli.entrypoints.subprocess.Popen") as popen,
         patch("cli.entrypoints.register_pid"),
         patch("cli.entrypoints.unregister_pid"),
-        pytest.raises(SystemExit) as exc_info,
+        pytest.raises(SystemExit),
     ):
         process = popen.return_value
         process.pid = 12345
@@ -568,7 +568,7 @@ def test_launch_claude_excludes_claude_config_dir_when_not_configured(
         patch("cli.entrypoints.subprocess.Popen") as popen,
         patch("cli.entrypoints.register_pid"),
         patch("cli.entrypoints.unregister_pid"),
-        pytest.raises(SystemExit) as exc_info,
+        pytest.raises(SystemExit),
     ):
         process = popen.return_value
         process.pid = 12345
