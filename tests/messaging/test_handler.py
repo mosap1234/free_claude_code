@@ -116,7 +116,7 @@ async def test_handle_message_stop_command_reply_stops_only_target_node(
         incoming=root_incoming,
         status_message_id="status_root",
     )
-    handler.tree_queue.register_node("status_root", tree.root_id)
+    await handler.tree_queue.register_node("status_root", tree.root_id)
 
     # Reply "/stop" to the status message; should stop only that node.
     incoming = incoming_message_factory(
@@ -612,7 +612,7 @@ async def test_handle_message_clear_command_reply_clears_branch(
     tree = await handler.tree_queue.create_tree(
         node_id="100", incoming=root_incoming, status_message_id="101"
     )
-    handler.tree_queue.register_node("101", tree.root_id)
+    await handler.tree_queue.register_node("101", tree.root_id)
 
     child_incoming = incoming_message_factory(
         text="child",

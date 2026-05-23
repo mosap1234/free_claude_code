@@ -17,6 +17,13 @@ class TreeQueueManager:
 
     Each new conversation creates a new tree.
     Replies to existing messages add nodes to existing trees.
+
+    Lock ordering: callers must acquire :attr:`_lock` (via public async methods that
+    use ``async with self._lock``) before awaiting any per-tree critical section using
+    :meth:`MessageTree.with_lock` / ``await tree.*`` routed through this manager.
+
+    Nested pattern is manager lock outer, ``tree.with_lock()`` inner (see
+    :meth:`cancel_all`, :meth:`add_to_tree`, :meth:`remove_branch`).
     """
 
     def __init__(
@@ -96,14 +103,13 @@ class TreeQueueManager:
             if not tree:
                 raise ValueError(f"Parent node {parent_node_id} not found in any tree")
 
-        node = await tree.add_node(
-            node_id=node_id,
-            incoming=incoming,
-            status_message_id=status_message_id,
-            parent_id=parent_node_id,
-        )
+            node = await tree.add_node(
+                node_id=node_id,
+                incoming=incoming,
+                status_message_id=status_message_id,
+                parent_id=parent_node_id,
+            )
 
-        async with self._lock:
             self._repository.register_node(node_id, tree.root_id)
 
         logger.info(f"Added node {node_id} to tree {tree.root_id}")
@@ -331,9 +337,17 @@ class TreeQueueManager:
         """Set callback for when a queued node starts processing."""
         self._processor.set_node_started_callback(node_started_callback)
 
-    def register_node(self, node_id: str, root_id: str) -> None:
+    async def register_node(self, node_id: str, root_id: str) -> None:
         """Register a node ID to a tree (for external mapping)."""
-        self._repository.register_node(node_id, root_id)
+        async with self._lock:
+            if self._repository.get_tree(root_id) is None:
+                logger.debug(
+                    "TREE: skip register_node node_id={} root_id={} (tree absent)",
+                    node_id,
+                    root_id,
+                )
+                return
+            self._repository.register_node(node_id, root_id)
 
     async def cancel_branch(self, branch_root_id: str) -> list[MessageNode]:
         """
@@ -379,24 +393,25 @@ class TreeQueueManager:
         Returns:
             (removed_nodes, root_id, removed_entire_tree)
         """
-        tree = self._repository.get_tree_for_node(branch_root_id)
-        if not tree:
-            return ([], "", False)
+        async with self._lock:
+            tree = self._repository.get_tree_for_node(branch_root_id)
+            if not tree:
+                return ([], "", False)
 
-        root_id = tree.root_id
+            root_id = tree.root_id
 
-        if branch_root_id == root_id:
-            cancelled = await self.cancel_tree(root_id)
-            removed_tree = self._repository.remove_tree(root_id)
-            if removed_tree:
-                return (removed_tree.all_nodes(), root_id, True)
-            return (cancelled, root_id, True)
+            if branch_root_id == root_id:
+                cancelled = await self.cancel_tree(root_id)
+                removed_tree = self._repository.remove_tree(root_id)
+                if removed_tree:
+                    return (removed_tree.all_nodes(), root_id, True)
+                return (cancelled, root_id, True)
 
-        async with tree.with_lock():
-            removed = tree.remove_branch(branch_root_id)
+            async with tree.with_lock():
+                removed = tree.remove_branch(branch_root_id)
 
-        self._repository.unregister_nodes([n.node_id for n in removed])
-        return (removed, root_id, False)
+            self._repository.unregister_nodes([n.node_id for n in removed])
+            return (removed, root_id, False)
 
     def get_message_ids_for_chat(self, platform: str, chat_id: str) -> set[str]:
         """Get all message IDs for a given platform/chat."""

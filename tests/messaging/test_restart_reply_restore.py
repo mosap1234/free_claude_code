@@ -27,7 +27,7 @@ async def test_reply_to_old_status_message_after_restore_routes_to_parent(
     tree = await handler1.tree_queue.create_tree(
         "A", a_incoming, status_message_id="status_A"
     )
-    handler1.tree_queue.register_node("status_A", tree.root_id)
+    await handler1.tree_queue.register_node("status_A", tree.root_id)
     store.register_node("status_A", tree.root_id)
     store.save_tree(tree.root_id, tree.to_dict())
     store.flush_pending_save()

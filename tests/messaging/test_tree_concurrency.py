@@ -1,6 +1,7 @@
 """Concurrency and race condition tests for tree data structures and queue manager."""
 
 import asyncio
+import contextlib
 
 import pytest
 
@@ -18,6 +19,16 @@ def _make_incoming(text: str = "hello", msg_id: str = "m1") -> IncomingMessage:
         message_id=msg_id,
         platform="test",
     )
+
+
+def _assert_every_node_mapping_points_at_indexed_root(mgr: TreeQueueManager) -> None:
+    """Repository invariant: no node→root row where the root is absent from `_trees`.
+
+    Guards against stale ``_node_to_tree`` registrations after raced removals.
+    """
+    repo = mgr._repository
+    for mapped_root_id in repo._node_to_tree.values():
+        assert mapped_root_id in repo._trees
 
 
 def _make_tree(root_id: str = "root") -> MessageTree:
@@ -602,3 +613,29 @@ class TestTreeQueueManagerConcurrency:
 
         # c1 was dequeued from queue, so callbacks should have fired
         assert len(queue_updates) >= 1 or len(node_starts) >= 1
+
+    @pytest.mark.asyncio
+    async def test_remove_root_and_add_reply_race_keeps_mappings_consistent(self):
+        """Full-tree removal must not overlap add_to_tree commits (manager lock discipline)."""
+        mgr = TreeQueueManager()
+        await mgr.create_tree("root", _make_incoming(msg_id="root"), "s_root")
+        barrier = asyncio.Barrier(2)
+
+        async def remove_entire_tree() -> None:
+            await barrier.wait()
+            await mgr.remove_branch("root")
+
+        async def try_add_reply() -> None:
+            await barrier.wait()
+            with contextlib.suppress(ValueError):
+                await mgr.add_to_tree(
+                    "root",
+                    "reply_race_id",
+                    _make_incoming(msg_id="reply_race_id"),
+                    "s_reply_race",
+                )
+
+        await asyncio.gather(remove_entire_tree(), try_add_reply())
+        _assert_every_node_mapping_points_at_indexed_root(mgr)
+        if mgr.get_tree("root") is None:
+            assert mgr.get_tree_for_node("reply_race_id") is None

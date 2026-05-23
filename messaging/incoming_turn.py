@@ -103,7 +103,7 @@ async def dispatch_incoming_user_message(
             status_message_id=status_msg_id,
         )
         # Register status message as a node too for reply chains
-        handler.tree_queue.register_node(status_msg_id, tree.root_id)
+        await handler.tree_queue.register_node(status_msg_id, tree.root_id)
         handler.session_store.register_node(status_msg_id, tree.root_id)
         handler.session_store.register_node(node_id, tree.root_id)
     elif status_msg_id:
@@ -114,7 +114,7 @@ async def dispatch_incoming_user_message(
             status_message_id=status_msg_id,
         )
         # Register status message
-        handler.tree_queue.register_node(status_msg_id, tree.root_id)
+        await handler.tree_queue.register_node(status_msg_id, tree.root_id)
         handler.session_store.register_node(node_id, tree.root_id)
         handler.session_store.register_node(status_msg_id, tree.root_id)
 

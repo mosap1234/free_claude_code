@@ -227,7 +227,7 @@ async def test_handle_message_reply_with_tree_but_no_parent_treated_as_new():
     mock_queue.create_tree = AsyncMock(
         return_value=MagicMock(root_id="root", to_dict=MagicMock(return_value={"t": 1}))
     )
-    mock_queue.register_node = MagicMock()
+    mock_queue.register_node = AsyncMock()
     mock_queue.enqueue = AsyncMock(return_value=False)
     handler.replace_tree_queue(mock_queue)
 
@@ -317,7 +317,7 @@ async def test_handle_message_incoming_text_none_safe():
     mock_queue.create_tree = AsyncMock(
         return_value=MagicMock(root_id="root", to_dict=MagicMock(return_value={"t": 1}))
     )
-    mock_queue.register_node = MagicMock()
+    mock_queue.register_node = AsyncMock()
     mock_queue.enqueue = AsyncMock(return_value=True)
     handler.replace_tree_queue(mock_queue)
 
