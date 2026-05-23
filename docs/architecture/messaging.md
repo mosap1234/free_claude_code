@@ -56,6 +56,6 @@ sequenceDiagram
 
 Stable symbols for tests and external wiring are re-exported from [`messaging/__init__.py`](../../messaging/__init__.py). Prefer importing from that package rather than deep leaves when adding new integration code, so tests can patch the façade module when needed.
 
-## Optional future work
+## Outbound typing
 
-A `PlatformOutbound` protocol (see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md) Phase 6) can narrow typing for command modules; it is not required for correct behavior today.
+[`PlatformOutbound`](../../messaging/platforms/outbound.py) narrows the queued send/edit surface consumed by [`messaging/handler.py`](../../messaging/handler.py) and command helpers. Implementations remain concrete [`MessagingPlatform`](../../messaging/platforms/base.py) subclasses.

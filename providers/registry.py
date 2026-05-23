@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Iterable, MutableMapping
+from collections.abc import Iterable, MutableMapping
 from contextlib import suppress
-from functools import partial
 
 from loguru import logger
 
@@ -15,184 +14,19 @@ from config.provider_catalog import (
     ProviderDescriptor,
 )
 from config.settings import Settings
-from providers.base import BaseProvider, ProviderConfig
-from providers.exceptions import AuthenticationError, UnknownProviderTypeError
+from providers.base import BaseProvider
+from providers.exceptions import UnknownProviderTypeError
 from providers.model_listing import ProviderModelInfo, model_infos_from_ids
+from providers.registry_config import build_provider_config
+from providers.registry_factories import PROVIDER_FACTORIES, ProviderFactory
 from providers.registry_models import (
     model_list_provider_ids_for_settings,
     refresh_model_infos,
     validate_configured_chat_models,
 )
 
-ProviderFactory = Callable[[ProviderConfig, Settings], BaseProvider]
-
 # Backwards-compatible name for the catalog (single source: ``config.provider_catalog``).
 PROVIDER_DESCRIPTORS: dict[str, ProviderDescriptor] = PROVIDER_CATALOG
-
-
-def _create_nvidia_nim(config: ProviderConfig, settings: Settings) -> BaseProvider:
-    from providers.nvidia_nim import NvidiaNimProvider
-
-    return NvidiaNimProvider(config, nim_settings=settings.nim)
-
-
-def _create_open_router(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.open_router import OpenRouterProvider
-
-    return OpenRouterProvider(config)
-
-
-def _create_deepseek(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.deepseek import DeepSeekProvider
-
-    return DeepSeekProvider(config)
-
-
-def _create_lmstudio(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.lmstudio import LMStudioProvider
-
-    return LMStudioProvider(config)
-
-
-def _create_llamacpp(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.llamacpp import LlamaCppProvider
-
-    return LlamaCppProvider(config)
-
-
-def _create_ollama(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.ollama import OllamaProvider
-
-    return OllamaProvider(config)
-
-
-def _create_wafer(config: ProviderConfig, _settings: Settings) -> BaseProvider:
-    from providers.wafer import WaferProvider
-
-    return WaferProvider(config)
-
-
-def _instantiate_catalog_openai_chat(
-    provider_id: str, config: ProviderConfig, _settings: Settings
-) -> BaseProvider:
-    """Construct catalog-backed OpenAI chat providers (see ``openai_request_module``)."""
-    if provider_id == "opencode_go":
-        from providers.opencode import OpenCodeProvider
-
-        return OpenCodeProvider(config, provider_name="OPENCODE_GO")
-    if provider_id == "opencode":
-        from providers.opencode import OpenCodeProvider
-
-        return OpenCodeProvider(config)
-    if provider_id == "kimi":
-        from providers.kimi import KimiProvider
-
-        return KimiProvider(config)
-    if provider_id == "fireworks":
-        from providers.fireworks import FireworksProvider
-
-        return FireworksProvider(config)
-    if provider_id == "zai":
-        from providers.zai import ZaiProvider
-
-        return ZaiProvider(config)
-    from providers.openai_chat_adapter import CatalogOpenAIChatProvider
-
-    return CatalogOpenAIChatProvider(provider_id, config)
-
-
-def _create_catalog_openai_chat(
-    _config: ProviderConfig, _settings: Settings
-) -> BaseProvider:
-    """Catalog marker; per-id factories use :func:`_instantiate_catalog_openai_chat`."""
-    raise AssertionError(
-        "OpenAI catalog providers must bind via functools.partial(_instantiate_catalog_openai_chat, pid)"
-    )
-
-
-_MOD = globals()
-PROVIDER_FACTORIES: dict[str, ProviderFactory] = {}
-for pid, desc in PROVIDER_CATALOG.items():
-    if desc.openai_request_module is not None:
-        if desc.transport_type != "openai_chat":
-            raise AssertionError(
-                f"provider {pid!r}: openai_request_module requires transport_type "
-                f"'openai_chat', got {desc.transport_type!r}"
-            )
-        PROVIDER_FACTORIES[pid] = partial(_instantiate_catalog_openai_chat, pid)
-        continue
-    try:
-        factory_fn = _MOD[desc.registry_factory]
-    except KeyError as exc:
-        raise AssertionError(
-            f"registry_factory {desc.registry_factory!r} missing from providers.registry "
-            f"for provider {pid}"
-        ) from exc
-    if not callable(factory_fn):
-        raise AssertionError(
-            f"registry_factory {desc.registry_factory!r} for {pid} is not callable"
-        )
-    PROVIDER_FACTORIES[pid] = factory_fn
-
-if set(PROVIDER_FACTORIES) != set(SUPPORTED_PROVIDER_IDS):
-    raise AssertionError(
-        "PROVIDER_FACTORIES and SUPPORTED_PROVIDER_IDS are out of sync: "
-        f"factories={set(PROVIDER_FACTORIES)!r} "
-        f"ids={set(SUPPORTED_PROVIDER_IDS)!r}"
-    )
-
-
-def _string_attr(settings: Settings, attr_name: str | None, default: str = "") -> str:
-    if attr_name is None:
-        return default
-    value = getattr(settings, attr_name, default)
-    return value if isinstance(value, str) else default
-
-
-def _credential_for(descriptor: ProviderDescriptor, settings: Settings) -> str:
-    if descriptor.static_credential is not None:
-        return descriptor.static_credential
-    if descriptor.credential_attr:
-        return _string_attr(settings, descriptor.credential_attr)
-    return ""
-
-
-def _require_credential(descriptor: ProviderDescriptor, credential: str) -> None:
-    if descriptor.credential_env is None:
-        return
-    if credential and credential.strip():
-        return
-    message = f"{descriptor.credential_env} is not set. Add it to your .env file."
-    if descriptor.credential_url:
-        message = f"{message} Get a key at {descriptor.credential_url}"
-    raise AuthenticationError(message)
-
-
-def build_provider_config(
-    descriptor: ProviderDescriptor, settings: Settings
-) -> ProviderConfig:
-    credential = _credential_for(descriptor, settings)
-    _require_credential(descriptor, credential)
-    base_url = _string_attr(
-        settings, descriptor.base_url_attr, descriptor.default_base_url or ""
-    )
-    proxy = _string_attr(settings, descriptor.proxy_attr)
-    return ProviderConfig(
-        api_key=credential,
-        base_url=base_url or descriptor.default_base_url,
-        rate_limit=settings.provider_rate_limit,
-        rate_window=settings.provider_rate_window,
-        max_concurrency=settings.provider_max_concurrency,
-        http_read_timeout=settings.http_read_timeout,
-        http_write_timeout=settings.http_write_timeout,
-        http_connect_timeout=settings.http_connect_timeout,
-        enable_thinking=settings.enable_model_thinking,
-        proxy=proxy,
-        log_raw_sse_events=settings.log_raw_sse_events,
-        log_api_error_tracebacks=settings.log_api_error_tracebacks,
-        native_stream_chunk_mode=descriptor.native_stream_chunk_mode,
-        native_messages_header_profile=descriptor.native_messages_header_profile,
-    )
 
 
 def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
@@ -360,3 +194,13 @@ class ProviderRegistry:
         if len(errors) > 1:
             msg = "One or more provider cleanups failed"
             raise ExceptionGroup(msg, errors)
+
+
+__all__ = (
+    "PROVIDER_DESCRIPTORS",
+    "PROVIDER_FACTORIES",
+    "ProviderFactory",
+    "ProviderRegistry",
+    "build_provider_config",
+    "create_provider",
+)

@@ -400,6 +400,7 @@ Important pieces:
 - **`api.runtime.AppRuntime`** is the lifespan owner: attaches `provider_registry` to **`request.app.state`**, starts optional Telegram/Discord by injecting **`MessagingPlatformOptions.nim_transcription_backend`**, restores tree sessions, and coordinates shutdown cleanup.
 - **Living map:** committed canvas [`canvases/entity-architecture-map.canvas.tsx`](canvases/entity-architecture-map.canvas.tsx) — whenever you move modules or composition wiring, refresh the canvas row titles in the **same hygiene pass** as the import contract suites below.
 - **Contracts:** layered import rules live in **`tests/contracts/test_import_boundaries.py`** and **`tests/contracts/test_architecture_contracts.py`**; keep both green on refactors.
+- **HTTP errors:** FastAPI `{detail}` for ingress/resolver auth failures vs Anthropic `{type,error}` for uncaught `ProviderError` → **`docs/architecture/api-package.md`** (section *HTTP error shapes*).
 - **Two rate limiters (intentionally separate):**
   - **Provider throughput + upstream concurrency:** **`GlobalRateLimiter`** in **`providers/rate_limit.py`** (shared by OpenAI-chat and native‑Anthropic HTTP transports).
   - **Outbound bot pacing + dedupe queue:** **`MessagingRateLimiter`** in **`messaging/limiter.py`** (Telegram / Discord sends).
@@ -407,7 +408,7 @@ Important pieces:
 **Catalog provider checklist (keep contracts green):**
 
 1. Add or update **`PROVIDER_CATALOG`** in **`config/provider_catalog.py`** (transport type, credentials, and native transport fields such as **`native_stream_chunk_mode`** / **`native_messages_header_profile`**).
-2. Wire **`registry_factory`** in **`providers/registry.py`** so factories stay aligned with the catalog (CI enforces parity).
+2. Wire **`registry_factory`** in **`providers/registry_factories.py`** (imported via **`providers/registry.py`**) so factories stay aligned with the catalog (CI enforces parity).
 3. Extend **`tests/contracts/`** if imports or transport invariants change across layers.
 4. Refresh **`canvases/entity-architecture-map.canvas.tsx`** if composition or boundaries move.
 

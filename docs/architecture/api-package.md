@@ -28,6 +28,15 @@ Orchestration and HTTP-facing code for the Claude-compatible gateway lives under
   subclasses use the Anthropic-shaped handler in [`api.app.create_app`](../../api/app.py):
   `{"type": "error", "error": {"type": ..., "message": ...}}`.
 
+## Request flow (internal)
+
+```text
+api/routes.py → api/services.py (ClaudeProxyService) → api/message_create_pipeline.py
+  → api/dependencies.py (resolve_provider, require_api_key)
+```
+
+Admin, web tools, and optimizations branch **before** ``message_create_pipeline`` as documented in the routes table above.
+
 ## Provider resolution (`request.app`)
 
 - From route handlers call `resolve_provider(..., app=request.app, settings=settings)` via [`dependencies.resolve_provider`](../../api/dependencies.py). The registry must exist on **`app.state.provider_registry`** after [`AppRuntime.startup`](../../api/runtime.py).

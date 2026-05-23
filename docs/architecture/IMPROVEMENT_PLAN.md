@@ -461,10 +461,10 @@ uv run pytest
 
 ## Definition of done (program complete)
 
-- [ ] `config/settings.py` under ~200 lines (validators + composition only)
+- [ ] `config/settings.py` under ~300 lines (validators + composition glue; bundle builders in `settings_bundles.py`)
 - [ ] `core/anthropic/conversion/_conversion.py` removed
 - [ ] At least 4 OpenAI-chat providers use catalog factory
-- [ ] `api/runtime.py` under ~220 lines; bootstrap in `messaging/bootstrap.py`
+- [ ] `api/runtime.py` under ~220 lines (+ optional `api/runtime_lifecycle.py` helpers); bootstrap in `messaging/bootstrap.py`
 - [ ] `reload_settings()` used at all reload sites
 - [ ] `docs/architecture/` describes layers, provider resolution, messaging
 - [ ] `tests/contracts/test_provider_wiring.py` guards catalog/admin/settings alignment
@@ -477,6 +477,7 @@ uv run pytest
 
 | Risk | Mitigation |
 |------|------------|
+| Factory registry split confuses callers | Keep `providers.registry` re-exports; factories live in `providers/registry_factories.py` |
 | Admin breaks after Settings split | Contract test `settings_attr` ∈ `model_fields`; run `tests/api/test_admin.py` every PR-1 commit |
 | Golden conversion drift | Run `test_conversion_golden` before merge; no logic changes in Phase 2 |
 | Factory hides provider bugs | Keep per-provider `request.py` tests; only delete duplicate `client.py` after alias proves stable |
@@ -488,8 +489,8 @@ uv run pytest
 ## Intentionally deferred
 
 - Full nested `settings.providers.kimi_api_key` paths (breaks admin)
-- Collapsing native Anthropic adapters (Phase 3b)
-- OpenTelemetry / observability port
+- Collapsing native Anthropic transports (Phase 3b)—inventory helper [`providers/native_messages_catalog.py`](../../providers/native_messages_catalog.py) only; transports still duplicated until the dedicated regression train lands
+- OpenTelemetry backends / OTLP export (trace sink remains pluggable behind [`core/observability.py`](../../core/observability.py))
 - Packaging `smoke` in the wheel
 - Auto-generating all admin fields from Settings schema (only credential subset in PR-1c)
 

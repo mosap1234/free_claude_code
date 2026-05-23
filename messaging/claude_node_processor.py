@@ -14,7 +14,8 @@ from core.trace import trace_event
 from .event_parser import parse_cli_event
 from .models import IncomingMessage
 from .node_event_pipeline import handle_session_info_event, process_parsed_cli_event
-from .platforms.base import MessagingPlatform, SessionManagerInterface
+from .platforms.base import SessionManagerInterface
+from .platforms.outbound import PlatformOutbound
 from .safe_diagnostics import format_exception_for_log
 from .session import SessionStore
 from .transcript import RenderCtx, ThrottledTranscriptEditor, TranscriptBuffer
@@ -29,7 +30,7 @@ from .trees.queue_manager import (
 class ClaudeNodeProcessingContext:
     """Narrow façade of handler state consumed by :class:`ClaudeNodeProcessor`."""
 
-    platform: MessagingPlatform
+    platform: PlatformOutbound
     cli_manager: SessionManagerInterface
     session_store: SessionStore
     tree_queue_fn: Callable[[], TreeQueueManager]

@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from loguru import logger
 
-from .platforms.base import MessagingPlatform
+from .platforms.outbound import PlatformOutbound
 from .safe_diagnostics import format_exception_for_log
 from .transcript import RenderCtx, TranscriptBuffer
 
@@ -18,7 +18,7 @@ class ThrottledTranscriptEditor:
     def __init__(
         self,
         *,
-        platform: MessagingPlatform,
+        platform: PlatformOutbound,
         parse_mode: str | None,
         get_limit_chars: Callable[[], int],
         transcript: TranscriptBuffer,

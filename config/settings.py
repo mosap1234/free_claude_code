@@ -17,6 +17,16 @@ from .model_routing_settings import ModelRoutingSettings
 from .observability_settings import ObservabilitySettings
 from .paths import default_claude_workspace_path
 from .server_runtime_settings import ProviderThroughputSettings, ServerRuntimeSettings
+from .settings_bundles import (
+    build_admin_optimization_bundle,
+    build_bot_bundle,
+    build_messaging_bundle,
+    build_model_routing_bundle,
+    build_observability_bundle,
+    build_provider_throughput_bundle,
+    build_server_runtime_bundle,
+    build_web_fetch_bundle,
+)
 from .settings_credentials import ProviderCredentialsMixin
 from .settings_env import (
     dotenv_last_value_for_key,
@@ -250,95 +260,42 @@ class Settings(
     @property
     def web_fetch_bundle(self) -> WebFetchSettings:
         """Grouped web_fetch / web_search guard settings."""
-        return WebFetchSettings(
-            enable_web_server_tools=self.enable_web_server_tools,
-            web_fetch_allowed_schemes=self.web_fetch_allowed_schemes,
-            web_fetch_allow_private_networks=self.web_fetch_allow_private_networks,
-        )
+        return build_web_fetch_bundle(self)
 
     @property
     def observability_bundle(self) -> ObservabilitySettings:
         """Bundled verbosity and debug logging flags."""
-        return ObservabilitySettings(
-            log_raw_api_payloads=self.log_raw_api_payloads,
-            log_raw_sse_events=self.log_raw_sse_events,
-            log_api_error_tracebacks=self.log_api_error_tracebacks,
-            log_raw_messaging_content=self.log_raw_messaging_content,
-            log_raw_cli_diagnostics=self.log_raw_cli_diagnostics,
-            log_messaging_error_details=self.log_messaging_error_details,
-            debug_platform_edits=self.debug_platform_edits,
-            debug_subagent_stack=self.debug_subagent_stack,
-        )
+        return build_observability_bundle(self)
 
     @property
     def model_routing_bundle(self) -> ModelRoutingSettings:
         """Model tiers and thinking knobs grouped for dashboards and manifests."""
-        return ModelRoutingSettings(
-            model=self.model,
-            model_opus=self.model_opus,
-            model_sonnet=self.model_sonnet,
-            model_haiku=self.model_haiku,
-            enable_model_thinking=self.enable_model_thinking,
-            enable_opus_thinking=self.enable_opus_thinking,
-            enable_sonnet_thinking=self.enable_sonnet_thinking,
-            enable_haiku_thinking=self.enable_haiku_thinking,
-        )
+        return build_model_routing_bundle(self)
 
     @property
     def bot_bundle(self) -> BotSettings:
         """Bots, workspace guard rails, and voice-note configuration."""
-        return BotSettings(
-            telegram_bot_token=self.telegram_bot_token,
-            allowed_telegram_user_id=self.allowed_telegram_user_id,
-            discord_bot_token=self.discord_bot_token,
-            allowed_discord_channels=self.allowed_discord_channels,
-            allowed_dir=self.allowed_dir,
-            max_message_log_entries_per_chat=self.max_message_log_entries_per_chat,
-            voice_note_enabled=self.voice_note_enabled,
-            whisper_device=self.whisper_device,
-            whisper_model=self.whisper_model,
-            hf_token=self.hf_token,
-        )
+        return build_bot_bundle(self)
 
     @property
     def admin_optimization_bundle(self) -> AdminOptimizationSettings:
         """Admin-visible proxy shortcuts unrelated to throughput rate limits."""
-        return AdminOptimizationSettings(
-            fast_prefix_detection=self.fast_prefix_detection,
-            enable_network_probe_mock=self.enable_network_probe_mock,
-            enable_title_generation_skip=self.enable_title_generation_skip,
-            enable_suggestion_mode_skip=self.enable_suggestion_mode_skip,
-            enable_filepath_extraction_mock=self.enable_filepath_extraction_mock,
-        )
+        return build_admin_optimization_bundle(self)
 
     @computed_field
     def messaging_bundle(self) -> MessagingSettings:
         """Messaging knobs grouped for injection into optional bot runtime."""
-        return MessagingSettings(
-            messaging_platform=self.messaging_platform,
-            messaging_rate_limit=self.messaging_rate_limit,
-            messaging_rate_window=self.messaging_rate_window,
-            log_messaging_error_details=self.log_messaging_error_details,
-            log_raw_messaging_content=self.log_raw_messaging_content,
-        )
+        return build_messaging_bundle(self)
 
     @computed_field
     def server_runtime_bundle(self) -> ServerRuntimeSettings:
         """Primary HTTP bind + auth subset."""
-        return ServerRuntimeSettings(
-            host=self.host,
-            port=self.port,
-            anthropic_auth_token=self.anthropic_auth_token,
-        )
+        return build_server_runtime_bundle(self)
 
     @computed_field
     def provider_throughput_bundle(self) -> ProviderThroughputSettings:
         """Values mirrored into each :class:`~providers.base.ProviderConfig` instance."""
-        return ProviderThroughputSettings(
-            provider_rate_limit=self.provider_rate_limit,
-            provider_rate_window=self.provider_rate_window,
-            provider_max_concurrency=self.provider_max_concurrency,
-        )
+        return build_provider_throughput_bundle(self)
 
     @staticmethod
     def parse_provider_type(model_string: str) -> str:

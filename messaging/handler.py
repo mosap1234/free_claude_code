@@ -18,7 +18,8 @@ from .handler_queue_ux import (
 )
 from .incoming_turn import dispatch_incoming_user_message
 from .models import IncomingMessage
-from .platforms.base import MessagingPlatform, SessionManagerInterface
+from .platforms.base import SessionManagerInterface
+from .platforms.outbound import PlatformOutbound
 from .rendering.profiles import build_rendering_profile
 from .safe_diagnostics import format_exception_for_log
 from .session import SessionStore
@@ -44,7 +45,7 @@ class ClaudeMessageHandler:
 
     def __init__(
         self,
-        platform: MessagingPlatform,
+        platform: PlatformOutbound,
         cli_manager: SessionManagerInterface,
         session_store: SessionStore,
         *,

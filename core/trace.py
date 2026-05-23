@@ -11,7 +11,7 @@ import asyncio
 from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
-from loguru import logger
+from core.observability import dispatch_structured_trace
 
 TRACE_PAYLOAD_BINDING = "trace_payload"
 
@@ -57,7 +57,7 @@ def trace_event(*, stage: str, event: str, source: str, **fields: Any) -> None:
             **fields,
         },
     )
-    logger.bind(trace_payload=payload).info("TRACE {}", event)
+    dispatch_structured_trace(payload)
 
 
 def api_messages_request_snapshot(req: Any) -> dict[str, Any]:
