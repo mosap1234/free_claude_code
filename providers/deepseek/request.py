@@ -108,17 +108,6 @@ def _strip_unsupported_attachment_blocks(messages: Any) -> Any:
     return stripped
 
 
-def _is_server_listed_tool(tool: Mapping[str, Any]) -> bool:
-    """True for Anthropic web_search / web_fetch-style tool definitions (listed tools)."""
-    name = (tool.get("name") or "").strip()
-    if name in ("web_search", "web_fetch"):
-        return True
-    typ = tool.get("type")
-    if isinstance(typ, str):
-        return typ.startswith("web_search") or typ.startswith("web_fetch")
-    return False
-
-
 def _walk_block_list_for_unsupported(blocks: Any, *, where: str) -> None:
     if not isinstance(blocks, list):
         return
@@ -136,6 +125,58 @@ def _walk_block_list_for_unsupported(blocks: Any, *, where: str) -> None:
             )
 
 
+def _filter_unsupported_tools(data: dict[str, Any]) -> None:
+    """Drop tools whose ``type`` variant DeepSeek's strict parser rejects.
+
+    DeepSeek's Anthropic endpoint accepts only:
+      * client tools (no ``type``; identified by ``name`` + ``input_schema``)
+      * server tools with a **versioned** ``type``: ``web_search_YYYYMMDD`` or
+        ``web_fetch_YYYYMMDD`` (per DeepSeek's documented allowlist —
+        https://api-docs.deepseek.com/guides/anthropic_api)
+
+    Everything else is rejected with HTTP 400 if forwarded, so it's dropped
+    here: bare ``web_search`` / ``web_fetch`` without a version, ``advisor_*``,
+    ``computer_*``, and any harness-added server tools.
+
+    When every tool gets dropped, the ``tools`` key is removed entirely
+    rather than left as ``[]`` — some Anthropic-compatible endpoints reject
+    an empty ``tools`` array.
+    """
+    tools = data.get("tools")
+    if not isinstance(tools, list):
+        return
+    kept: list[Any] = []
+    dropped: list[str] = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            kept.append(tool)
+            continue
+        typ = tool.get("type")
+        if isinstance(typ, str) and typ:
+            # Versioned web_search_YYYYMMDD / web_fetch_YYYYMMDD only —
+            # the length check rejects bare "web_search_" with nothing after.
+            is_versioned_web_tool = (
+                typ.startswith("web_search_") or typ.startswith("web_fetch_")
+            ) and len(typ) > len("web_search_")
+            if is_versioned_web_tool:
+                kept.append(tool)
+            else:
+                dropped.append(typ)
+        else:
+            # No ``type`` → standard client tool (name + input_schema).
+            kept.append(tool)
+    if dropped:
+        logger.info(
+            "DEEPSEEK_REQUEST: stripped {} unsupported server tool(s): {}",
+            len(dropped),
+            dropped,
+        )
+        if kept:
+            data["tools"] = kept
+        else:
+            data.pop("tools", None)
+
+
 def _validate_deepseek_native_request_dict(data: dict[str, Any]) -> None:
     mcp = data.get("mcp_servers")
     if mcp:
@@ -143,14 +184,11 @@ def _validate_deepseek_native_request_dict(data: dict[str, Any]) -> None:
             "DeepSeek native does not support mcp_servers on requests."
         )
 
-    for tool in data.get("tools") or ():
-        if not isinstance(tool, dict):
-            continue
-        if _is_server_listed_tool(tool):
-            raise InvalidRequestError(
-                "DeepSeek native does not support listed Anthropic server tools "
-                "(web_search / web_fetch). Remove them or use a different provider."
-            )
+    # Tool-level sanitization happens in _filter_unsupported_tools() (called
+    # by build_request_body after this validator). We intentionally don't
+    # reject the whole request just because a server tool is present — the
+    # filter drops unsupported variants and keeps versioned web_search_ /
+    # web_fetch_ tools that DeepSeek's allowlist accepts.
 
     for i, message in enumerate(data.get("messages") or ()):
         if not isinstance(message, dict):
@@ -394,6 +432,7 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     if "messages" in data:
         data["messages"] = _strip_unsupported_attachment_blocks(data["messages"])
     _validate_deepseek_native_request_dict(data)
+    _filter_unsupported_tools(data)
     data.pop("extra_body", None)
 
     has_tool_history = _has_tool_history(data)

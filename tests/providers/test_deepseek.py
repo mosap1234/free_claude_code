@@ -536,7 +536,11 @@ def test_preflight_rejects_mcp_servers():
         provider.preflight_stream(request)
 
 
-def test_preflight_rejects_listed_server_tools_in_tools_list():
+def test_preflight_keeps_versioned_web_search_tool():
+    """Versioned web_search_YYYYMMDD passes preflight — DeepSeek's allowlist
+    accepts it. The old behavior (rejecting the whole request) was changed in
+    PR #458 so the per-tool filter can keep supported variants and drop the
+    rest, instead of failing fast on the first server tool seen."""
     request = MessagesRequest(
         model="m",
         messages=[Message(role="user", content="x")],
@@ -550,8 +554,11 @@ def test_preflight_rejects_listed_server_tools_in_tools_list():
             rate_window=1,
         )
     )
-    with pytest.raises(InvalidRequestError, match="web_search"):
-        provider.preflight_stream(request)
+    # Should not raise — preflight no longer rejects listed server tools.
+    provider.preflight_stream(request)
+    body = provider._build_request_body(request)
+    tools = body.get("tools") or []
+    assert any(t.get("type") == "web_search_20250305" for t in tools)
 
 
 def test_preflight_rejects_server_tool_result_blocks():
@@ -1091,3 +1098,77 @@ def test_no_warning_when_no_attachments(deepseek_provider, caplog):
         for r in caplog.records
         if r.levelno == logging.WARNING
     )
+
+
+# ---------------------------------------------------------------------------
+# _filter_unsupported_tools — per Greptile review on PR #458
+# ---------------------------------------------------------------------------
+
+
+def _run_filter(tools: list[dict]) -> dict:
+    """Run _filter_unsupported_tools on a raw dict (bypasses pydantic for shapes
+    the typed Tool model wouldn't accept) and return the resulting body."""
+    from providers.deepseek.request import _filter_unsupported_tools
+
+    data = {"tools": tools}
+    _filter_unsupported_tools(data)
+    return data
+
+
+def test_filter_keeps_client_tools_and_versioned_web_search():
+    """Mixed: client tool + versioned web_search are kept; unsupported variant dropped."""
+    data = _run_filter(
+        [
+            {"name": "Read", "input_schema": {"type": "object"}},
+            {"type": "web_search_20250305", "name": "web_search"},
+            {"type": "advisor_20260301", "name": "advisor"},
+        ]
+    )
+    tools = data.get("tools") or []
+    # Client tool survives (no ``type``).
+    assert any(t.get("name") == "Read" and t.get("type") is None for t in tools)
+    # Versioned web_search_YYYYMMDD survives (DeepSeek allowlist).
+    assert any(t.get("type") == "web_search_20250305" for t in tools)
+    # advisor_* is dropped (unsupported).
+    assert all(t.get("type") != "advisor_20260301" for t in tools)
+    assert len(tools) == 2
+
+
+def test_filter_drops_all_tools_removes_key():
+    """When every tool is unsupported, the ``tools`` key is removed (not set to [])."""
+    data = _run_filter(
+        [
+            {"type": "advisor_20260301", "name": "advisor"},
+            {"type": "computer_20241022", "name": "computer"},
+        ]
+    )
+    # The key must be absent (some Anthropic-compat endpoints reject ``tools: []``).
+    assert "tools" not in data
+
+
+def test_filter_no_op_when_all_tools_valid():
+    """All-client tools: nothing dropped, all preserved verbatim."""
+    data = _run_filter(
+        [
+            {"name": "Read", "input_schema": {"type": "object"}},
+            {"name": "Bash", "input_schema": {"type": "object"}},
+        ]
+    )
+    tools = data.get("tools") or []
+    assert len(tools) == 2
+    assert {t.get("name") for t in tools} == {"Read", "Bash"}
+
+
+def test_filter_drops_bare_web_search_without_version():
+    """Bare ``web_search`` / ``web_fetch`` without the YYYYMMDD suffix is unsupported."""
+    data = _run_filter(
+        [
+            {"type": "web_search", "name": "web_search"},
+            {"type": "web_fetch_", "name": "web_fetch"},
+            {"name": "Read", "input_schema": {"type": "object"}},
+        ]
+    )
+    tools = data.get("tools") or []
+    # Only the client tool survives.
+    assert len(tools) == 1
+    assert tools[0].get("name") == "Read"
