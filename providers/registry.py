@@ -6,11 +6,7 @@ from contextlib import suppress
 
 from loguru import logger
 
-from config.provider_catalog import (
-    PROVIDER_CATALOG,
-    SUPPORTED_PROVIDER_IDS,
-    ProviderDescriptor,
-)
+from config.provider_catalog import PROVIDER_CATALOG, SUPPORTED_PROVIDER_IDS
 from config.settings import Settings
 from providers.base import BaseProvider
 from providers.exceptions import UnknownProviderTypeError
@@ -23,14 +19,11 @@ from providers.registry_models import (
     validate_configured_chat_models,
 )
 
-# Backwards-compatible name for the catalog (single source: ``config.provider_catalog``).
-PROVIDER_DESCRIPTORS: dict[str, ProviderDescriptor] = PROVIDER_CATALOG
-
 
 def create_provider(provider_id: str, settings: Settings) -> BaseProvider:
-    descriptor = PROVIDER_DESCRIPTORS.get(provider_id)
+    descriptor = PROVIDER_CATALOG.get(provider_id)
     if descriptor is None:
-        supported = "', '".join(PROVIDER_DESCRIPTORS)
+        supported = "', '".join(PROVIDER_CATALOG)
         raise UnknownProviderTypeError(
             f"Unknown provider_type: '{provider_id}'. Supported: '{supported}'"
         )
@@ -195,7 +188,6 @@ class ProviderRegistry:
 
 
 __all__ = (
-    "PROVIDER_DESCRIPTORS",
     "PROVIDER_FACTORIES",
     "ProviderFactory",
     "ProviderRegistry",

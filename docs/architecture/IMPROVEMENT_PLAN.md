@@ -101,9 +101,9 @@ flowchart LR
 
 ### Acceptance (Phase 0)
 
-- [ ] All new contract tests pass
-- [ ] No production code behavior change
-- [ ] CI green
+- [x] All new contract tests pass
+- [x] No production code behavior change
+- [x] CI green
 
 ### PR
 
@@ -204,11 +204,11 @@ Generate **admin provider secret fields** from catalog in `api/admin/fields_prov
 
 ### Acceptance (Phase 1)
 
-- [ ] `Settings()` and `get_settings()` behavior unchanged for all existing tests
-- [ ] `tests/config/test_config.py` green
-- [ ] Admin validate/apply still resolves `_field_input_key` via `model_fields`
-- [ ] `config` import boundary test still passes
-- [ ] No file in `config/` imports `api` / `providers` / `core`
+- [x] `Settings()` and `get_settings()` behavior unchanged for all existing tests
+- [x] `tests/config/test_config.py` green
+- [x] Admin validate/apply still resolves `_field_input_key` via `model_fields`
+- [x] `config` import boundary test still passes
+- [x] No file in `config/` imports `api` / `providers` / `core`
 
 ### PRs
 
@@ -254,10 +254,10 @@ Generate **admin provider secret fields** from catalog in `api/admin/fields_prov
 
 ### Acceptance (Phase 2)
 
-- [ ] `from core.anthropic.conversion import AnthropicToOpenAIConverter, build_base_request_body` still works
-- [ ] `tests/contracts` `test_core_does_not_import_product_packages` passes
-- [ ] No new file > ~250 lines unless justified
-- [ ] CI green
+- [x] `from core.anthropic.conversion import AnthropicToOpenAIConverter, build_base_request_body` still works
+- [x] `tests/contracts` `test_core_does_not_import_product_packages` passes
+- [x] No new file > ~250 lines unless justified
+- [x] CI green
 
 ### PR
 
@@ -311,10 +311,10 @@ Only set for eligible `openai_chat` entries.
 
 ### Acceptance (Phase 3)
 
-- [ ] No cross-import between `providers/*/request.py` modules
-- [ ] `test_provider_factories_mirror_catalog_ids` passes
-- [ ] Provider-specific request tests unchanged
-- [ ] Import boundary: providers still must not import `api`/`messaging`/`cli`
+- [x] No cross-import between `providers/*/request.py` modules
+- [x] `test_provider_factories_mirror_catalog_ids` passes
+- [x] Provider-specific request tests unchanged
+- [x] Import boundary: providers still must not import `api`/`messaging`/`cli`
 
 ### PR
 
@@ -348,9 +348,9 @@ Only [`api/messaging_voice.py`](../../api/messaging_voice.py) imports `providers
 
 ### Acceptance (Phase 4)
 
-- [ ] Optional messaging off (`messaging_platform=none`) unchanged
-- [ ] Tree restore on startup still works
-- [ ] Shutdown order: messaging → CLI → registry → limiter (unchanged)
+- [x] Optional messaging off (`messaging_platform=none`) unchanged
+- [x] Tree restore on startup still works
+- [x] Shutdown order: messaging → CLI → registry → limiter (unchanged)
 
 ### PR
 
@@ -383,8 +383,8 @@ If touching persistence in Phase 1:
 
 ### Acceptance (Phase 5)
 
-- [ ] Contract: `api.routes` / `api.services` still have **no** `get_process_cached_provider(`
-- [ ] CI green
+- [x] Contract: `api.routes` / `api.services` still have **no** `get_process_cached_provider(`
+- [x] CI green
 
 ### PR
 
@@ -461,15 +461,17 @@ uv run pytest
 
 ## Definition of done (program complete)
 
-- [ ] `config/settings.py` under ~300 lines (validators + composition glue; bundle builders in `settings_bundles.py`)
-- [ ] `core/anthropic/conversion/_conversion.py` removed
-- [ ] At least 4 OpenAI-chat providers use catalog factory
-- [ ] `api/runtime.py` under ~220 lines (+ optional `api/runtime_lifecycle.py` helpers); bootstrap in `messaging/bootstrap.py`
-- [ ] `reload_settings()` used at all reload sites
-- [ ] `docs/architecture/` describes layers, provider resolution, messaging
-- [ ] `tests/contracts/test_provider_wiring.py` guards catalog/admin/settings alignment
-- [ ] All five CI jobs green on `main`
-- [ ] No new import-boundary violations
+> **Operational snapshot:** For shipped versus backlog milestones, **[`STATUS.md`](./STATUS.md)** is authoritative relative to the historical phase gates below.
+
+- [x] `config/settings.py` under ~300 lines (validators + composition glue; bundle builders in `settings_bundles.py`)
+- [x] `core/anthropic/conversion/_conversion.py` removed
+- [x] At least 4 OpenAI-chat providers use catalog factory
+- [x] `api/runtime.py` under ~220 lines (+ optional `api/runtime_lifecycle.py` helpers); bootstrap in `messaging/bootstrap.py`
+- [x] `reload_settings()` used at all reload sites
+- [x] `docs/architecture/` describes layers, provider resolution, messaging
+- [x] `tests/contracts/test_provider_wiring.py` guards catalog/admin/settings alignment
+- [x] All five CI jobs green on `main`
+- [x] No new import-boundary violations
 
 ---
 
@@ -489,13 +491,13 @@ uv run pytest
 ## Intentionally deferred
 
 - Full nested `settings.providers.kimi_api_key` paths (breaks admin)
-- Collapsing native Anthropic transports (Phase 3b)—inventory helper [`providers/native_messages_catalog.py`](../../providers/native_messages_catalog.py) only; transports still duplicated until the dedicated regression train lands
-- OpenTelemetry backends / OTLP export (trace sink remains pluggable behind [`core/observability.py`](../../core/observability.py))
-- Packaging `smoke` in the wheel
-- Auto-generating all admin fields from Settings schema (only credential subset in PR-1c)
+- Deeper merges of bespoke native transports (OpenRouter SSE transforms, Wafer thinking injection, Ollama URLs, DeepSeek body sanitizer)—regress anytime with **`pytest -m native_sse_matrix`** and provider suites
+- Sampling / richer OTLP span modeling atop the [`core/observability.py`](../../core/observability.py) choke point (`uv sync --extra observability`)
+- Packaging the **`smoke/`** Python tree into the Hatch wheel (use **`dependency-groups`** `smoke` in `pyproject.toml` plus optional jobs like [`.github/workflows/smoke-touch.yml`](../../.github/workflows/smoke-touch.yml))
+- Auto-generating **all** admin fields from Settings schema (only credential subset is catalog-derived today via PR‑1c)
 
 ---
 
 ## First implementation step
 
-Start **PR-0** (contracts + docs): zero runtime risk, immediately guards Phases 1 and 3.
+Historical phases were consolidated into iterative delivery; **`STATUS.md`** snapshots what **`main`** enforces versus remaining backlog bullets in this doc.

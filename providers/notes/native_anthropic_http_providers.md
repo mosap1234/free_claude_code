@@ -14,7 +14,7 @@ sanitize hooks) using small strategy modules or catalog flags alongside the shar
 | `LmStudioProvider` | `providers/lmstudio/client.py` | Subclass of shared [`catalog_thin_native_messages`](../catalog_thin_native_messages.py) catalogue shell |
 | `LlamaCppProvider` | `providers/llamacpp/client.py` | Same shared catalogue shell (distinct `provider_id`) |
 | `OllamaProvider` | `providers/ollama/client.py` | Ollama native `/v1/messages` quirks |
-| `OpenRouterProvider` | `providers/open_router/client.py` | `stream_chunk_mode="event"` tier |
+| `OpenRouterProvider` | `providers/open_router/client.py` | Catalog-driven `native_stream_chunk_mode="event"`; event SSE transforms remain subclass-specific |
 | `DeepSeekProvider` | `providers/deepseek/client.py` | Request sanitization (`deepseek/request`) |
 | `WaferProvider` | `providers/wafer/client.py` | Hosted Anthropic-compat endpoint |
 

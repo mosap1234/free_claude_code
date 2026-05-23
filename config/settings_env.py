@@ -1,4 +1,4 @@
-"""Env file path helpers and migration guards shared by ``config.settings.Settings``."""
+"""Env file path helpers shared by ``config.settings.Settings``."""
 
 import os
 from collections.abc import Mapping
@@ -31,11 +31,6 @@ def configured_env_paths(model_config: Mapping[str, Any]) -> tuple[Path, ...]:
     return tuple(Path(item) for item in configured)
 
 
-def dotenv_contains_key(path: Path, key: str) -> bool:
-    """Check whether a dotenv-style file defines the given key."""
-    return dotenv_value(path, key) is not None
-
-
 def dotenv_value(path: Path, key: str) -> str | None:
     """Return a dotenv value when the file explicitly defines the key."""
     if not path.is_file():
@@ -60,28 +55,3 @@ def dotenv_last_value_for_key(model_config: Mapping[str, Any], key: str) -> str 
         if value is not None:
             configured_value = value
     return configured_value
-
-
-def removed_env_var_migration_error(model_config: Mapping[str, Any]) -> str | None:
-    """Return a migration error for removed env vars, if present."""
-    removed_keys = ("NIM_ENABLE_THINKING", "ENABLE_THINKING")
-    replacement = (
-        "ENABLE_MODEL_THINKING, ENABLE_OPUS_THINKING, "
-        "ENABLE_SONNET_THINKING, or ENABLE_HAIKU_THINKING"
-    )
-
-    for removed_key in removed_keys:
-        if removed_key in os.environ:
-            return (
-                f"{removed_key} has been removed in this release. "
-                f"Rename it to {replacement}."
-            )
-
-        for env_file in configured_env_paths(model_config):
-            if dotenv_contains_key(env_file, removed_key):
-                return (
-                    f"{removed_key} has been removed in this release. "
-                    f"Rename it to {replacement}. Found in {env_file}."
-                )
-
-    return None

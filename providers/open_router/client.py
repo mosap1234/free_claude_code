@@ -10,7 +10,7 @@ from core.anthropic.native_sse_block_policy import (
     parse_native_sse_event,
     transform_native_sse_block_event,
 )
-from providers.anthropic_messages import AnthropicMessagesTransport, StreamChunkMode
+from providers.anthropic_messages import AnthropicMessagesTransport
 from providers.base import ProviderConfig
 from providers.defaults import OPENROUTER_DEFAULT_BASE
 from providers.model_listing import (
@@ -18,14 +18,13 @@ from providers.model_listing import (
     extract_openrouter_tool_model_ids,
     extract_openrouter_tool_model_infos,
 )
+from providers.native_messages_support import oauth_bearer_model_list_headers
 
 from .request import build_request_body
 
 
 class OpenRouterProvider(AnthropicMessagesTransport):
     """OpenRouter provider using the native Anthropic-compatible messages API."""
-
-    stream_chunk_mode: StreamChunkMode = "event"
 
     def __init__(self, config: ProviderConfig):
         super().__init__(
@@ -45,7 +44,8 @@ class OpenRouterProvider(AnthropicMessagesTransport):
 
     def _model_list_headers(self) -> dict[str, str]:
         """Return OpenRouter's OpenAI-compatible model-list headers."""
-        return {"Authorization": f"Bearer {self._api_key}"}
+
+        return oauth_bearer_model_list_headers(self._api_key)
 
     def _extract_model_ids_from_model_list_payload(
         self, payload: Any

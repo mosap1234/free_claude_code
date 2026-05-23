@@ -467,21 +467,21 @@ class TestSettings:
         assert settings.anthropic_auth_token == "server-token"
         assert settings.uses_process_anthropic_auth_token() is False
 
-    def test_removed_nim_enable_thinking_raises(self, monkeypatch):
-        """NIM_ENABLE_THINKING now fails fast with a migration message."""
+    def test_obsolete_env_thinking_vars_do_not_raise(self, monkeypatch):
+        """NIM_ENABLE_THINKING no longer rejects startup."""
+
         from config.settings import Settings
 
         monkeypatch.setenv("NIM_ENABLE_THINKING", "false")
-        with pytest.raises(ValidationError, match="ENABLE_MODEL_THINKING"):
-            Settings()
+        assert Settings()
 
-    def test_removed_enable_thinking_raises(self, monkeypatch):
-        """ENABLE_THINKING now fails fast with a migration message."""
+    def test_obsolete_enable_thinking_var_does_not_raise(self, monkeypatch):
+        """ENABLE_THINKING no longer rejects startup."""
+
         from config.settings import Settings
 
         monkeypatch.setenv("ENABLE_THINKING", "false")
-        with pytest.raises(ValidationError, match="ENABLE_MODEL_THINKING"):
-            Settings()
+        assert Settings()
 
 
 # --- NimSettings Validation Tests ---

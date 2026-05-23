@@ -35,6 +35,12 @@ def build_native_messages_request_headers(
     raise AssertionError(f"unknown native_messages_header_profile={effective!r}")
 
 
+def oauth_bearer_model_list_headers(api_key: str) -> dict[str, str]:
+    """Bearer auth for GET ``/models`` (OpenAI-compatible model catalogs)."""
+
+    return {"Authorization": f"Bearer {api_key}"}
+
+
 async def maybe_await_aclose(response: Any) -> None:
     """Call ``aclose`` on httpx-like responses; ignore non-async test doubles."""
     close = getattr(response, "aclose", None)

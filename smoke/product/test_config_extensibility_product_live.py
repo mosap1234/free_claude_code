@@ -3,9 +3,10 @@ import subprocess
 
 import pytest
 
+from config.provider_catalog import PROVIDER_CATALOG
 from config.settings import Settings
 from messaging.platforms.factory import create_messaging_platform
-from providers.registry import PROVIDER_DESCRIPTORS, build_provider_config
+from providers.registry import build_provider_config
 from smoke.lib.child_process import cmd_free_claude_code_serve, cmd_python_c
 from smoke.lib.config import SmokeConfig
 from smoke.lib.e2e import SmokeServerDriver
@@ -44,13 +45,18 @@ def test_env_precedence_e2e(smoke_config: SmokeConfig, tmp_path) -> None:
 
 
 @pytest.mark.smoke_target("config")
-def test_removed_env_migration_e2e(smoke_config: SmokeConfig, tmp_path) -> None:
-    env_file = tmp_path / "removed.env"
+def test_obsolete_thinking_env_vars_ignored_e2e(
+    smoke_config: SmokeConfig, tmp_path
+) -> None:
+    """NIM_ENABLE_THINKING no longer gates startup — use ENABLE_* THINKING fields."""
+    env_file = tmp_path / "obsolete.env"
     env_file.write_text('NIM_ENABLE_THINKING="true"\n', encoding="utf-8")
     env = os.environ.copy()
     env["FCC_ENV_FILE"] = str(env_file)
     result = subprocess.run(
-        cmd_python_c("from config.settings import Settings; Settings()"),
+        cmd_python_c(
+            'from config.settings import Settings; s=Settings(); print("ok", s)'
+        ),
         cwd=smoke_config.root,
         env=env,
         capture_output=True,
@@ -58,8 +64,7 @@ def test_removed_env_migration_e2e(smoke_config: SmokeConfig, tmp_path) -> None:
         timeout=smoke_config.timeout_s,
         check=False,
     )
-    assert result.returncode != 0
-    assert "NIM_ENABLE_THINKING has been removed" in (result.stderr + result.stdout)
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.smoke_target("config")
@@ -111,8 +116,9 @@ def test_proxy_timeout_config_e2e(smoke_config: SmokeConfig, tmp_path) -> None:
     env["FCC_ENV_FILE"] = str(env_file)
     script = (
         "from config.settings import Settings; "
-        "from providers.registry import PROVIDER_DESCRIPTORS, build_provider_config; "
-        "s=Settings(); c=build_provider_config(PROVIDER_DESCRIPTORS['open_router'], s); "
+        "from config.provider_catalog import PROVIDER_CATALOG; "
+        "from providers.registry import build_provider_config; "
+        "s=Settings(); c=build_provider_config(PROVIDER_CATALOG['open_router'], s); "
         "print(c.proxy); print(c.http_read_timeout); "
         "print(c.http_connect_timeout); print(c.http_write_timeout)"
     )
@@ -143,7 +149,7 @@ def test_provider_registry_e2e() -> None:
         lm_studio_base_url="http://localhost:1234/v1",
         llamacpp_base_url="http://localhost:8080/v1",
     )
-    for descriptor in PROVIDER_DESCRIPTORS.values():
+    for descriptor in PROVIDER_CATALOG.values():
         config = build_provider_config(descriptor, settings)
         assert config.base_url
         assert config.api_key

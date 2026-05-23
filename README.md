@@ -394,6 +394,17 @@ Important pieces:
 
 ## Development
 
+### Release notes (recent)
+
+**2.1.0**
+
+- **`NIM_ENABLE_THINKING`** / **`ENABLE_THINKING`** are ignored—they no longer block **`Settings`** construction. Configure reasoning with **`ENABLE_MODEL_THINKING`**, **`ENABLE_OPUS_THINKING`**, **`ENABLE_SONNET_THINKING`**, and **`ENABLE_HAIKU_THINKING`**.
+- Catalog lookups use **`PROVIDER_CATALOG`** from **`config.provider_catalog`** (the old **`providers.registry.PROVIDER_DESCRIPTORS`** alias is removed).
+
+### Smoke installs (not in wheel)
+
+Install dev tooling focused on **`smoke/`** with **`uv sync --group dev --group smoke`**. **`smoke/`** remains outside Hatch **`packages`**; PRs touching **`smoke/**`** also trigger optional **`smoke-touch`** CI (**`.github/workflows/smoke-touch.yml`**) unless you omit it from required checks.
+
 ### Architecture (composition)
 
 - **Entry points:** packaged **`fcc-server`** / **`fcc-claude`** (see `cli/entrypoints.py`) load the FastAPI ASGI stack; **`server.py`** is the uvicorn-compatible shim exporting `create_asgi_app()`.
@@ -433,7 +444,7 @@ free-claude-code/
 └── tests/                 # Unit and contract tests
 ```
 
-The **`smoke/`** directory is exercised by optional live/smoke pytest markers (`-m live`, etc.). It is **not** listed under `[tool.hatch.build.targets.wheel] packages = [...]` in `pyproject.toml` — only **`api`, `cli`, `config`, `core`, `messaging`, `providers`** ship in installs.
+The **`smoke/`** directory is exercised by optional live/smoke pytest markers (`-m live`, etc.). It is **not** listed under `[tool.hatch.build.targets.wheel] packages = [...]` in `pyproject.toml` — only **`api`, `cli`, `config`, `core`, `messaging`, `providers`** ship in installs. Use **`uv sync --group smoke`** (alongside **`--group dev`**) when you want the lightweight pytest stack documented for smoke work without widening the shipped wheel (`pyproject.toml` **`[dependency-groups]`**).
 
 ### 2. Run From Source
 

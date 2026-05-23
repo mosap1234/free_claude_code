@@ -5,6 +5,7 @@ from typing import Any
 from providers.anthropic_messages import AnthropicMessagesTransport
 from providers.base import ProviderConfig
 from providers.defaults import WAFER_DEFAULT_BASE
+from providers.native_messages_support import oauth_bearer_model_list_headers
 
 
 class WaferProvider(AnthropicMessagesTransport):
@@ -27,4 +28,4 @@ class WaferProvider(AnthropicMessagesTransport):
         return body
 
     def _model_list_headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self._api_key}"}
+        return oauth_bearer_model_list_headers(self._api_key)

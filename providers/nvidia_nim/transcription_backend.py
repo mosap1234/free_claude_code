@@ -6,7 +6,7 @@ from .voice import transcribe_audio_file
 
 
 class NvidiaNimTranscriptionBackend:
-    """Injectable ASR shim wired from ``api.runtime`` into messaging platforms."""
+    """Injectable ASR shim wired from :mod:`api.messaging_voice` into messaging platforms."""
 
     __slots__ = ()
 

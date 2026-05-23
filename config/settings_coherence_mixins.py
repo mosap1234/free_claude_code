@@ -4,32 +4,15 @@ Kept separate from ``settings.py`` so the hub stays composition + facade fields 
 """
 
 import os
-from collections.abc import Mapping
-from typing import Any, ClassVar, Protocol, cast
+from typing import Any
 
 from pydantic import model_validator
 
-from .settings_env import dotenv_last_value_for_key, removed_env_var_migration_error
-
-
-class _SupportsRemovedEnvMigration(Protocol):
-    """Pydantic model type exposing ``model_config`` for coherence validators."""
-
-    model_config: ClassVar[Mapping[str, Any]]
+from .settings_env import dotenv_last_value_for_key
 
 
 class SettingsCoherenceValidatorsMixin:
     """Validators that span multiple mixin-owned fields (merged into ``Settings``)."""
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_removed_env_vars(cls, data: Any) -> Any:
-        """Fail fast when removed environment variables are still configured."""
-        model_cls = cast(type[_SupportsRemovedEnvMigration], cls)
-        model_config = model_cls.model_config
-        if message := removed_env_var_migration_error(model_config):
-            raise ValueError(message)
-        return data
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self: Any) -> Any:

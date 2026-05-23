@@ -17,6 +17,7 @@ from loguru import logger
 from starlette.applications import Starlette
 
 import api.provider_process_cache as _process_cache
+from config.provider_catalog import PROVIDER_CATALOG
 from config.settings import Settings
 from config.settings import get_settings as _get_settings
 from core.anthropic import get_user_facing_error_message
@@ -26,7 +27,7 @@ from providers.exceptions import (
     ServiceUnavailableError,
     UnknownProviderTypeError,
 )
-from providers.registry import PROVIDER_DESCRIPTORS, ProviderRegistry
+from providers.registry import ProviderRegistry
 
 from .ingress_errors import (
     GatewayInvalidProxyApiKey,
@@ -99,7 +100,7 @@ def _resolve_with_registry(
         logger.error(
             "Unknown provider_type: '{}'. Supported: {}",
             provider_type,
-            ", ".join(f"'{key}'" for key in PROVIDER_DESCRIPTORS),
+            ", ".join(f"'{key}'" for key in PROVIDER_CATALOG),
         )
         raise
     if should_log_init:

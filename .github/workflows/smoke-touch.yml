@@ -1,0 +1,42 @@
+# Lightweight checks when smoke/capability metadata changes only.
+# This workflow is intentionally optional branch-protection material: main CI stays
+# in tests.yml; add this job to required checks only when you accept path-filter skips.
+#
+# Caveat: unrelated changes can break smoke ergonomics without re-running because of
+# the paths filter.
+
+name: Smoke path hygiene
+
+on:
+  pull_request:
+    paths:
+      - "smoke/**"
+      - ".github/workflows/smoke-touch.yml"
+
+jobs:
+  smoke-path-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.15"
+          enable-cache: true
+          cache-python: true
+
+      - name: Sync dev deps (for ruff/pytest tooling)
+        run: uv sync --group dev
+
+      - name: Ruff lint smoke tree
+        run: uv run ruff check smoke/
+
+      - name: Ruff format smoke tree
+        run: uv run ruff format --check smoke/
+
+      - name: Capability map contract
+        run: uv run pytest tests/contracts/test_capability_map.py -q --tb=short

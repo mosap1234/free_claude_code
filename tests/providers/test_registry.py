@@ -16,7 +16,6 @@ from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
 from providers.opencode import OpenCodeProvider
 from providers.registry import (
-    PROVIDER_DESCRIPTORS,
     ProviderRegistry,
     build_provider_config,
     create_provider,
@@ -76,16 +75,16 @@ def test_importing_registry_does_not_eager_load_other_adapters() -> None:
     assert proc.returncode == 0, proc.stderr or proc.stdout
 
 
-def test_descriptors_cover_advertised_provider_ids():
-    assert set(PROVIDER_DESCRIPTORS) == set(SUPPORTED_PROVIDER_IDS)
-    for descriptor in PROVIDER_DESCRIPTORS.values():
+def test_catalog_covers_advertised_provider_ids():
+    assert set(PROVIDER_CATALOG) == set(SUPPORTED_PROVIDER_IDS)
+    for descriptor in PROVIDER_CATALOG.values():
         assert descriptor.provider_id
         assert descriptor.transport_type in {"openai_chat", "anthropic_messages"}
         assert descriptor.capabilities
 
 
 def test_ollama_descriptor_uses_native_anthropic_transport():
-    descriptor = PROVIDER_DESCRIPTORS["ollama"]
+    descriptor = PROVIDER_CATALOG["ollama"]
 
     assert descriptor.transport_type == "anthropic_messages"
     assert descriptor.default_base_url == "http://localhost:11434"
@@ -93,14 +92,14 @@ def test_ollama_descriptor_uses_native_anthropic_transport():
 
 
 def test_zai_descriptor_uses_fixed_cloud_base_url():
-    descriptor = PROVIDER_DESCRIPTORS["zai"]
+    descriptor = PROVIDER_CATALOG["zai"]
 
     assert descriptor.default_base_url == ZAI_DEFAULT_BASE
     assert descriptor.base_url_attr is None
 
 
 def test_zai_provider_config_ignores_stale_base_url_setting():
-    descriptor = PROVIDER_DESCRIPTORS["zai"]
+    descriptor = PROVIDER_CATALOG["zai"]
 
     config = build_provider_config(
         descriptor,

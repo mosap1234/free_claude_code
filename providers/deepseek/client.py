@@ -7,6 +7,7 @@ import httpx
 from providers.anthropic_messages import AnthropicMessagesTransport
 from providers.base import ProviderConfig
 from providers.defaults import DEEPSEEK_ANTHROPIC_DEFAULT_BASE
+from providers.native_messages_support import oauth_bearer_model_list_headers
 
 from .request import build_request_body
 
@@ -39,4 +40,4 @@ class DeepSeekProvider(AnthropicMessagesTransport):
         return await self._client.get(url, headers=self._model_list_headers())
 
     def _model_list_headers(self) -> dict[str, str]:
-        return {"Authorization": f"Bearer {self._api_key}"}
+        return oauth_bearer_model_list_headers(self._api_key)
