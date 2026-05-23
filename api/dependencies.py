@@ -45,6 +45,8 @@ def resolve_provider(
 
     When ``app`` is not ``None``, the app-owned :attr:`app.state.provider_registry`
     must exist (installed by :class:`~api.runtime.AppRuntime` during startup).
+    After a healthy startup :attr:`app.state.claude_proxy_runtime` refers to that
+    same runtime so admin flows can rotate the registry consistently.
     Callers that construct a bare ``FastAPI`` without lifespan must set
     ``app.state.provider_registry`` explicitly.
 

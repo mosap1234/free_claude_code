@@ -7,6 +7,12 @@ call paths (offline scripts, synchronous tests).
 
 Always access the cache as ``provider_process_cache.PROCESS_PROVIDERS`` (module
 attribute) so tests can rebind it for isolation.
+
+``cleanup_process_providers()`` builds ``ProviderRegistry(PROCESS_PROVIDERS)`` and
+runs :meth:`~providers.registry.ProviderRegistry.cleanup`, which clears the
+injected provider mapping **in place**. Rebinding only ``PROCESS_PROVIDERS = {}``
+after import does not detach registries/tests that still hold references to the
+previous dict instance.
 """
 
 from __future__ import annotations
@@ -22,5 +28,5 @@ PROCESS_PROVIDERS: dict[str, BaseProvider] = {}
 
 
 async def cleanup_process_providers() -> None:
-    """Close cached providers held only in the process-level cache."""
+    """Close cached providers and clear :data:`PROCESS_PROVIDERS` in place."""
     await ProviderRegistry(PROCESS_PROVIDERS).cleanup()

@@ -112,6 +112,7 @@ class AppRuntime:
             self._provider_registry.start_model_list_refresh(self.settings)
             await self._start_messaging_if_configured()
             self._publish_state()
+            self.app.state.claude_proxy_runtime = self
             logging.getLogger("uvicorn.error").info(
                 "Admin UI: %s (local-only)", admin_url
             )
@@ -138,6 +139,18 @@ class AppRuntime:
                 "when config is incomplete. {}",
                 exc.message,
             )
+
+    def replace_provider_registry(
+        self, registry: ProviderRegistry, *, settings: Settings
+    ) -> None:
+        """Install ``registry`` as the authoritative app-owned cache (post-admin apply).
+
+        Keeps ``_provider_registry`` aligned with ``app.state.provider_registry`` and
+        restarts discovery warmup like startup.
+        """
+        self._provider_registry = registry
+        self.app.state.provider_registry = registry
+        registry.start_model_list_refresh(settings)
 
     async def shutdown(self) -> None:
         verbose = self.settings.log_api_error_tracebacks
@@ -166,10 +179,16 @@ class AppRuntime:
                 self.cli_manager.stop_all(),
                 log_verbose_errors=verbose,
             )
-        if self._provider_registry is not None:
+        state_registry = getattr(self.app.state, "provider_registry", None)
+        registry_for_cleanup = (
+            state_registry
+            if isinstance(state_registry, ProviderRegistry)
+            else self._provider_registry
+        )
+        if registry_for_cleanup is not None:
             await best_effort(
                 "provider_registry.cleanup",
-                self._provider_registry.cleanup(),
+                registry_for_cleanup.cleanup(),
                 log_verbose_errors=verbose,
             )
         await self._shutdown_limiter()

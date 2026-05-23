@@ -27,6 +27,7 @@ from .admin_config import (
 )
 from .admin_urls import local_admin_url
 from .dependencies import cleanup_provider
+from .runtime import AppRuntime
 
 router = APIRouter()
 
@@ -73,6 +74,17 @@ def require_loopback_admin(request: Request) -> None:
     origin = request.headers.get("origin")
     if not _origin_is_local(origin):
         raise HTTPException(status_code=403, detail="Admin UI is local-only")
+
+
+def _install_app_provider_registry(
+    request: Request, registry: ProviderRegistry, *, settings: Settings
+) -> None:
+    """Keep :class:`~api.runtime.AppRuntime` and ``app.state`` registries aligned."""
+    runtime = getattr(request.app.state, "claude_proxy_runtime", None)
+    if isinstance(runtime, AppRuntime):
+        runtime.replace_provider_registry(registry, settings=settings)
+    else:
+        request.app.state.provider_registry = registry
 
 
 def _asset_response(filename: str) -> FileResponse:
@@ -133,7 +145,9 @@ async def apply_admin_config(
         await old_registry.cleanup()
     await cleanup_provider()
     GlobalRateLimiter.reset_instance()
-    request.app.state.provider_registry = ProviderRegistry()
+    new_registry = ProviderRegistry()
+    settings = get_cached_settings()
+    _install_app_provider_registry(request, new_registry, settings=settings)
     request.app.state.admin_pending_fields = result["pending_fields"]
     return result
 
@@ -180,7 +194,7 @@ async def test_provider(provider_id: str, request: Request):
     registry = getattr(request.app.state, "provider_registry", None)
     if not isinstance(registry, ProviderRegistry):
         registry = ProviderRegistry()
-        request.app.state.provider_registry = registry
+        _install_app_provider_registry(request, registry, settings=settings)
     try:
         provider = registry.get(provider_id, settings)
         infos = await provider.list_model_infos()
@@ -205,7 +219,7 @@ async def refresh_models(request: Request):
     registry = getattr(request.app.state, "provider_registry", None)
     if not isinstance(registry, ProviderRegistry):
         registry = ProviderRegistry()
-        request.app.state.provider_registry = registry
+        _install_app_provider_registry(request, registry, settings=settings)
     await registry.refresh_model_list_cache(settings)
     return {
         "cached_models": {

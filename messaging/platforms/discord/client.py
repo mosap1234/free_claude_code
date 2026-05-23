@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import discord
 from loguru import logger
 
 from .constants import DISCORD_AVAILABLE, _discord_module
@@ -14,12 +15,11 @@ if TYPE_CHECKING:
 _DiscordClient: Any | None = None
 
 if DISCORD_AVAILABLE and _discord_module is not None:
-    _discord = _discord_module
 
-    class _DiscordClient(_discord.Client):  # type: ignore[misc,name-defined]
+    class _DiscordClient(discord.Client):
         """Internal Discord client that forwards events to DiscordPlatform."""
 
-        def __init__(self, platform: DiscordPlatform, intents: Any) -> None:
+        def __init__(self, platform: DiscordPlatform, intents: discord.Intents) -> None:
             super().__init__(intents=intents)
             self._platform = platform
 
@@ -28,7 +28,7 @@ if DISCORD_AVAILABLE and _discord_module is not None:
             self._platform._connected = True
             logger.info("Discord platform connected")
 
-        async def on_message(self, message: Any) -> None:
+        async def on_message(self, message: discord.Message) -> None:
             """Handle incoming Discord messages."""
             await self._platform._handle_client_message(message)
 else:

@@ -117,12 +117,10 @@ for pid, desc in PROVIDER_CATALOG.items():
         )
     PROVIDER_FACTORIES[pid] = factory_fn
 
-if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
-    PROVIDER_FACTORIES
-) != set(SUPPORTED_PROVIDER_IDS):
+if set(PROVIDER_FACTORIES) != set(SUPPORTED_PROVIDER_IDS):
     raise AssertionError(
-        "PROVIDER_DESCRIPTORS, PROVIDER_FACTORIES, and SUPPORTED_PROVIDER_IDS are out of sync: "
-        f"descriptors={set(PROVIDER_DESCRIPTORS)!r} factories={set(PROVIDER_FACTORIES)!r} "
+        "PROVIDER_FACTORIES and SUPPORTED_PROVIDER_IDS are out of sync: "
+        f"factories={set(PROVIDER_FACTORIES)!r} "
         f"ids={set(SUPPORTED_PROVIDER_IDS)!r}"
     )
 
