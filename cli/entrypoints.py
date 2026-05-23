@@ -187,8 +187,8 @@ def _claude_child_env(
         env["ANTHROPIC_AUTH_TOKEN"] = token
 
     # Pass through CLAUDE_CONFIG_DIR if configured
-    if settings.claude_config_dir:
-        env["CLAUDE_CONFIG_DIR"] = settings.claude_config_dir
+    if config_dir := settings.claude_config_dir.strip():
+        env["CLAUDE_CONFIG_DIR"] = config_dir
     return env
 
 
