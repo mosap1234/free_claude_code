@@ -629,7 +629,7 @@ async def test_stream_uses_post_messages_path(deepseek_provider):
         mock_resp.raise_for_status = lambda: None
 
         async def aiter():
-            if False:  # pragma: no cover
+            if False:  # Unreachable ``yield`` so ``aiter`` is an async generator (mock contract).
                 yield ""
 
         mock_resp.aiter_lines = aiter

@@ -5,8 +5,6 @@ this module maps :class:`~config.settings.Settings` to platform knobs and restor
 conversation trees independent of Claude CLI orchestration.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from loguru import logger

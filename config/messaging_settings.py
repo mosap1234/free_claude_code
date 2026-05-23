@@ -4,8 +4,6 @@ These are composed on the primary settings object for dependency injection witho
 calling :func:`~config.settings.get_settings` from messaging internals.
 """
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

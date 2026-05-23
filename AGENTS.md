@@ -8,13 +8,15 @@
 - Install Python 3.14.0 stable using `uv python install 3.14.0` if not already installed (requires uv >=0.9; see `[tool.uv] required-version` in `pyproject.toml`)
 - Always use `uv run` to run files instead of the global `python` command.
 - Current uv ruff formatter is set to py314 which has supports multiple exception types without paranthesis (except TypeError, ValueError:)
+- **`from __future__ import annotations`** is forbidden in `*.py`: this repo is **Python 3.14+ only** (`requires-python`), where [PEP 649](https://peps.python.org/pep-0649/) provides deferred annotation evaluation by default. Do **not** add that future import—rely on 3.14 defaults. (**Not the same as** [PEP 563](https://peps.python.org/pep-0563/), which still applies if someone were to enable the future import; see [PEP 749](https://peps.python.org/pep-0749/).) Fix code that truly depended on PEP 563 stringified `__annotations__` with a deliberate, localized approach—never blanket `__future__.annotations`.
 - Read `.env.example` for environment variables.
 - All CI checks must pass; failing checks block merge.
 - Add tests for new changes (including edge cases), then run `uv run pytest`.
 - Run checks in this order: `uv run ruff format`, `uv run ruff check`, `uv run ty check`, `uv run pytest`.
 - Do not add `# type: ignore` or `# ty: ignore`; fix the underlying type issue.
-- All 5 checks are enforced in `tests.yml` on push/merge (parallel jobs: suppression grep, ruff-format, ruff-check, ty, pytest).
-- Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
+- Do not add **`# pragma: no cover`** (or other coverage pragma on source); add real tests or refactor for testability instead.
+- All **seven** policy greps plus tooling checks and tests are enforced in `tests.yml` on push/merge (parallel jobs: **Ban type ignore suppressions**, **Ban future annotations import**, **Ban pragma no cover**, **ruff-format**, **ruff-check**, **ty**, **pytest**).
+- Branch protection: set **required status checks** to **all** of those statuses (e.g. **Ban type ignore suppressions**, **Ban future annotations import**, **Ban pragma no cover**, **ruff-format**, **ruff-check**, **ty**, **pytest**—use the exact labels GitHub shows, which may be prefixed with **CI /**). Remove **ci** from required checks if it was previously added for the old gate job.
 
 ## IDENTITY & CONTEXT
 
@@ -32,6 +34,7 @@
 - **Performance**: Use list accumulation for strings (not `+=` in loops), cache env vars at init, prefer iterative over recursive when stack depth matters.
 - **Platform-agnostic naming**: Use generic names (e.g. `PLATFORM_EDIT`) not platform-specific ones (e.g. `TELEGRAM_EDIT`) in shared code.
 - **No type ignores**: Do not add `# type: ignore` or `# ty: ignore`. Fix the underlying type issue.
+- **No pragma no cover**: Do not annotate code with **`# pragma: no cover`**; improve tests or extract testable seams instead.
 - **Complete migrations**: When moving modules, update imports to the new owner and remove old compatibility shims in the same change unless preserving a published interface is explicitly required.
 - **Maximum Test Coverage**: There should be maximum test coverage for everything, preferably live smoke test coverage to catch bugs early
 

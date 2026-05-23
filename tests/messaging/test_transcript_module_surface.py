@@ -1,7 +1,5 @@
 """Sanity imports for modular transcript primitives."""
 
-from __future__ import annotations
-
 
 def test_transcript_public_surface_re_exports_buffer_and_render_ctx() -> None:
     import messaging.transcript as transcript_pkg

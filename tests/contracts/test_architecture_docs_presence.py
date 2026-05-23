@@ -1,7 +1,5 @@
 """Guardrails that referenced architecture markdown files ship in the repo."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

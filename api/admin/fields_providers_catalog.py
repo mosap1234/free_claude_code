@@ -3,8 +3,6 @@
 URLs, proxies, and other non-credential defaults stay in ``fields_providers.py``.
 """
 
-from __future__ import annotations
-
 from api.admin.manifest_types import ConfigFieldSpec
 from config.provider_catalog import PROVIDER_CATALOG, SUPPORTED_PROVIDER_IDS
 

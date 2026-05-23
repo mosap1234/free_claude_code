@@ -1,7 +1,5 @@
 """Command parsing and dispatch for messaging handlers."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from .commands import handle_clear_command, handle_stats_command, handle_stop_command

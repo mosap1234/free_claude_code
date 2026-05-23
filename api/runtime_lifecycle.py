@@ -1,7 +1,5 @@
 """Shutdown helpers and startup logging shared by :class:`~api.runtime.AppRuntime`."""
 
-from __future__ import annotations
-
 import asyncio
 from typing import Any
 

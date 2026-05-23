@@ -1,7 +1,5 @@
 """Heuristic SSE helpers for translating OpenAI tool_use into Anthropic SSE blocks."""
 
-from __future__ import annotations
-
 import json
 from collections.abc import Iterator
 from typing import Any

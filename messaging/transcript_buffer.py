@@ -1,7 +1,5 @@
 """Transcript buffer: applies streamed events and renders a chat tail."""
 
-from __future__ import annotations
-
 from collections import deque
 from collections.abc import Iterable
 from typing import Any

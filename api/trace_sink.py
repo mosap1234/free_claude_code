@@ -4,8 +4,6 @@
 consumes typed settings exposing ``structured_trace_sink`` (:class:`~config.settings.Settings`).
 """
 
-from __future__ import annotations
-
 from typing import Any, Protocol
 
 from config.observability_settings import StructuredTraceSink

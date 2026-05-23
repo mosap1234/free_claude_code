@@ -1,7 +1,5 @@
 """Application services for the Claude-compatible API."""
 
-from __future__ import annotations
-
 import traceback
 import uuid
 from collections.abc import Callable

@@ -1,7 +1,5 @@
 """Read paths, dotenv ingestion, and admin UI config snapshot helpers."""
 
-from __future__ import annotations
-
 import os
 from collections.abc import Iterable, Mapping
 from io import StringIO

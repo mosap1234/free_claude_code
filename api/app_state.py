@@ -4,8 +4,6 @@ Runtime code still uses ordinary attribute assignment; these types are advisory 
 refactoring (not enforced at assignment).
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:

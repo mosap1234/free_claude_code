@@ -1,7 +1,5 @@
 """MODEL / tier routing and thinking toggles (validators live on Settings)."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
 

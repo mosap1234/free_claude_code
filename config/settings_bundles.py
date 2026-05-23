@@ -1,7 +1,5 @@
 """Bundle aggregates built from flat :class:`~config.settings.Settings` fields."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from .admin_optimization_settings import AdminOptimizationSettings

@@ -1,7 +1,5 @@
 """Bundled HTTP server/runtime fields from :class:`~config.settings.Settings`."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

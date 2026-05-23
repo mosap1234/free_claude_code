@@ -172,7 +172,9 @@ async def test_native_stream_failure_logs_exclude_exception_str_by_default(
 
     async def boom(_self, _response, *, state=None, thinking_enabled=False):
         raise RuntimeError("SECRET_DETAIL")
-        if False:  # pragma: no cover — makes ``boom`` an async generator for patching
+        if (
+            False
+        ):  # Unreachable ``yield`` shapes ``boom`` as an async generator for patching.
             yield ""
 
     with (

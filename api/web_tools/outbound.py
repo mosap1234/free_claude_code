@@ -1,7 +1,5 @@
 """Outbound HTTP for web_search / web_fetch (client, body caps, logging)."""
 
-from __future__ import annotations
-
 import asyncio
 import socket
 from collections.abc import AsyncIterator
@@ -150,7 +148,9 @@ class _PinnedEgressStaticResolver(AbstractResolver):
     ) -> list[ResolveResult]:
         return self._results
 
-    async def close(self) -> None:  # pragma: no cover - aiohttp contract
+    async def close(self) -> None:
+        """aiohttp ``AbstractResolver.close`` hook (no-op; only ``resolve`` is used)."""
+
         return
 
 

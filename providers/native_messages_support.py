@@ -1,7 +1,5 @@
 """Header and HTTP helpers shared by Anthropic-compatible native messages transports."""
 
-from __future__ import annotations
-
 import inspect
 from typing import Any
 

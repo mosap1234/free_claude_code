@@ -1,7 +1,5 @@
 """Track content-block state for native Anthropic SSE strings we emit to clients."""
 
-from __future__ import annotations
-
 import uuid
 from collections.abc import Iterator
 from contextlib import suppress

@@ -3,8 +3,6 @@
 Phase 3b uses these rows to avoid silent drift between docs and descriptors.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from config.provider_catalog import PROVIDER_CATALOG

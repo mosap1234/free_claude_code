@@ -1,7 +1,5 @@
 """Claude-code probe mocks and shortcuts for local optimization."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel
 
 

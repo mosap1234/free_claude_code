@@ -1,7 +1,5 @@
 """Per-node Claude CLI turn pipeline (extracted from :class:`ClaudeMessageHandler`)."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass

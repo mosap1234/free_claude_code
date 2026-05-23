@@ -1,7 +1,5 @@
 """Per-tree async queue processor owned by :class:`TreeQueueManager`."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Awaitable, Callable
 

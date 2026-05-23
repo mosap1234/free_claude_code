@@ -1,7 +1,5 @@
 """Discord platform constants and discord.py module shim."""
 
-from __future__ import annotations
-
 from typing import Any
 
 AUDIO_EXTENSIONS = (".ogg", ".mp4", ".mp3", ".wav", ".m4a")

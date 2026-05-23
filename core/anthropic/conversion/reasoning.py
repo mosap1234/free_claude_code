@@ -1,7 +1,5 @@
 """Reasoning / thinking text normalization for Anthropic ⇄ OpenAI conversion."""
 
-from __future__ import annotations
-
 from typing import Any
 
 

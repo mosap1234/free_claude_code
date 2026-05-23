@@ -4,8 +4,6 @@ They are converted to JSON in
 :class:`api.ingress.handlers.register_ingress_exception_handlers`.
 """
 
-from __future__ import annotations
-
 
 class IngressDetailError(Exception):
     """Ingress failure rendered as FastAPI-compatible ``{"detail": str}``."""

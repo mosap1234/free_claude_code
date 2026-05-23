@@ -1,7 +1,5 @@
 """Sequential pipeline for :meth:`~api.services.ClaudeProxyService.create_message`."""
 
-from __future__ import annotations
-
 import uuid
 from collections.abc import Callable
 from typing import Any

@@ -1,7 +1,5 @@
 """Golden-style checks for small native SSE policy helpers."""
 
-from __future__ import annotations
-
 from core.anthropic.native_sse_block_policy import (
     format_native_sse_event,
     is_terminal_openrouter_done_event,

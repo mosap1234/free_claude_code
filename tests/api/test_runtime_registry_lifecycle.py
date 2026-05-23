@@ -1,7 +1,5 @@
 """Lifecycle tests for ``AppRuntime`` ↔ ``app.state.provider_registry`` coupling."""
 
-from __future__ import annotations
-
 import importlib
 from types import SimpleNamespace
 from typing import cast

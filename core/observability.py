@@ -6,8 +6,6 @@ Product layers may register an alternative backend at process startup via
 :class:`set_trace_dispatch`; the default emits loguru TRACE rows unchanged.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import Any
 

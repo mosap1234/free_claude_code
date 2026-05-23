@@ -4,8 +4,6 @@ Concrete platforms implement :class:`~messaging.platforms.base.MessagingPlatform
 which satisfies this protocol structurally. Code that only needs the outbound queue paths
 """
 
-from __future__ import annotations
-
 from collections.abc import Awaitable
 from typing import Any, Protocol, runtime_checkable
 

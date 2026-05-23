@@ -1,7 +1,5 @@
 """Package import contract tests (plus targeted messaging scans for runtime ``importlib`` loads)."""
 
-from __future__ import annotations
-
 import ast
 from pathlib import Path
 

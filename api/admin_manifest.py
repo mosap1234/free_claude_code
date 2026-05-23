@@ -1,7 +1,5 @@
 """Admin UI field manifest — aggregate of section field tuples."""
 
-from __future__ import annotations
-
 from api.admin.fields_diagnostics import FIELDS as _F_DIAG
 from api.admin.fields_messaging import FIELDS as _F_MSG
 from api.admin.fields_models import FIELDS as _F_MODELS

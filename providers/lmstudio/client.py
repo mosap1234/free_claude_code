@@ -1,7 +1,5 @@
 """LM Studio provider implementation."""
 
-from __future__ import annotations
-
 from providers.base import ProviderConfig
 from providers.catalog_thin_native_messages import (
     CatalogThinNativeAnthropicMessagesTransport,

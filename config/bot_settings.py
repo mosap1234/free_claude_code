@@ -1,7 +1,5 @@
 """Bot / Discord / Telegram / voice knobs derived from Settings."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

@@ -1,7 +1,5 @@
 """Local provider base URLs (LM Studio, llama.cpp, Ollama)."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
 

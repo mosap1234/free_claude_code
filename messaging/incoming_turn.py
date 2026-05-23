@@ -1,7 +1,5 @@
 """Tree creation and enqueue path for inbound user messaging turns."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from loguru import logger

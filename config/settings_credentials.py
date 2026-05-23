@@ -1,7 +1,5 @@
 """Provider API credential fields flattened onto Settings."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
 

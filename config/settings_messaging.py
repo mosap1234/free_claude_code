@@ -1,7 +1,5 @@
 """Messaging platform pacing and Discord/Telegram bot configuration."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
 

@@ -1,7 +1,5 @@
 """Inventory helpers for native Anthropic Messages catalog rows."""
 
-from __future__ import annotations
-
 from config.provider_catalog import PROVIDER_CATALOG
 from providers.native_messages_catalog import native_anthropic_messages_provider_ids
 

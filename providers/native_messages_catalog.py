@@ -7,8 +7,6 @@ Enumerates catalog rows that share
 per-adapter client modules.
 """
 
-from __future__ import annotations
-
 from config.provider_catalog import PROVIDER_CATALOG
 
 

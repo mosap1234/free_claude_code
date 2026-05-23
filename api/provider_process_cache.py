@@ -15,8 +15,6 @@ after import does not detach registries/tests that still hold references to the
 previous dict instance.
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from providers.registry import ProviderRegistry

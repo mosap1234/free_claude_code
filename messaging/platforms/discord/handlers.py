@@ -1,7 +1,5 @@
 """Discord text message ingress handlers."""
 
-from __future__ import annotations
-
 import contextlib
 from typing import Any, cast
 

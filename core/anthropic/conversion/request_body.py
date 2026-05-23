@@ -1,7 +1,5 @@
 """Build OpenAI-format request payloads from Anthropic-shaped requests."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from core.anthropic.utils import set_if_not_none

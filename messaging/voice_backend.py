@@ -1,7 +1,5 @@
 """Protocols for injecting voice backends into messaging without provider imports."""
 
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 

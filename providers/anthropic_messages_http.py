@@ -4,8 +4,6 @@ Used by :class:`~providers.anthropic_messages_transport.AnthropicMessagesTranspo
 keeps httpx iteration logic out of the transport class itself.
 """
 
-from __future__ import annotations
-
 from collections.abc import AsyncIterator
 
 import httpx

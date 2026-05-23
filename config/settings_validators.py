@@ -4,8 +4,6 @@ Call sites stay as :class:`~pydantic.field_validator` / :class:`~pydantic.model_
 delegates on the Settings class body.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 from .provider_catalog import SUPPORTED_PROVIDER_IDS

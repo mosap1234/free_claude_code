@@ -1,7 +1,5 @@
 """Logging verbosity and debug flags."""
 
-from __future__ import annotations
-
 from typing import Self
 
 from pydantic import BaseModel, Field, model_validator

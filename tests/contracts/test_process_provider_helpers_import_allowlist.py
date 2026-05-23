@@ -3,8 +3,6 @@
 HTTP paths must rely on ``resolve_provider(..., app=request.app, ...)``.
 """
 
-from __future__ import annotations
-
 import ast
 from pathlib import Path
 

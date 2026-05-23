@@ -1,7 +1,5 @@
 """Proxy-side optimisation flags surfaced in Admin UI."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

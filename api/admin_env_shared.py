@@ -1,7 +1,5 @@
 """Shared helpers for admin env manifest read/write paths."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from pydantic import ValidationError

@@ -1,7 +1,5 @@
 """Contract checks: catalog, registry factories, admin fields, Settings, env template."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from api.admin_manifest import FIELD_BY_KEY, FIELDS

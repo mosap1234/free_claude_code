@@ -1,7 +1,5 @@
 """Discord outbound message operations (send, edit, delete, queues)."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Awaitable
 from typing import Any, cast

@@ -1,7 +1,5 @@
 """Telegram outbound sends/edits/deletes (mirrors discord/outbound composition)."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any

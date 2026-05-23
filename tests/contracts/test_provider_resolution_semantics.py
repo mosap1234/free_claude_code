@@ -1,7 +1,5 @@
 """Behavioral parity for :func:`api.dependencies.resolve_provider` code paths."""
 
-from __future__ import annotations
-
 from unittest.mock import MagicMock
 
 import pytest

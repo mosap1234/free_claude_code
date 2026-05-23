@@ -1,7 +1,5 @@
 """Catalog-parameterized thin native Anthropic Messages transports."""
 
-from __future__ import annotations
-
 from config.provider_catalog import PROVIDER_CATALOG
 from providers.anthropic_messages import AnthropicMessagesTransport
 from providers.base import ProviderConfig

@@ -6,8 +6,6 @@ Implementations live in :mod:`~providers.anthropic_messages_transport` and
 ``patch("providers.anthropic_messages_transport.GlobalRateLimiter")``).
 """
 
-from __future__ import annotations
-
 from providers.anthropic_messages_transport import (
     AnthropicMessagesTransport,
     StreamChunkMode,

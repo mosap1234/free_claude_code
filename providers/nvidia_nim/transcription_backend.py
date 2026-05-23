@@ -1,7 +1,5 @@
 """Concrete :class:`~messaging.voice_backend.TranscriptionBackend` using NVIDIA NIM / Riva."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from .voice import transcribe_audio_file

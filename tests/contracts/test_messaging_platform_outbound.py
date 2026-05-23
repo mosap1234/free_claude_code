@@ -1,7 +1,5 @@
 """Contract: concrete messaging platforms expose the outbound queue protocol."""
 
-from __future__ import annotations
-
 import pytest
 
 

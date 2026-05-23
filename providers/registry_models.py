@@ -1,7 +1,5 @@
 """Model-list discovery helpers for :class:`~providers.registry.ProviderRegistry`."""
 
-from __future__ import annotations
-
 import asyncio
 from collections import defaultdict
 from typing import Any

@@ -1,7 +1,5 @@
 """Build :class:`~providers.base.ProviderConfig` from catalog descriptors and settings."""
 
-from __future__ import annotations
-
 from config.provider_catalog import ProviderDescriptor
 from config.settings import Settings
 from providers.base import ProviderConfig

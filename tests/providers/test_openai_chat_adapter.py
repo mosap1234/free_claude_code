@@ -1,7 +1,5 @@
 """Tests for :mod:`providers.openai_chat_adapter`."""
 
-from __future__ import annotations
-
 from types import SimpleNamespace
 
 import pytest

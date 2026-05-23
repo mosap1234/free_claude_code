@@ -1,7 +1,5 @@
 """Managed env persistence, validation, and admin API helpers."""
 
-from __future__ import annotations
-
 from .admin_env_read import (
     configured_env_files,
     env_keys,

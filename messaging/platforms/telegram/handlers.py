@@ -1,7 +1,5 @@
 """Telegram update handlers (text, commands, voice)."""
 
-from __future__ import annotations
-
 import contextlib
 import tempfile
 from collections.abc import Awaitable, Callable

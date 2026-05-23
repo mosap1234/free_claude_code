@@ -1,7 +1,5 @@
 """Provider descriptors, factory, and runtime registry."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Iterable, MutableMapping
 from contextlib import suppress

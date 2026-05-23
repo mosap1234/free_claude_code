@@ -1,5 +1,7 @@
 # Branch protection: require every status check this workflow reports, for example:
 #   Ban type ignore suppressions
+#   Ban future annotations import
+#   Ban pragma no cover
 #   ruff-format, ruff-check, ty, pytest
 # GitHub may prefix with the workflow name (e.g. "CI / ruff-format"); use the names the branch protection UI offers after a run.
 
@@ -33,6 +35,48 @@ jobs:
         run: |
           if grep -rE '# type: ignore|# ty: ignore' --include='*.py' . --exclude-dir=.venv --exclude-dir=.git; then
             echo "::error::type: ignore / ty: ignore comments are not allowed. Fix the underlying type errors instead."
+            exit 1
+          fi
+          exit 0
+
+  no-future-annotations-import:
+    name: Ban future annotations import
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 1
+
+      - name: "Fail on from __future__ import annotations (PEP 649 baseline)"
+        run: |
+          if grep -rF 'from __future__ import annotations' --include='*.py' . --exclude-dir=.venv --exclude-dir=.git; then
+            echo "::error::from __future__ import annotations is forbidden in this Python 3.14+ repo. Use default PEP 649 deferred annotations; see AGENTS.md."
+            exit 1
+          fi
+          exit 0
+
+  no-pragma-no-cover:
+    name: Ban pragma no cover
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          fetch-depth: 1
+
+      - name: "Fail on pragma: no cover (coverage suppressions forbidden)"
+        run: |
+          if grep -rE '#[[:space:]]*pragma:[[:space:]]*no[[:space:]]*cover' --include='*.py' . --exclude-dir=.venv --exclude-dir=.git; then
+            echo "::error::pragma: no cover comments are forbidden. Add tests or refactor for coverage instead; see AGENTS.md."
             exit 1
           fi
           exit 0

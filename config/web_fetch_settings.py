@@ -1,7 +1,5 @@
 """Web server tool / web_fetch knobs (derived views of :class:`~config.settings.Settings`)."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict, field_validator
 
 

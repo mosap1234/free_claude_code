@@ -1,7 +1,5 @@
 """Env file path helpers and migration guards shared by ``config.settings.Settings``."""
 
-from __future__ import annotations
-
 import os
 from collections.abc import Mapping
 from pathlib import Path

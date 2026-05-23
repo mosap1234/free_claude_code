@@ -4,8 +4,6 @@
 stays in ``AppRuntime`` while construction details live in one place.
 """
 
-from __future__ import annotations
-
 import os
 from typing import TYPE_CHECKING
 

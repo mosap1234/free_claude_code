@@ -1,7 +1,5 @@
 """Discord voice/audio attachment ingestion."""
 
-from __future__ import annotations
-
 import contextlib
 import tempfile
 from pathlib import Path

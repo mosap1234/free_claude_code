@@ -1,7 +1,5 @@
 """Provider throughput, HTTP client timeouts, and prefix detection."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, Field
 
 from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT

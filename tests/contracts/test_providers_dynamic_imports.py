@@ -5,8 +5,6 @@
 stay static-import only.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 _ALLOWED_PROVIDER_IMPORTLIB_MODULES = frozenset(

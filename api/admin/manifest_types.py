@@ -1,7 +1,5 @@
 """Admin UI manifest types (sections and env-backed field specs)."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Literal
 

@@ -1,7 +1,5 @@
 """Model tier routing and tier-specific thinking overrides."""
 
-from __future__ import annotations
-
 from pydantic import BaseModel, ConfigDict
 
 

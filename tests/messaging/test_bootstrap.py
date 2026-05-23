@@ -1,7 +1,5 @@
 """Tests for :mod:`messaging.bootstrap`."""
 
-from __future__ import annotations
-
 from config.settings import Settings
 
 

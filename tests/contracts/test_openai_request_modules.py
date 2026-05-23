@@ -1,7 +1,5 @@
 """Guard catalog ``openai_request_module`` strings used by dynamic imports."""
 
-from __future__ import annotations
-
 import importlib.util
 
 from config.provider_catalog import PROVIDER_CATALOG

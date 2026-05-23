@@ -4,8 +4,6 @@ Adapter factories live in :mod:`providers.registry`; this module stays free of
 provider implementation imports (see contract tests).
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Literal
 

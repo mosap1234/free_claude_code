@@ -1,7 +1,5 @@
 """OpenAI-chat transports constructed from :class:`ProviderDescriptor` metadata."""
 
-from __future__ import annotations
-
 import importlib
 from collections.abc import Callable
 from typing import Any

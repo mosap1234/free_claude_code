@@ -1,7 +1,5 @@
 """Deferred assistant segments after ``tool_calls``."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Any
 

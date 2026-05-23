@@ -1,7 +1,5 @@
 """Snapshot-style coverage for heuristic OpenAI tool_use → Anthropic SSE."""
 
-from __future__ import annotations
-
 import json
 from typing import Any
 
