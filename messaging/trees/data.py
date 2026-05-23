@@ -458,8 +458,9 @@ class MessageTree:
         """
         Remove a subtree (branch_root and all descendants) from the tree.
 
-        Updates parent's children_ids. Caller must hold lock for consistency.
-        Does not acquire lock internally.
+        Drops every removed node id from the processing queue first so orphans
+        cannot be dequeued after nodes are deleted. Updates parent's children_ids.
+        Caller must hold lock for consistency. Does not acquire lock internally.
 
         Returns:
             List of removed nodes.
@@ -470,6 +471,7 @@ class MessageTree:
         parent = self.get_parent(branch_root_id)
         removed = []
         for nid in self.get_descendants(branch_root_id):
+            self.remove_from_queue(nid)
             node = self._nodes.get(nid)
             if node:
                 removed.append(node)

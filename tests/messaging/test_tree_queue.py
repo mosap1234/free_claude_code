@@ -360,6 +360,45 @@ class TestMessageTree:
         assert tree.get_node("root") is not None
         assert "child" not in tree.get_root().children_ids
 
+    @pytest.mark.asyncio
+    async def test_remove_branch_clears_queued_nodes(self):
+        """Queued ids for removed subtree are dropped from the processing queue."""
+        root_incoming = IncomingMessage(
+            text="Root", chat_id="1", user_id="1", message_id="root", platform="test"
+        )
+        root = MessageNode(
+            node_id="root", incoming=root_incoming, status_message_id="s1"
+        )
+        tree = MessageTree(root)
+
+        child_incoming = IncomingMessage(
+            text="Child",
+            chat_id="1",
+            user_id="1",
+            message_id="child",
+            platform="test",
+            reply_to_message_id="root",
+        )
+        await tree.add_node("child", child_incoming, "s2", "root")
+
+        grandchild_incoming = IncomingMessage(
+            text="Grand",
+            chat_id="1",
+            user_id="1",
+            message_id="grand",
+            platform="test",
+            reply_to_message_id="child",
+        )
+        await tree.add_node("grand", grandchild_incoming, "s3", "child")
+
+        await tree.enqueue("grand")
+        async with tree.with_lock():
+            tree.remove_branch("child")
+
+        assert tree.get_queue_size() == 0
+        snapshot = await tree.get_queue_snapshot()
+        assert snapshot == []
+
 
 class TestTreeQueueManager:
     """Test TreeQueueManager class."""
@@ -591,6 +630,58 @@ class TestTreeQueueManager:
         assert manager.get_tree("root") is not None
         assert tree.get_node("child") is None
         assert "child" not in tree.get_root().children_ids
+
+    @pytest.mark.asyncio
+    async def test_remove_branch_while_busy_clears_queue_and_processor_continues(self):
+        """Removing a queued subtree must not strand the tree in a busy-but-idle state."""
+        manager = TreeQueueManager()
+        processing_started = asyncio.Event()
+        processing_complete = asyncio.Event()
+        processed: list[str] = []
+
+        async def slow_processor(node_id, node):
+            processed.append(node_id)
+            processing_started.set()
+            await processing_complete.wait()
+
+        root_incoming = IncomingMessage(
+            text="Root", chat_id="1", user_id="1", message_id="root", platform="test"
+        )
+        await manager.create_tree("root", root_incoming, "s1")
+
+        assert await manager.enqueue("root", slow_processor) is False
+        await processing_started.wait()
+
+        child_incoming = IncomingMessage(
+            text="Child",
+            chat_id="1",
+            user_id="1",
+            message_id="child",
+            platform="test",
+            reply_to_message_id="root",
+        )
+        await manager.add_to_tree("root", "child", child_incoming, "s2")
+
+        assert await manager.enqueue("child", slow_processor) is True
+
+        tree = manager.get_tree("root")
+        assert tree is not None
+
+        snapshot = await tree.get_queue_snapshot()
+        assert "child" in snapshot
+
+        removed, _, _ = await manager.remove_branch("child")
+        assert len(removed) == 1
+
+        assert await tree.get_queue_snapshot() == []
+
+        processing_complete.set()
+        await asyncio.sleep(0.15)
+
+        assert processed == ["root"]
+        tree2 = manager.get_tree("root")
+        assert tree2 is not None
+        assert tree2.is_processing is False
 
     @pytest.mark.asyncio
     async def test_remove_branch_root_removes_tree(self):

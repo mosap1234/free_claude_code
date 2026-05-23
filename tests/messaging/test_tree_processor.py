@@ -159,26 +159,68 @@ async def test_process_next_with_item(tree_processor, sample_tree):
 
 
 @pytest.mark.asyncio
-async def test_process_next_triggers_queue_update(sample_tree):
+async def test_process_next_skips_orphan_only_no_callbacks(sample_tree):
     callback = AsyncMock()
-    processor = TreeQueueProcessor(queue_update_callback=callback)
+    node_started = AsyncMock()
+    processor = TreeQueueProcessor(
+        queue_update_callback=callback,
+        node_started_callback=node_started,
+    )
 
-    await sample_tree._queue.put("next_node")
+    await sample_tree._queue.put("ghost_id")
     sample_tree.get_node = MagicMock(return_value=None)
 
     await processor._process_next(sample_tree, AsyncMock())
 
-    callback.assert_awaited_once_with(sample_tree)
+    callback.assert_not_awaited()
+    node_started.assert_not_awaited()
+    assert sample_tree._is_processing is False
 
 
 @pytest.mark.asyncio
-async def test_process_next_triggers_node_started(sample_tree):
+async def test_process_next_skips_orphan_then_processes(sample_tree, sample_node):
+    callback = AsyncMock()
     node_started = AsyncMock()
-    processor = TreeQueueProcessor(node_started_callback=node_started)
+    processor_fn = AsyncMock()
 
-    await sample_tree._queue.put("next_node")
+    processor = TreeQueueProcessor(
+        queue_update_callback=callback,
+        node_started_callback=node_started,
+    )
+
+    await sample_tree._queue.put("ghost_id")
+    await sample_tree._queue.put(sample_node.node_id)
+
+    def _get_side_effect(nid: str):
+        if nid == sample_node.node_id:
+            return sample_node
+        return None
+
+    sample_tree.get_node = MagicMock(side_effect=_get_side_effect)
+
+    await processor._process_next(sample_tree, processor_fn)
+
+    node_started.assert_awaited_once_with(sample_tree, sample_node.node_id)
+    callback.assert_awaited_once_with(sample_tree)
+
+    assert sample_tree._current_node_id == sample_node.node_id
+    assert sample_tree._current_task is not None
+
+    sample_tree._current_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await sample_tree._current_task
+
+
+@pytest.mark.asyncio
+async def test_enqueue_and_start_missing_node_when_idle(tree_processor, sample_tree):
+    processor = AsyncMock()
     sample_tree.get_node = MagicMock(return_value=None)
 
-    await processor._process_next(sample_tree, AsyncMock())
+    was_queued = await tree_processor.enqueue_and_start(
+        sample_tree, "missing", processor
+    )
 
-    node_started.assert_awaited_once_with(sample_tree, "next_node")
+    assert was_queued is False
+    assert sample_tree._is_processing is False
+    assert sample_tree._current_task is None
+    processor.assert_not_awaited()

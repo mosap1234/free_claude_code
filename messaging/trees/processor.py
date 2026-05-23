@@ -112,26 +112,35 @@ class TreeQueueProcessor:
         processor: Callable[[str, MessageNode], Awaitable[None]],
     ) -> None:
         """Process the next message in queue, if any."""
-        next_node_id = None
+        started_node_id: str | None = None
         async with tree.with_lock():
-            next_node_id = await tree.dequeue()
+            while True:
+                next_node_id = await tree.dequeue()
+                if not next_node_id:
+                    tree.set_processing_state(None, False)
+                    logger.debug(f"Tree {tree.root_id} queue empty, marking as free")
+                    return
 
-            if not next_node_id:
-                tree.set_processing_state(None, False)
-                logger.debug(f"Tree {tree.root_id} queue empty, marking as free")
-                return
+                node = tree.get_node(next_node_id)
+                if not node:
+                    logger.warning(
+                        "Dequeued node {} missing from tree {} (skipped)",
+                        next_node_id,
+                        tree.root_id,
+                    )
+                    continue
 
-            tree.set_processing_state(next_node_id, True)
-            logger.info(f"Processing next queued node {next_node_id}")
+                tree.set_processing_state(next_node_id, True)
+                logger.info(f"Processing next queued node {next_node_id}")
 
-            node = tree.get_node(next_node_id)
-            if node:
                 tree.set_current_task(
                     asyncio.create_task(self.process_node(tree, node, processor))
                 )
+                started_node_id = next_node_id
+                break
 
-        if next_node_id:
-            await self._notify_node_started(tree, next_node_id)
+        if started_node_id is not None:
+            await self._notify_node_started(tree, started_node_id)
             await self._notify_queue_updated(tree)
 
     async def enqueue_and_start(
@@ -153,13 +162,19 @@ class TreeQueueProcessor:
                 logger.info(f"Queued node {node_id}, position {queue_size}")
                 return True
             else:
-                tree.set_processing_state(node_id, True)
-
                 node = tree.get_node(node_id)
-                if node:
-                    tree.set_current_task(
-                        asyncio.create_task(self.process_node(tree, node, processor))
+                if not node:
+                    logger.warning(
+                        "enqueue_and_start missing node {} in tree {}",
+                        node_id,
+                        tree.root_id,
                     )
+                    return False
+
+                tree.set_processing_state(node_id, True)
+                tree.set_current_task(
+                    asyncio.create_task(self.process_node(tree, node, processor))
+                )
                 return False
 
     def cancel_current(self, tree: MessageTree) -> bool:
