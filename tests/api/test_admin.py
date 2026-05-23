@@ -428,6 +428,16 @@ def test_admin_local_provider_status_reports_reachable(monkeypatch, tmp_path):
     assert {provider["status"] for provider in providers} == {"reachable"}
 
 
+def test_admin_persistence_re_exports_split_modules() -> None:
+    import api.admin_env_read as read_mod
+    import api.admin_env_write as write_mod
+    import api.admin_persistence as facade
+
+    assert facade.load_config_response is read_mod.load_config_response
+    assert facade.write_managed_env is write_mod.write_managed_env
+    assert facade.render_env_file is write_mod.render_env_file
+
+
 def test_admin_launch_url_uses_loopback_for_wildcard_host():
     settings = Settings.model_construct(host="0.0.0.0", port=8082)
 

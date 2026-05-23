@@ -14,7 +14,7 @@ Legacy aliases :func:`get_provider` / :func:`get_provider_for_type` remain expor
 
 import secrets
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from loguru import logger
 from starlette.applications import Starlette
 
@@ -29,6 +29,12 @@ from providers.exceptions import (
     UnknownProviderTypeError,
 )
 from providers.registry import PROVIDER_DESCRIPTORS, ProviderRegistry
+
+from .resolver_exceptions import (
+    GatewayInvalidApiKey,
+    GatewayMissingApiKey,
+    ResolverProviderAuthUnavailable,
+)
 
 # Process-level provider cache: :mod:`api.provider_process_cache`.
 
@@ -90,7 +96,7 @@ def _resolve_with_registry(
         # Provider :class:`~providers.exceptions.AuthenticationError` messages are
         # curated configuration hints (env var names, docs links), not upstream noise.
         detail = str(e).strip() or get_user_facing_error_message(e)
-        raise HTTPException(status_code=503, detail=detail) from e
+        raise ResolverProviderAuthUnavailable(detail) from e
     except UnknownProviderTypeError:
         logger.error(
             "Unknown provider_type: '{}'. Supported: {}",
@@ -138,7 +144,7 @@ def require_api_key(
         or request.headers.get("anthropic-auth-token")
     )
     if not header:
-        raise HTTPException(status_code=401, detail="Missing API key")
+        raise GatewayMissingApiKey()
 
     # Support both raw key in X-API-Key and Bearer token in Authorization
     token = header
@@ -154,7 +160,7 @@ def require_api_key(
     if not secrets.compare_digest(
         token.encode("utf-8"), anthropic_auth_token.encode("utf-8")
     ):
-        raise HTTPException(status_code=401, detail="Invalid API key")
+        raise GatewayInvalidApiKey()
 
 
 def get_process_cached_provider() -> BaseProvider:

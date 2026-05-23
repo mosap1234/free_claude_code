@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, Literal
 
@@ -13,7 +12,6 @@ from config.constants import (
     ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS,
     NATIVE_MESSAGES_ERROR_BODY_LOG_CAP_BYTES,
 )
-from config.provider_catalog import NativeMessagesHeaderProfile
 from core.anthropic import iter_provider_stream_error_sse_events
 from core.anthropic.emitted_sse_tracker import EmittedNativeSseTracker
 from core.anthropic.native_messages_request import (
@@ -29,61 +27,19 @@ from providers.error_mapping import (
     map_error,
     user_visible_message_for_mapped_provider_error,
 )
-from providers.exceptions import ModelListResponseError
 from providers.model_listing import (
     ProviderModelInfo,
     extract_openai_model_ids,
     model_infos_from_ids,
 )
+from providers.native_messages_support import (
+    build_native_messages_request_headers,
+    maybe_await_aclose,
+    model_list_json,
+)
 from providers.rate_limit import GlobalRateLimiter
 
 StreamChunkMode = Literal["line", "event"]
-
-_ANTHROPIC_MESSAGES_VERSION_HEADER = "2023-06-01"
-
-
-def build_native_messages_request_headers(
-    profile: NativeMessagesHeaderProfile | None,
-    api_key: str,
-) -> dict[str, str]:
-    """Build catalog-driven native ``POST .../messages`` headers."""
-    effective = profile or "messages_minimal"
-    if effective == "messages_minimal":
-        return {"Content-Type": "application/json"}
-    if effective == "anthropic_bearer_sse":
-        return {
-            "Accept": "text/event-stream",
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "anthropic-version": _ANTHROPIC_MESSAGES_VERSION_HEADER,
-        }
-    if effective == "anthropic_x_api_key_sse":
-        return {
-            "Accept": "text/event-stream",
-            "Content-Type": "application/json",
-            "x-api-key": api_key,
-        }
-    raise AssertionError(f"unknown native_messages_header_profile={effective!r}")
-
-
-async def _maybe_await_aclose(response: Any) -> None:
-    """Call ``aclose`` on httpx-like responses; ignore non-async test doubles."""
-    close = getattr(response, "aclose", None)
-    if not callable(close):
-        return
-    result = close()
-    if inspect.isawaitable(result):
-        await result
-
-
-def _model_list_json(response: httpx.Response, *, provider_name: str) -> Any:
-    response.raise_for_status()
-    try:
-        return response.json()
-    except ValueError as exc:
-        raise ModelListResponseError(
-            f"{provider_name} model-list response is malformed: invalid JSON"
-        ) from exc
 
 
 class AnthropicMessagesTransport(BaseProvider):
@@ -133,10 +89,10 @@ class AnthropicMessagesTransport(BaseProvider):
         """Return model ids plus optional metadata from a ``/models`` endpoint."""
         response = await self._send_model_list_request()
         try:
-            payload = _model_list_json(response, provider_name=self._provider_name)
+            payload = model_list_json(response, provider_name=self._provider_name)
             return self._extract_model_infos_from_model_list_payload(payload)
         finally:
-            await _maybe_await_aclose(response)
+            await maybe_await_aclose(response)
 
     async def _send_model_list_request(self) -> httpx.Response:
         """Query the provider endpoint that advertises available model ids."""
@@ -410,7 +366,7 @@ class AnthropicMessagesTransport(BaseProvider):
                             await self._raise_for_status(send_response, req_tag=req_tag)
                         finally:
                             if not send_response.is_closed:
-                                await _maybe_await_aclose(send_response)
+                                await maybe_await_aclose(send_response)
                     return send_response
 
                 response = await self._global_rate_limiter.execute_with_retry(
@@ -449,7 +405,7 @@ class AnthropicMessagesTransport(BaseProvider):
                 error_message = self._get_error_message(error, request_id)
 
                 if response is not None and not response.is_closed:
-                    await _maybe_await_aclose(response)
+                    await maybe_await_aclose(response)
 
                 trace_event(
                     stage="provider",
@@ -481,4 +437,4 @@ class AnthropicMessagesTransport(BaseProvider):
                 return
             finally:
                 if response is not None and not response.is_closed:
-                    await _maybe_await_aclose(response)
+                    await maybe_await_aclose(response)
