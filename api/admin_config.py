@@ -135,6 +135,29 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         secret=True,
     ),
     ConfigFieldSpec(
+        "MISTRAL_API_KEY",
+        "Mistral API Key",
+        "providers",
+        "secret",
+        settings_attr="mistral_api_key",
+        secret=True,
+        description=(
+            "Mistral La Plateforme (api.mistral.ai); Experiment plan is free tier with rate limits."
+        ),
+    ),
+    ConfigFieldSpec(
+        "CODESTRAL_API_KEY",
+        "Codestral API Key",
+        "providers",
+        "secret",
+        settings_attr="codestral_api_key",
+        secret=True,
+        description=(
+            "Mistral Codestral endpoint (codestral.mistral.ai); distinct from Mistral "
+            "La Plateforme ``MISTRAL_API_KEY``. See Mistral docs for coding/FIM domains."
+        ),
+    ),
+    ConfigFieldSpec(
         "DEEPSEEK_API_KEY",
         "DeepSeek API Key",
         "providers",
@@ -189,6 +212,46 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         description="Fireworks AI inference API key.",
     ),
     ConfigFieldSpec(
+        "GEMINI_API_KEY",
+        "Gemini API Key",
+        "providers",
+        "secret",
+        settings_attr="gemini_api_key",
+        secret=True,
+        description=(
+            "Google AI Studio Gemini API key (Google AI Studio / Gemini API "
+            "[OpenAI-compatible](https://ai.google.dev/gemini-api/docs/openai)); "
+            "free tier has per-model rate limits and data may be used for improvement "
+            "outside the UK/CH/EEA/EU."
+        ),
+    ),
+    ConfigFieldSpec(
+        "GROQ_API_KEY",
+        "Groq API Key",
+        "providers",
+        "secret",
+        settings_attr="groq_api_key",
+        secret=True,
+        description=(
+            "GroqCloud OpenAI-compatible API key ([console.groq.com/keys]("
+            "https://console.groq.com/keys)); see Groq "
+            "[OpenAI compatibility docs](https://console.groq.com/docs/openai)."
+        ),
+    ),
+    ConfigFieldSpec(
+        "CEREBRAS_API_KEY",
+        "Cerebras API Key",
+        "providers",
+        "secret",
+        settings_attr="cerebras_api_key",
+        secret=True,
+        description=(
+            "Cerebras Inference API key (create in [Cloud Console](https://cloud.cerebras.ai)); "
+            "see [Quickstart](https://inference-docs.cerebras.ai/quickstart) and "
+            "[OpenAI compatibility](https://inference-docs.cerebras.ai/resources/openai)."
+        ),
+    ),
+    ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
         "LM Studio Base URL",
         "providers",
@@ -224,6 +287,24 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "providers",
         "secret",
         settings_attr="open_router_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "MISTRAL_PROXY",
+        "Mistral Proxy",
+        "providers",
+        "secret",
+        settings_attr="mistral_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "CODESTRAL_PROXY",
+        "Codestral Proxy",
+        "providers",
+        "secret",
+        settings_attr="codestral_proxy",
         secret=True,
         advanced=True,
     ),
@@ -296,6 +377,33 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "providers",
         "secret",
         settings_attr="fireworks_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "GEMINI_PROXY",
+        "Gemini Proxy",
+        "providers",
+        "secret",
+        settings_attr="gemini_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "GROQ_PROXY",
+        "Groq Proxy",
+        "providers",
+        "secret",
+        settings_attr="groq_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "CEREBRAS_PROXY",
+        "Cerebras Proxy",
+        "providers",
+        "secret",
+        settings_attr="cerebras_proxy",
         secret=True,
         advanced=True,
     ),
@@ -700,6 +808,18 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_MISTRAL",
+        "Smoke Mistral Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_MISTRAL_CODESTRAL",
+        "Smoke Mistral Codestral Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
         "FCC_SMOKE_MODEL_DEEPSEEK",
         "Smoke DeepSeek Model",
         "smoke",
@@ -750,6 +870,30 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
         "FCC_SMOKE_MODEL_ZAI",
         "Smoke Z.ai Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_FIREWORKS",
+        "Smoke Fireworks Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_GEMINI",
+        "Smoke Gemini Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_GROQ",
+        "Smoke Groq Model",
+        "smoke",
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "FCC_SMOKE_MODEL_CEREBRAS",
+        "Smoke Cerebras Model",
         "smoke",
         advanced=True,
     ),

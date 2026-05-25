@@ -5,9 +5,16 @@ from pathlib import Path
 
 from messaging.platforms.factory import create_messaging_platform
 from providers.base import BaseProvider
+from providers.cerebras import CerebrasProvider
+from providers.codestral import CodestralProvider
 from providers.deepseek import DeepSeekProvider
+from providers.fireworks import FireworksProvider
+from providers.gemini import GeminiProvider
+from providers.groq import GroqProvider
+from providers.kimi import KimiProvider
 from providers.llamacpp import LlamaCppProvider
 from providers.lmstudio import LMStudioProvider
+from providers.mistral import MistralProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
@@ -72,7 +79,11 @@ def test_provider_and_platform_registries_include_advertised_builtins() -> None:
     provider_classes = {
         "nvidia_nim": NvidiaNimProvider,
         "open_router": OpenRouterProvider,
+        "mistral": MistralProvider,
+        "mistral_codestral": CodestralProvider,
         "deepseek": DeepSeekProvider,
+        "kimi": KimiProvider,
+        "fireworks": FireworksProvider,
         "lmstudio": LMStudioProvider,
         "llamacpp": LlamaCppProvider,
         "ollama": OllamaProvider,
@@ -80,6 +91,9 @@ def test_provider_and_platform_registries_include_advertised_builtins() -> None:
         "opencode": OpenCodeProvider,
         "opencode_go": OpenCodeProvider,
         "zai": ZaiProvider,
+        "gemini": GeminiProvider,
+        "groq": GroqProvider,
+        "cerebras": CerebrasProvider,
     }
     for provider_class in provider_classes.values():
         assert issubclass(provider_class, BaseProvider)
