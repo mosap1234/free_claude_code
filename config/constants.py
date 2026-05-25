@@ -3,6 +3,9 @@
 # HTTP client connect timeout (seconds). Keep aligned with README.md and .env.example.
 HTTP_CONNECT_TIMEOUT_DEFAULT = 10.0
 
+# Mid-stream transport error retries (provider drops connection during chunked response).
+TRANSPORT_MAX_RETRIES_DEFAULT = 2
+
 # Anthropic Messages API default when the client omits max_tokens.
 ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS = 81920
 

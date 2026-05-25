@@ -346,7 +346,8 @@ class OpenAIChatTransport(BaseProvider):
     # ------------------------------------------------------------------
     # When the upstream provider drops the connection mid-stream (e.g.
     # ``RemoteProtocolError`` / incomplete chunked read), fcc-server retries
-    # the entire request up to ``_TRANSPORT_MAX_RETRIES`` (2) times before
+    # the entire request up to ``transport_max_retries`` (default 2, set via
+    # TRANSPORT_MAX_RETRIES env var) times before
     # surfacing the error to the client.  On final failure the error message
     # is prefixed with ``fcc-server X retry …`` so the caller knows retries
     # were attempted.
@@ -357,8 +358,6 @@ class OpenAIChatTransport(BaseProvider):
     # and re-opens the upstream stream.  This means the client sees at most
     # one complete message (the successful one) or one error message.
     # ------------------------------------------------------------------
-    _TRANSPORT_MAX_RETRIES: int = 2
-
     async def _stream_response_impl(
         self,
         request: Any,
@@ -373,7 +372,7 @@ class OpenAIChatTransport(BaseProvider):
         req_tag = f" request_id={request_id}" if request_id else ""
 
         body = self._build_request_body(request, thinking_enabled=thinking_enabled)
-        max_retries = self._TRANSPORT_MAX_RETRIES
+        max_retries = self._config.transport_max_retries
 
         for attempt in range(1 + max_retries):
             message_id = f"msg_{uuid.uuid4()}"

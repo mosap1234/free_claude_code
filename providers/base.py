@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from config.constants import HTTP_CONNECT_TIMEOUT_DEFAULT
+from config.constants import HTTP_CONNECT_TIMEOUT_DEFAULT, TRANSPORT_MAX_RETRIES_DEFAULT
 from providers.model_listing import ProviderModelInfo, model_infos_from_ids
 
 
@@ -29,6 +29,8 @@ class ProviderConfig(BaseModel):
     proxy: str = ""
     log_raw_sse_events: bool = False
     log_api_error_tracebacks: bool = False
+    # Mid-stream transport error retries (0 disables retry).
+    transport_max_retries: int = TRANSPORT_MAX_RETRIES_DEFAULT
 
 
 class BaseProvider(ABC):

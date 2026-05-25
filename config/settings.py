@@ -11,7 +11,7 @@ from dotenv import dotenv_values
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT
+from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT, TRANSPORT_MAX_RETRIES_DEFAULT
 from .nim import NimSettings
 from .paths import default_claude_workspace_path, managed_env_path
 from .provider_ids import SUPPORTED_PROVIDER_IDS
@@ -236,6 +236,12 @@ class Settings(BaseSettings):
     http_connect_timeout: float = Field(
         default=HTTP_CONNECT_TIMEOUT_DEFAULT,
         validation_alias="HTTP_CONNECT_TIMEOUT",
+    )
+
+    # ==================== Transport Error Retry ====================
+    transport_max_retries: int = Field(
+        default=TRANSPORT_MAX_RETRIES_DEFAULT,
+        validation_alias="TRANSPORT_MAX_RETRIES",
     )
 
     # ==================== Fast Prefix Detection ====================

@@ -289,3 +289,122 @@ class TestTransportErrorRetry:
         # ReadTimeout is not a retryable transport error, so no retry, no prefix
         assert "fcc-server" not in event_text
         assert "timed out" in event_text
+
+
+class TestTransportMaxRetriesConfigurable:
+    """TRANSPORT_MAX_RETRIES env var controls retry count."""
+
+    @pytest.mark.asyncio
+    async def test_zero_retries_disables_retry(self):
+        """transport_max_retries=0 means no retry — error surfaces immediately."""
+        config = ProviderConfig(
+            api_key="test_key",
+            base_url="https://test.api.nvidia.com/v1",
+            rate_limit=10,
+            rate_window=60,
+            transport_max_retries=0,
+        )
+        provider = NvidiaNimProvider(config, nim_settings=NimSettings())
+        request = _make_request()
+
+        with (
+            patch.object(
+                provider._client.chat.completions,
+                "create",
+                new_callable=AsyncMock,
+                side_effect=_make_remote_protocol_error("drop"),
+            ),
+            patch.object(
+                provider._global_rate_limiter,
+                "wait_if_blocked",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+        ):
+            events = await _collect_stream(provider, request)
+            event_text = "".join(events)
+            # No retry attempted, so no retry prefix
+            assert "fcc-server" not in event_text
+
+    @pytest.mark.asyncio
+    async def test_custom_retry_count(self):
+        """transport_max_retries=1 allows exactly 1 retry (2 total attempts)."""
+        config = ProviderConfig(
+            api_key="test_key",
+            base_url="https://test.api.nvidia.com/v1",
+            rate_limit=10,
+            rate_window=60,
+            transport_max_retries=1,
+        )
+        provider = NvidiaNimProvider(config, nim_settings=NimSettings())
+        request = _make_request()
+
+        chunk_ok = _make_chunk(content="Custom retry ok", finish_reason="stop")
+        stream_ok = AsyncStreamMock([chunk_ok])
+
+        with (
+            patch.object(
+                provider._client.chat.completions,
+                "create",
+                new_callable=AsyncMock,
+                side_effect=[
+                    _make_remote_protocol_error("drop 1"),
+                    stream_ok,
+                ],
+            ),
+            patch.object(
+                provider._global_rate_limiter,
+                "wait_if_blocked",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch("providers.openai_compat.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            events = await _collect_stream(provider, request)
+            event_text = "".join(events)
+            assert "Custom retry ok" in event_text
+
+    @pytest.mark.asyncio
+    async def test_custom_retry_count_exhausted(self):
+        """transport_max_retries=1 — after 1 retry, error gets prefix."""
+        config = ProviderConfig(
+            api_key="test_key",
+            base_url="https://test.api.nvidia.com/v1",
+            rate_limit=10,
+            rate_window=60,
+            transport_max_retries=1,
+        )
+        provider = NvidiaNimProvider(config, nim_settings=NimSettings())
+        request = _make_request()
+
+        with (
+            patch.object(
+                provider._client.chat.completions,
+                "create",
+                new_callable=AsyncMock,
+                side_effect=[
+                    _make_remote_protocol_error("drop 1"),
+                    _make_remote_protocol_error("drop 2"),
+                ],
+            ),
+            patch.object(
+                provider._global_rate_limiter,
+                "wait_if_blocked",
+                new_callable=AsyncMock,
+                return_value=False,
+            ),
+            patch("providers.openai_compat.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            events = await _collect_stream(provider, request)
+            event_text = "".join(events)
+            # attempt index 1 (>0), so prefix appears
+            assert "fcc-server 1 retry" in event_text
+
+    @pytest.mark.asyncio
+    async def test_default_is_two(self):
+        """Default ProviderConfig.transport_max_retries is 2."""
+        config = ProviderConfig(
+            api_key="test_key",
+            base_url="https://test.api.nvidia.com/v1",
+        )
+        assert config.transport_max_retries == 2

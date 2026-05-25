@@ -527,6 +527,16 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         default="60",
     ),
     ConfigFieldSpec(
+        "TRANSPORT_MAX_RETRIES",
+        "Transport Error Retries",
+        "runtime",
+        "number",
+        settings_attr="transport_max_retries",
+        default="2",
+        advanced=True,
+        description="Max mid-stream transport-error retries before surfacing error (0 disables retry).",
+    ),
+    ConfigFieldSpec(
         "HOST",
         "Server Host",
         "runtime",
