@@ -1,15 +1,16 @@
 """Centralized configuration using Pydantic Settings."""
 
+import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
 from dotenv import dotenv_values
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from .nim import NimSettings
@@ -187,6 +188,43 @@ class Settings(BaseSettings):
     model_opus: str | None = Field(default=None, validation_alias="MODEL_OPUS")
     model_sonnet: str | None = Field(default=None, validation_alias="MODEL_SONNET")
     model_haiku: str | None = Field(default=None, validation_alias="MODEL_HAIKU")
+
+    # ==================== Per-Provider Base URL Overrides ====================
+    # Empty default means "use the provider's built-in default upstream URL".
+    # Override to route via observability proxies (LiteLLM, Helicone, LangFuse,
+    # Portkey, ...), on-prem mirrors, or regional/compliance endpoints.
+    nvidia_nim_base_url: str = Field(default="", validation_alias="NVIDIA_NIM_BASE_URL")
+    open_router_base_url: str = Field(
+        default="", validation_alias="OPENROUTER_BASE_URL"
+    )
+    mistral_base_url: str = Field(default="", validation_alias="MISTRAL_BASE_URL")
+    codestral_base_url: str = Field(default="", validation_alias="CODESTRAL_BASE_URL")
+    deepseek_base_url: str = Field(default="", validation_alias="DEEPSEEK_BASE_URL")
+    kimi_base_url: str = Field(default="", validation_alias="KIMI_BASE_URL")
+    wafer_base_url: str = Field(default="", validation_alias="WAFER_BASE_URL")
+    opencode_base_url: str = Field(default="", validation_alias="OPENCODE_BASE_URL")
+    opencode_go_base_url: str = Field(
+        default="", validation_alias="OPENCODE_GO_BASE_URL"
+    )
+    # Note: ZAI_BASE_URL is intentionally not exposed; the Z.ai endpoint is
+    # pinned (see config.provider_catalog and test_zai_descriptor_uses_fixed_cloud_base_url).
+    fireworks_base_url: str = Field(default="", validation_alias="FIREWORKS_BASE_URL")
+    gemini_base_url: str = Field(default="", validation_alias="GEMINI_BASE_URL")
+    groq_base_url: str = Field(default="", validation_alias="GROQ_BASE_URL")
+    cerebras_base_url: str = Field(default="", validation_alias="CEREBRAS_BASE_URL")
+
+    # ==================== Provider Extra Headers ====================
+    # JSON-encoded dict of HTTP headers attached to every upstream provider
+    # request (OpenAI chat /chat/completions and native Anthropic /messages
+    # alike). Common use: attribution headers for observability proxies, e.g.
+    # PROVIDER_EXTRA_HEADERS='{"x-tenant-id":"team-a","x-feature":"chat"}'.
+    # Empty/unset means no extra headers.
+    # ``NoDecode`` bypasses pydantic-settings' eager JSON decoding so the
+    # ``parse_provider_extra_headers`` validator below owns the parsing
+    # (empty-string handling, error messages, type coercion).
+    provider_extra_headers: Annotated[dict[str, str], NoDecode] = Field(
+        default_factory=dict, validation_alias="PROVIDER_EXTRA_HEADERS"
+    )
 
     # ==================== Per-Provider Proxy ====================
     nvidia_nim_proxy: str = Field(default="", validation_alias="NVIDIA_NIM_PROXY")
@@ -424,6 +462,29 @@ class Settings(BaseSettings):
                     f"Invalid URL scheme in web_fetch_allowed_schemes: {scheme!r}"
                 )
         return ",".join(schemes)
+
+    @field_validator("provider_extra_headers", mode="before")
+    @classmethod
+    def parse_provider_extra_headers(cls, v: Any) -> dict[str, str]:
+        """Accept JSON-encoded dict or native dict; reject other shapes."""
+        if v is None or v == "":
+            return {}
+        if isinstance(v, dict):
+            return {str(key): str(value) for key, value in v.items()}
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "PROVIDER_EXTRA_HEADERS must be a JSON object string, e.g. "
+                    '\'{"x-tenant-id":"team-a","x-feature":"chat"}\''
+                ) from exc
+            if not isinstance(parsed, dict):
+                raise ValueError("PROVIDER_EXTRA_HEADERS must decode to a JSON object")
+            return {str(key): str(value) for key, value in parsed.items()}
+        raise ValueError(
+            "PROVIDER_EXTRA_HEADERS must be a JSON object string or mapping"
+        )
 
     @field_validator("ollama_base_url")
     @classmethod

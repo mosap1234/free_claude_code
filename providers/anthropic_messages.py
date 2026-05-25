@@ -75,6 +75,7 @@ class AnthropicMessagesTransport(BaseProvider):
         self._provider_name = provider_name
         self._api_key = config.api_key
         self._base_url = (config.base_url or default_base_url).rstrip("/")
+        self._extra_headers = dict(config.extra_headers) if config.extra_headers else {}
         self._global_rate_limiter = GlobalRateLimiter.get_scoped_instance(
             provider_name.lower(),
             rate_limit=config.rate_limit,
@@ -90,6 +91,7 @@ class AnthropicMessagesTransport(BaseProvider):
                 read=config.http_read_timeout,
                 write=config.http_write_timeout,
             ),
+            headers=self._extra_headers or None,
         )
 
     async def cleanup(self) -> None:

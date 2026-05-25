@@ -89,6 +89,7 @@ class OpenAIChatTransport(BaseProvider):
                     write=config.http_write_timeout,
                 ),
             )
+        extra_headers = dict(config.extra_headers) if config.extra_headers else None
         self._client = AsyncOpenAI(
             api_key=self._api_key,
             base_url=self._base_url,
@@ -100,6 +101,7 @@ class OpenAIChatTransport(BaseProvider):
                 write=config.http_write_timeout,
             ),
             http_client=http_client,
+            default_headers=extra_headers,
         )
 
     async def cleanup(self) -> None:

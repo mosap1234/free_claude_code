@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config.constants import HTTP_CONNECT_TIMEOUT_DEFAULT
 from providers.model_listing import ProviderModelInfo, model_infos_from_ids
@@ -29,6 +29,11 @@ class ProviderConfig(BaseModel):
     proxy: str = ""
     log_raw_sse_events: bool = False
     log_api_error_tracebacks: bool = False
+    # Extra HTTP headers attached to every upstream request emitted by the
+    # provider's transport. Use for attribution to observability proxies (e.g.
+    # ``x-tenant-id``, ``x-feature``) or other static metadata. Empty by
+    # default. Sourced from ``Settings.provider_extra_headers`` at build time.
+    extra_headers: dict[str, str] = Field(default_factory=dict)
 
 
 class BaseProvider(ABC):
