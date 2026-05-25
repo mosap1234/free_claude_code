@@ -244,6 +244,24 @@ class TestSettings:
         settings = Settings()
         assert settings.http_connect_timeout == 5.0
 
+    def test_claude_code_auto_compact_window_from_env(self, monkeypatch):
+        """CLAUDE_CODE_AUTO_COMPACT_WINDOW env var is loaded into settings."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "300000")
+        settings = Settings()
+        assert settings.claude_code_auto_compact_window == 300000
+
+    def test_claude_code_auto_compact_window_invalid(self, monkeypatch):
+        """CLAUDE_CODE_AUTO_COMPACT_WINDOW must be > 0."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("CLAUDE_CODE_AUTO_COMPACT_WINDOW", "-1")
+        with pytest.raises(
+            ValidationError, match="claude_code_auto_compact_window must be > 0"
+        ):
+            Settings()
+
     def test_http_connect_timeout_default_matches_shared_constant(
         self, monkeypatch
     ) -> None:
