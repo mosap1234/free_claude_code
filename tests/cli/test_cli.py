@@ -567,7 +567,9 @@ class TestCLISession:
         from cli.session import CLISession
         from config.settings import Settings
 
-        custom_settings = Settings(CLAUDE_CODE_AUTO_COMPACT_WINDOW=250000)
+        custom_settings = Settings.model_construct(
+            claude_code_auto_compact_window=250000
+        )
         session = CLISession(
             "/tmp", "http://localhost:8082/v1", auth_token="proxy-token"
         )
