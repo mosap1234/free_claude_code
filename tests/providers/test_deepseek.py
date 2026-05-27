@@ -172,7 +172,7 @@ def test_build_request_body_respects_global_thinking_disable():
         }
     )
     body = provider._build_request_body(request)
-    assert body["thinking"] == {"type": "disabled"}
+    assert "thinking" not in body
 
 
 def test_preserve_unsigned_thinking_when_thinking_on(deepseek_provider):
