@@ -6,6 +6,7 @@ from typing import Any
 
 from providers.base import ProviderConfig
 from providers.defaults import GEMINI_DEFAULT_BASE
+from providers.model_listing import ProviderModelInfo
 from providers.openai_compat import OpenAIChatTransport
 
 from .request import build_request_body
@@ -20,6 +21,17 @@ class GeminiProvider(OpenAIChatTransport):
             provider_name="GEMINI",
             base_url=config.base_url or GEMINI_DEFAULT_BASE,
             api_key=config.api_key,
+        )
+
+    async def list_model_infos(self) -> frozenset[ProviderModelInfo]:
+        """Return model infos, stripping the 'models/' prefix Gemini adds to IDs."""
+        infos = await super().list_model_infos()
+        return frozenset(
+            ProviderModelInfo(
+                model_id=info.model_id.removeprefix("models/"),
+                supports_thinking=info.supports_thinking,
+            )
+            for info in infos
         )
 
     def _build_request_body(
