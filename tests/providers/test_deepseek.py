@@ -1199,9 +1199,9 @@ def test_inserts_placeholder_thinking_for_tool_only_assistant(deepseek_provider)
     assert body["thinking"] == {"type": "enabled", "budget_tokens": 2000}
 
 
-def test_placeholder_only_for_nonempty_thinking_text(deepseek_provider):
-    """Empty-content thinking blocks don't satisfy the API requirement, so
-    a placeholder is still inserted when those are the only thinking blocks."""
+def test_existing_empty_thinking_prevents_placeholder(deepseek_provider):
+    """Empty thinking with a signature is already replayable — the sanitizer
+    keeps the block and does not insert a duplicate placeholder."""
     request = MessagesRequest.model_validate(
         {
             "model": "m",
