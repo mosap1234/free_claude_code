@@ -1,12 +1,14 @@
 """Tests for Google AI Studio Gemini (OpenAI-compatible) provider."""
 
 from contextlib import asynccontextmanager
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from providers.base import ProviderConfig
 from providers.gemini import GEMINI_DEFAULT_BASE, GeminiProvider
+from providers.gemini.request import _inject_thought_signatures
 
 
 class MockMessage:
@@ -29,14 +31,6 @@ class MockRequest:
         self.thinking.enabled = True
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-
-def _simulate_openai_sdk_wire_json(body: dict) -> dict:
-    wire = {key: value for key, value in body.items() if key != "extra_body"}
-    sdk_extra = body.get("extra_body")
-    if isinstance(sdk_extra, dict):
-        wire.update(sdk_extra)
-    return wire
 
 
 @pytest.fixture
@@ -92,45 +86,41 @@ def test_default_base_url_constant():
     )
 
 
-def test_build_request_body_basic(gemini_provider):
-    """Basic body conversion attaches Gemini thinking fields when thinking is on."""
+# ── reasoning_effort tests ──────────────────────────────────────────────
+
+
+def test_build_request_body_default_reasoning_effort(gemini_provider):
+    """Default reasoning_effort is 'low' when thinking is enabled."""
     req = MockRequest()
     body = gemini_provider._build_request_body(req)
 
     assert body["model"] == "gemini-2.5-flash"
     assert body["messages"][0]["role"] == "system"
-    assert body["reasoning_effort"] == "high"
-    eb = body.get("extra_body")
-    assert isinstance(eb, dict)
-    literal_extra_body = eb.get("extra_body")
-    assert isinstance(literal_extra_body, dict)
-    gc = literal_extra_body.get("google")
-    assert isinstance(gc, dict)
-    tc = gc.get("thinking_config")
-    assert isinstance(tc, dict)
-    assert tc.get("include_thoughts") is True
-    assert "google" not in eb
+    assert body["reasoning_effort"] == "low"
 
 
-def test_build_request_body_sdk_wire_json_has_literal_extra_body(gemini_provider):
-    """Regression for issue #542: SDK merge must not send top-level google."""
+def test_build_request_body_budget_maps_to_effort(gemini_provider):
+    """Explicit budget_tokens maps to the correct reasoning_effort."""
+    # budget <= 1024 → "minimal"
     req = MockRequest()
+    req.thinking.budget_tokens = 512
+    assert gemini_provider._build_request_body(req)["reasoning_effort"] == "minimal"
 
-    body = gemini_provider._build_request_body(req)
-    wire_json = _simulate_openai_sdk_wire_json(body)
+    # 1024 < budget <= 2048 → "low"
+    req.thinking.budget_tokens = 2048
+    assert gemini_provider._build_request_body(req)["reasoning_effort"] == "low"
 
-    assert "google" not in wire_json
-    literal_extra_body = wire_json.get("extra_body")
-    assert isinstance(literal_extra_body, dict)
-    google = literal_extra_body.get("google")
-    assert isinstance(google, dict)
-    thinking_config = google.get("thinking_config")
-    assert isinstance(thinking_config, dict)
-    assert thinking_config.get("include_thoughts") is True
+    # 2048 < budget <= 8192 → "medium"
+    req.thinking.budget_tokens = 4096
+    assert gemini_provider._build_request_body(req)["reasoning_effort"] == "medium"
+
+    # budget > 8192 → "high"
+    req.thinking.budget_tokens = 16384
+    assert gemini_provider._build_request_body(req)["reasoning_effort"] == "high"
 
 
-def test_build_request_body_global_disable_sets_reasoning_none():
-    """When thinking is off, Gemini uses reasoning_effort none (Gemini 2.5 convention)."""
+def test_build_request_body_no_reasoning_effort_when_disabled():
+    """reasoning_effort is not set when thinking is disabled."""
     provider = GeminiProvider(
         ProviderConfig(
             api_key="test_gemini_key",
@@ -143,12 +133,13 @@ def test_build_request_body_global_disable_sets_reasoning_none():
     req = MockRequest()
     body = provider._build_request_body(req)
 
-    assert body["reasoning_effort"] == "none"
+    assert "reasoning_effort" not in body
     roles = [m.get("role") for m in body.get("messages", [])]
     assert "assistant_reasoning_content" not in roles
 
 
 def test_build_request_body_preserves_caller_extra_body(gemini_provider):
+    """Caller's extra_body metadata is preserved."""
     req = MockRequest(extra_body={"metadata": {"user": "u1"}})
 
     body = gemini_provider._build_request_body(req)
@@ -156,19 +147,15 @@ def test_build_request_body_preserves_caller_extra_body(gemini_provider):
     eb = body.get("extra_body")
     assert isinstance(eb, dict)
     assert eb.get("metadata") == {"user": "u1"}
-    literal_extra_body = eb.get("extra_body")
-    assert isinstance(literal_extra_body, dict)
-    google = literal_extra_body.get("google")
-    assert isinstance(google, dict)
 
 
-def test_build_request_body_merges_caller_nested_google(gemini_provider):
+def test_build_request_body_preserves_caller_google_keys(gemini_provider):
+    """Caller's extra_body.google keys pass through alongside reasoning_effort."""
     req = MockRequest(
         extra_body={
             "metadata": {"user": "u1"},
             "extra_body": {
                 "google": {
-                    "thinking_config": {"budget_tokens": 128},
                     "cached_content": "cachedContents/example",
                 }
             },
@@ -177,18 +164,272 @@ def test_build_request_body_merges_caller_nested_google(gemini_provider):
 
     body = gemini_provider._build_request_body(req)
 
+    assert body["reasoning_effort"] == "low"
     eb = body.get("extra_body")
     assert isinstance(eb, dict)
     assert eb.get("metadata") == {"user": "u1"}
-    literal_extra_body = eb.get("extra_body")
-    assert isinstance(literal_extra_body, dict)
-    google = literal_extra_body.get("google")
-    assert isinstance(google, dict)
-    assert google.get("cached_content") == "cachedContents/example"
-    thinking_config = google.get("thinking_config")
-    assert isinstance(thinking_config, dict)
-    assert thinking_config.get("budget_tokens") == 128
-    assert thinking_config.get("include_thoughts") is True
+    literal = eb.get("extra_body")
+    assert isinstance(literal, dict)
+    assert literal["google"]["cached_content"] == "cachedContents/example"
+
+
+# ── sampling parameters ─────────────────────────────────────────────────
+
+
+def test_strips_temperature_and_top_p_when_thinking_enabled(gemini_provider):
+    """temperature and top_p are removed when thinking is active."""
+    req = MockRequest()
+    req.model = "gemini-3.5-flash"
+    req.temperature = 0.5
+    req.top_p = 0.9
+
+    body = gemini_provider._build_request_body(req)
+
+    assert "temperature" not in body
+    assert "top_p" not in body
+    assert body["reasoning_effort"] == "low"
+
+
+def test_preserves_temperature_and_top_p_when_thinking_disabled():
+    """temperature and top_p are kept when thinking is off."""
+    provider = GeminiProvider(
+        ProviderConfig(
+            api_key="test_key",
+            base_url=GEMINI_DEFAULT_BASE,
+            enable_thinking=False,
+        )
+    )
+    req = MockRequest()
+    req.model = "gemini-3.5-flash"
+    req.temperature = 0.5
+    req.top_p = 0.9
+
+    body = provider._build_request_body(req)
+
+    assert body.get("temperature") == 0.5
+    assert body.get("top_p") == 0.9
+
+
+# ── misc body fields ────────────────────────────────────────────────────
+
+
+def test_parallel_tool_calls_disabled(gemini_provider):
+    """parallel_tool_calls is always False."""
+    req = MockRequest()
+    body = gemini_provider._build_request_body(req)
+    assert body["parallel_tool_calls"] is False
+
+
+def test_parallel_tool_calls_disabled_no_thinking():
+    """parallel_tool_calls is False even with thinking disabled."""
+    provider = GeminiProvider(
+        ProviderConfig(
+            api_key="test_key",
+            base_url=GEMINI_DEFAULT_BASE,
+            enable_thinking=False,
+        )
+    )
+    body = provider._build_request_body(MockRequest())
+    assert body["parallel_tool_calls"] is False
+
+
+# ── thought signatures ──────────────────────────────────────────────────
+
+
+class TestInjectThoughtSignatures:
+    """Tests for :func:`_inject_thought_signatures`."""
+
+    def test_injects_into_tool_calls(self):
+        """thought_signature is added to every tool call in the message list."""
+        messages: list[Any] = [
+            {"role": "system", "content": "You are helpful."},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {
+                            "name": "Read",
+                            "arguments": '{"file_path": "/tmp/x"}',
+                        },
+                    },
+                    {
+                        "id": "call_2",
+                        "type": "function",
+                        "function": {
+                            "name": "Bash",
+                            "arguments": '{"command": "ls"}',
+                        },
+                    },
+                ],
+            },
+            {"role": "tool", "tool_call_id": "call_1", "content": "ok"},
+        ]
+
+        _inject_thought_signatures(messages)
+
+        for tc_raw in messages[1]["tool_calls"]:
+            tc: Any = tc_raw
+            assert tc["extra_content"]["google"]["thought_signature"] == (
+                "skip_thought_signature_validator"
+            )
+
+    def test_no_tool_calls_is_noop(self):
+        """Messages without tool_calls are not modified."""
+        import json
+
+        messages = [
+            {"role": "system", "content": "You are helpful."},
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there!"},
+        ]
+        before = json.loads(json.dumps(messages))
+        _inject_thought_signatures(messages)
+        assert messages == before
+
+    def test_preserves_existing_thought_signature(self):
+        """An existing thought_signature is not overwritten."""
+        messages = [
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "Read", "arguments": "{}"},
+                        "extra_content": {
+                            "google": {"thought_signature": "original_signature"}
+                        },
+                    },
+                ],
+            },
+        ]
+
+        _inject_thought_signatures(messages)
+
+        assert (
+            messages[0]["tool_calls"][0]["extra_content"]["google"]["thought_signature"]
+            == "original_signature"
+        )
+
+    def test_preserves_existing_extra_content(self):
+        """Other extra_content fields are preserved alongside thought_signature."""
+        messages = [
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "Read", "arguments": "{}"},
+                        "extra_content": {
+                            "google": {"cached_content": "cachedContents/example"}
+                        },
+                    },
+                ],
+            },
+        ]
+
+        _inject_thought_signatures(messages)
+
+        google = messages[0]["tool_calls"][0]["extra_content"]["google"]
+        assert google["cached_content"] == "cachedContents/example"
+        assert google["thought_signature"] == "skip_thought_signature_validator"
+
+    def test_tool_calls_not_list_is_noop(self):
+        """tool_calls that is not a list is skipped."""
+        messages = [{"role": "assistant", "content": None, "tool_calls": None}]
+        _inject_thought_signatures(messages)
+        assert messages[0]["tool_calls"] is None
+
+    def test_empty_list_is_noop(self):
+        """Empty tool_calls list is not modified."""
+        messages = [{"role": "assistant", "content": None, "tool_calls": []}]
+        _inject_thought_signatures(messages)
+        assert messages[0]["tool_calls"] == []
+
+    def test_build_request_body_injects_when_thinking_enabled(self, gemini_provider):
+        """_build_request_body injects thought_signatures when thinking=True."""
+        req = MockRequest(
+            messages=[
+                MockMessage("user", "Hello"),
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "toolu_1",
+                            "name": "Read",
+                            "input": {"file_path": "/x"},
+                        }
+                    ],
+                },
+            ],
+        )
+        req.messages = [
+            MagicMock(role="user", content=[{"type": "text", "text": "Hello"}]),
+            MagicMock(
+                role="assistant",
+                content=[
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_1",
+                        "name": "Read",
+                        "input": {"file_path": "/x"},
+                    }
+                ],
+            ),
+        ]
+
+        body = gemini_provider._build_request_body(req)
+
+        for msg in body.get("messages", []):
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                for tc in msg["tool_calls"]:
+                    assert (
+                        tc["extra_content"]["google"]["thought_signature"]
+                        == "skip_thought_signature_validator"
+                    )
+
+    def test_build_request_body_skips_when_thinking_disabled(self):
+        """_build_request_body does NOT inject thought_signatures when thinking=False."""
+        provider = GeminiProvider(
+            ProviderConfig(
+                api_key="test_key",
+                base_url=GEMINI_DEFAULT_BASE,
+                enable_thinking=False,
+            )
+        )
+        req = MockRequest()
+        req.messages = [
+            MagicMock(role="user", content=[{"type": "text", "text": "Hello"}]),
+            MagicMock(
+                role="assistant",
+                content=[
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_1",
+                        "name": "Read",
+                        "input": {"file_path": "/x"},
+                    }
+                ],
+            ),
+        ]
+
+        body = provider._build_request_body(req)
+
+        for msg in body.get("messages", []):
+            if msg.get("role") == "assistant":
+                tool_calls = msg.get("tool_calls", [])
+                for tc in tool_calls:
+                    assert "extra_content" not in tc
+
+
+# ── stream response ─────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
