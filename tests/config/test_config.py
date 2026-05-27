@@ -613,6 +613,26 @@ class TestPerModelMapping:
         s = Settings()
         assert s.model == "nvidia_nim/z-ai/glm4.7"
 
+    def test_deepinfra_model_name_strips_leading_provider_prefix(self, monkeypatch):
+        """Pasting a full deepinfra/<id> path does not double-prefix the model."""
+        from config.settings import Settings
+
+        monkeypatch.setenv(
+            "DEEPINFRA_MODEL_NAME", "deepinfra/meta-llama/Meta-Llama-3.1-8B-Instruct"
+        )
+        s = Settings()
+        assert s.model == "deepinfra/meta-llama/Meta-Llama-3.1-8B-Instruct"
+        assert s.model_name == "meta-llama/Meta-Llama-3.1-8B-Instruct"
+
+    def test_deepinfra_model_name_prefix_only_keeps_model(self, monkeypatch):
+        """A bare ``deepinfra/`` with no model id leaves MODEL untouched."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("MODEL", "nvidia_nim/z-ai/glm4.7")
+        monkeypatch.setenv("DEEPINFRA_MODEL_NAME", "deepinfra/")
+        s = Settings()
+        assert s.model == "nvidia_nim/z-ai/glm4.7"
+
     @pytest.mark.parametrize("env_var", ["MODEL_OPUS", "MODEL_SONNET", "MODEL_HAIKU"])
     def test_empty_model_override_env_is_unset(self, monkeypatch, env_var):
         """Empty per-model override env vars are treated as unset."""

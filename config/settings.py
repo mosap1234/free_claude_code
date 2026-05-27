@@ -146,8 +146,11 @@ class Settings(BaseSettings):
 
     # ==================== DeepInfra (OpenAI-compatible) ====================
     deepinfra_api_key: str = Field(default="", validation_alias="DEEPINFRA_API_KEY")
-    # Convenience: bare DeepInfra model id (no provider prefix). When set, it routes
-    # every Claude request to ``deepinfra/<DEEPINFRA_MODEL_NAME>`` (see model validator).
+    # Convenience shortcut: bare DeepInfra model id *without* provider prefix.
+    # DeepInfra model ids contain slashes (e.g. "meta-llama/Meta-Llama-3.1-8B-Instruct"),
+    # which makes the standard MODEL=deepinfra/<id> form error-prone to type, so this
+    # routes every Claude request to ``deepinfra/<DEEPINFRA_MODEL_NAME>`` (see validator).
+    # A leading "deepinfra/" is tolerated and stripped to avoid a double prefix.
     deepinfra_model_name: str = Field(
         default="", validation_alias="DEEPINFRA_MODEL_NAME"
     )
@@ -470,10 +473,15 @@ class Settings(BaseSettings):
         precedence over ``MODEL`` so the two documented env vars
         (``DEEPINFRA_MODEL_NAME`` + ``DEEPINFRA_API_KEY``) suffice to connect.
         Per-model overrides (``MODEL_OPUS`` etc.) still win when explicitly set.
+
+        A leading ``deepinfra/`` is stripped so pasting a full ``provider/model``
+        path does not produce a double-prefixed ``deepinfra/deepinfra/...`` id.
         """
         name = self.deepinfra_model_name.strip()
         if name:
-            self.model = f"deepinfra/{name}"
+            name = name.removeprefix("deepinfra/").strip("/")
+            if name:
+                self.model = f"deepinfra/{name}"
         return self
 
     @model_validator(mode="after")
