@@ -886,3 +886,37 @@ async def test_openai_compat_stream_ends_with_contract_when_tool_name_never_arri
     text = "".join(events)
     assert_anthropic_stream_contract(parse_sse_text(text))
     assert "text_delta" in text
+
+
+@pytest.mark.asyncio
+async def test_openai_compat_stream_tolerates_tool_call_with_no_function() -> None:
+    """A streamed tool-call delta may carry ``function=None`` (e.g. an index-only
+    continuation chunk). Accessing ``tc.function.name`` would raise and corrupt the
+    whole response; the proxy must skip such chunks and finish a valid stream."""
+    provider = _make_provider()
+    request = _make_request()
+    tc_no_fn = SimpleNamespace(index=0, id="call_nofn", function=None)
+    stream_mock = AsyncStreamMock(
+        [_make_chunk(tool_calls=[tc_no_fn]), _make_chunk(finish_reason="stop")]
+    )
+    with (
+        patch.object(
+            provider._client.chat.completions,
+            "create",
+            new_callable=AsyncMock,
+            return_value=stream_mock,
+        ),
+        patch.object(
+            provider._global_rate_limiter,
+            "wait_if_blocked",
+            new_callable=AsyncMock,
+            return_value=False,
+        ),
+    ):
+        events = await _collect_stream(provider, request)
+    text = "".join(events)
+    assert_anthropic_stream_contract(parse_sse_text(text))
+    assert "message_stop" in text
+    # The bug surfaced as the mapped transport error being injected into the stream.
+    assert "'NoneType'" not in text
+    assert "AttributeError" not in text

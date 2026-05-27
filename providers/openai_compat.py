@@ -440,12 +440,17 @@ class OpenAIChatTransport(BaseProvider):
                         for event in sse.close_content_blocks():
                             yield event
                         for tc in delta.tool_calls:
+                            # ``function`` is optional on a streamed tool-call delta
+                            # (e.g. an index-only continuation chunk); accessing
+                            # ``tc.function.name`` directly would raise and abort the
+                            # whole response mid tool call.
+                            fn = tc.function
                             tc_info = {
                                 "index": tc.index,
                                 "id": tc.id,
                                 "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments,
+                                    "name": fn.name if fn else None,
+                                    "arguments": (fn.arguments if fn else None) or "",
                                 },
                             }
                             for event in self._process_tool_call(

@@ -4,6 +4,7 @@ import hashlib
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from typing import Any
 
 from loguru import logger
 
@@ -158,8 +159,16 @@ class ContentBlockManager:
         return results
 
 
-def _normalize_task_run_in_background(args_json: dict) -> None:
-    """Force Claude Code Task subagents to run in foreground (single shared rule)."""
+def _normalize_task_run_in_background(args_json: Any) -> None:
+    """Force Claude Code Task subagents to run in foreground (single shared rule).
+
+    A well-formed Task tool call streams a JSON object, but a misbehaving model
+    can emit valid JSON that is not an object (e.g. ``[]`` or ``42``). Guard
+    against that so the SSE generator is not aborted by an ``AttributeError``;
+    a non-object payload has no ``run_in_background`` to normalize anyway.
+    """
+    if not isinstance(args_json, dict):
+        return
     if args_json.get("run_in_background") is not False:
         args_json["run_in_background"] = False
 
