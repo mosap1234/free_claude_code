@@ -172,7 +172,7 @@ def test_build_request_body_respects_global_thinking_disable():
         }
     )
     body = provider._build_request_body(request)
-    assert "thinking" not in body
+    assert body["thinking"] == {"type": "disabled"}
 
 
 def test_preserve_unsigned_thinking_when_thinking_on(deepseek_provider):
@@ -199,6 +199,7 @@ def test_preserve_unsigned_thinking_when_thinking_on(deepseek_provider):
     assert len(blocks) == 2
     assert blocks[0]["type"] == "thinking"
     assert blocks[0]["thinking"] == "plain"
+    assert blocks[0].get("signature") == ""
 
 
 def test_strip_redacted_thinking_when_thinking_on(deepseek_provider):
@@ -316,6 +317,7 @@ def test_tool_history_with_unsigned_thinking_preserves_thinking(deepseek_provide
     assert body["messages"][0]["content"][0] == {
         "type": "thinking",
         "thinking": "plain",
+        "signature": "",
     }
 
 
@@ -368,15 +370,24 @@ def test_tool_history_without_thinking_disables_thinking_and_hints(deepseek_prov
 
     body = deepseek_provider._build_request_body(request)
 
-    assert "thinking" not in body
+    # Thinking stays enabled now — placeholder fixed the replayability gap,
+    # so context_management hints and output_config effort are preserved.
+    assert body["thinking"] == {"type": "enabled", "budget_tokens": 2000}
     assert body["context_management"] == {
-        "edits": [{"type": "other_edit", "keep": "all"}],
+        "edits": [
+            {"type": "clear_thinking_20251015", "keep": "all"},
+            {"type": "other_edit", "keep": "all"},
+        ],
         "other": True,
     }
-    assert body["output_config"] == {"format": "text"}
+    assert body["output_config"] == {"effort": "high", "format": "text"}
     assert body["tools"][0]["name"] == "Read"
     assert body["tool_choice"] == {"type": "auto"}
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    # Placeholder inserted before tool_use
+    assert [b["type"] for b in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
 
 
@@ -414,8 +425,13 @@ def test_tool_history_with_empty_thinking_disables_thinking(deepseek_provider):
 
     body = deepseek_provider._build_request_body(request)
 
-    assert "thinking" not in body
-    assert [block["type"] for block in body["messages"][0]["content"]] == ["tool_use"]
+    # Empty thinking gets signature and counts as replayable, keeping
+    # thinking enabled.
+    assert body["thinking"] == {"type": "enabled"}
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
 
 
 def test_thinking_off_strips_thinking_history():
@@ -478,7 +494,11 @@ def test_passthrough_tool_use_and_result(deepseek_provider):
         }
     )
     body = deepseek_provider._build_request_body(request)
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    # Placeholder injected for the tool-use-only message; thinking enabled
+    assert [b["type"] for b in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
 
 
@@ -1091,3 +1111,139 @@ def test_no_warning_when_no_attachments(deepseek_provider, caplog):
         for r in caplog.records
         if r.levelno == logging.WARNING
     )
+
+
+def test_inserts_placeholder_thinking_for_tool_only_assistant(deepseek_provider):
+    """When thinking is enabled and an assistant msg has tool_use but no thinking
+    blocks, a minimal placeholder is inserted so the API accepts the history."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "m",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "thinking",
+                            "thinking": "signed",
+                            "signature": "sig_1",
+                        },
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Read",
+                            "input": {"file_path": "x"},
+                        },
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "t1",
+                            "content": "ok",
+                        }
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "t2",
+                            "name": "Write",
+                            "input": {"file_path": "y", "content": "done"},
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "t2",
+                            "content": "written",
+                        }
+                    ],
+                },
+            ],
+            "tools": [
+                {
+                    "name": "Read",
+                    "description": "Read a file",
+                    "input_schema": {"type": "object", "properties": {}},
+                },
+                {
+                    "name": "Write",
+                    "description": "Write a file",
+                    "input_schema": {"type": "object", "properties": {}},
+                },
+            ],
+            "thinking": {"type": "enabled", "budget_tokens": 2000},
+        }
+    )
+
+    body = deepseek_provider._build_request_body(request)
+
+    # First assistant msg keeps its thinking + tool_use
+    msg0 = body["messages"][0]["content"]
+    assert [b["type"] for b in msg0] == ["thinking", "tool_use"]
+
+    # Second assistant msg gets a placeholder thinking inserted before tool_use
+    msg2 = body["messages"][2]["content"]
+    assert [b["type"] for b in msg2] == ["thinking", "tool_use"]
+    assert msg2[0] == {"type": "thinking", "thinking": "", "signature": ""}
+
+    # Thinking stays enabled
+    assert body["thinking"] == {"type": "enabled", "budget_tokens": 2000}
+
+
+def test_placeholder_only_for_nonempty_thinking_text(deepseek_provider):
+    """Empty-content thinking blocks don't satisfy the API requirement, so
+    a placeholder is still inserted when those are the only thinking blocks."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "m",
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "thinking", "thinking": "", "signature": ""},
+                        {
+                            "type": "tool_use",
+                            "id": "t1",
+                            "name": "Read",
+                            "input": {"file_path": "x"},
+                        },
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": "t1",
+                            "content": "ok",
+                        }
+                    ],
+                },
+            ],
+            "tools": [
+                {
+                    "name": "Read",
+                    "description": "Read a file",
+                    "input_schema": {"type": "object", "properties": {}},
+                }
+            ],
+            "thinking": {"type": "enabled"},
+        }
+    )
+
+    body = deepseek_provider._build_request_body(request)
+
+    # Empty thinking gets signature and counts as replayable; sanitizer
+    # keeps the empty-thinking block so no placeholder is needed.
+    assert body["thinking"] == {"type": "enabled"}
+    msg0 = body["messages"][0]["content"]
+    assert [b["type"] for b in msg0] == ["thinking", "tool_use"]

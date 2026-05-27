@@ -197,7 +197,7 @@ def _has_replayable_thinking_before_tool_use(message: Mapping[str, Any]) -> bool
             continue
         btype = block.get("type")
         if btype == "thinking" and isinstance(block.get("thinking"), str):
-            has_thinking = bool(block["thinking"])
+            has_thinking = True
             continue
         if btype == "tool_use":
             return has_thinking
@@ -411,6 +411,12 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     _validate_deepseek_native_request_dict(data)
     data.pop("extra_body", None)
 
+    if "messages" in data:
+        data["messages"] = sanitize_deepseek_messages_for_native(
+            data["messages"],
+            thinking_enabled=thinking_enabled,
+        )
+
     has_tool_history = _has_tool_history(data)
     has_replayable_tool_thinking = _has_replayable_tool_thinking(data)
     unsafe_tool_followup = has_tool_history and not has_replayable_tool_thinking
@@ -418,29 +424,13 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     if thinking_enabled:
         if unsafe_tool_followup:
             logger.debug(
-                "DEEPSEEK_REQUEST: disabling thinking for tool follow-up without "
-                "replayable thinking model={} msgs={} tools={}",
-                data.get("model"),
-                len(data.get("messages", [])),
-                len(data.get("tools", [])),
-            )
-            _remove_deepseek_thinking_hints(data)
-        elif has_tool_history:
-            logger.debug(
-                "DEEPSEEK_REQUEST: keeping thinking for tool follow-up with "
-                "replayable thinking model={} msgs={} tools={}",
-                data.get("model"),
-                len(data.get("messages", [])),
-                len(data.get("tools", [])),
-            )
-        elif data.get("tools") or data.get("tool_choice"):
-            logger.debug(
-                "DEEPSEEK_REQUEST: keeping thinking for initial tool request "
+                "DEEPSEEK_REQUEST: unsafe tool follow-up, disabling thinking "
                 "model={} msgs={} tools={}",
                 data.get("model"),
                 len(data.get("messages", [])),
                 len(data.get("tools", [])),
             )
+            _remove_deepseek_thinking_hints(data)
 
     thinking_cfg = data.pop("thinking", None)
     if effective_thinking_enabled and isinstance(thinking_cfg, dict):
@@ -449,15 +439,12 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
         if isinstance(budget_tokens, int):
             thinking_payload["budget_tokens"] = budget_tokens
         data["thinking"] = thinking_payload
+    else:
+        data["thinking"] = {"type": "disabled"}
 
     if "messages" in data:
         data["messages"] = _strip_reasoning_content_when_native(
-            _normalize_tool_result_content(
-                sanitize_deepseek_messages_for_native(
-                    data["messages"],
-                    thinking_enabled=effective_thinking_enabled,
-                )
-            )
+            _normalize_tool_result_content(data["messages"])
         )
     if "max_tokens" not in data or data.get("max_tokens") is None:
         data["max_tokens"] = ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
