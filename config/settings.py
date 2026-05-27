@@ -144,6 +144,14 @@ class Settings(BaseSettings):
     # ==================== Cerebras Inference (OpenAI-compatible) ====================
     cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
 
+    # ==================== DeepInfra (OpenAI-compatible) ====================
+    deepinfra_api_key: str = Field(default="", validation_alias="DEEPINFRA_API_KEY")
+    # Convenience: bare DeepInfra model id (no provider prefix). When set, it routes
+    # every Claude request to ``deepinfra/<DEEPINFRA_MODEL_NAME>`` (see model validator).
+    deepinfra_model_name: str = Field(
+        default="", validation_alias="DEEPINFRA_MODEL_NAME"
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -204,6 +212,7 @@ class Settings(BaseSettings):
     gemini_proxy: str = Field(default="", validation_alias="GEMINI_PROXY")
     groq_proxy: str = Field(default="", validation_alias="GROQ_PROXY")
     cerebras_proxy: str = Field(default="", validation_alias="CEREBRAS_PROXY")
+    deepinfra_proxy: str = Field(default="", validation_alias="DEEPINFRA_PROXY")
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
@@ -451,6 +460,21 @@ class Settings(BaseSettings):
             supported = ", ".join(f"'{p}'" for p in SUPPORTED_PROVIDER_IDS)
             raise ValueError(f"Invalid provider: '{provider}'. Supported: {supported}")
         return v
+
+    @model_validator(mode="after")
+    def apply_deepinfra_model_name(self) -> Settings:
+        """Route all traffic to DeepInfra when ``DEEPINFRA_MODEL_NAME`` is set.
+
+        ``DEEPINFRA_MODEL_NAME`` carries a bare DeepInfra model id (no provider
+        prefix, e.g. ``meta-llama/Meta-Llama-3.1-8B-Instruct``); it takes
+        precedence over ``MODEL`` so the two documented env vars
+        (``DEEPINFRA_MODEL_NAME`` + ``DEEPINFRA_API_KEY``) suffice to connect.
+        Per-model overrides (``MODEL_OPUS`` etc.) still win when explicitly set.
+        """
+        name = self.deepinfra_model_name.strip()
+        if name:
+            self.model = f"deepinfra/{name}"
+        return self
 
     @model_validator(mode="after")
     def check_nvidia_nim_api_key(self) -> Settings:

@@ -591,6 +591,28 @@ class TestPerModelMapping:
         s = Settings()
         assert s.model_opus == "open_router/deepseek/deepseek-r1"
 
+    def test_deepinfra_model_name_routes_model(self, monkeypatch):
+        """DEEPINFRA_MODEL_NAME prefixes the model and overrides MODEL."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("MODEL", "nvidia_nim/z-ai/glm4.7")
+        monkeypatch.setenv(
+            "DEEPINFRA_MODEL_NAME", "meta-llama/Meta-Llama-3.1-8B-Instruct"
+        )
+        s = Settings()
+        assert s.model == "deepinfra/meta-llama/Meta-Llama-3.1-8B-Instruct"
+        assert s.provider_type == "deepinfra"
+        assert s.model_name == "meta-llama/Meta-Llama-3.1-8B-Instruct"
+
+    def test_empty_deepinfra_model_name_keeps_model(self, monkeypatch):
+        """An empty DEEPINFRA_MODEL_NAME leaves MODEL untouched."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("MODEL", "nvidia_nim/z-ai/glm4.7")
+        monkeypatch.setenv("DEEPINFRA_MODEL_NAME", "")
+        s = Settings()
+        assert s.model == "nvidia_nim/z-ai/glm4.7"
+
     @pytest.mark.parametrize("env_var", ["MODEL_OPUS", "MODEL_SONNET", "MODEL_HAIKU"])
     def test_empty_model_override_env_is_unset(self, monkeypatch, env_var):
         """Empty per-model override env vars are treated as unset."""
