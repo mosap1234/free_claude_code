@@ -290,13 +290,28 @@ def sanitize_deepseek_messages_for_native(
                 )
             ]
         else:
-            filtered = [
-                block
-                for block in content
-                if not (
-                    isinstance(block, dict) and block.get("type") == "redacted_thinking"
+            filtered = []
+            has_thinking = False
+            has_tool_use = False
+            for block in content:
+                if not isinstance(block, dict):
+                    filtered.append(block)
+                    continue
+                if block.get("type") == "redacted_thinking":
+                    continue
+                if block.get("type") == "thinking":
+                    has_thinking = True
+                    if "signature" not in block:
+                        block = dict(block)
+                        block["signature"] = ""
+                if block.get("type") == "tool_use":
+                    has_tool_use = True
+                filtered.append(block)
+            if has_tool_use and not has_thinking and filtered:
+                filtered.insert(
+                    0,
+                    {"type": "thinking", "thinking": "", "signature": ""},
                 )
-            ]
         new_msg = dict(message)
         new_msg["content"] = filtered or ""
         sanitized.append(new_msg)
@@ -434,6 +449,8 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
         if isinstance(budget_tokens, int):
             thinking_payload["budget_tokens"] = budget_tokens
         data["thinking"] = thinking_payload
+    else:
+        data["thinking"] = {"type": "disabled"}
 
     if "messages" in data:
         data["messages"] = _strip_reasoning_content_when_native(
