@@ -409,22 +409,162 @@ def test_launch_claude_exits_when_command_cannot_be_resolved(
     assert "npm install -g @anthropic-ai/claude-code" in captured.err
 
 
-def test_launch_claude_unreachable_proxy_exits_with_hint(
+def test_launch_claude_unreachable_proxy_exits_with_hint_when_autostart_disabled(
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("FCC_AUTO_SERVER", "0")
     from cli.entrypoints import launch_claude
 
     settings = _launcher_settings(port=9393)
     with (
         patch("cli.entrypoints.get_settings", return_value=settings),
         patch("cli.entrypoints._preflight_proxy", return_value="connection refused"),
-        patch("cli.entrypoints.subprocess.run") as run,
+        patch("cli.entrypoints.subprocess.Popen") as popen,
         pytest.raises(SystemExit) as exc_info,
     ):
         launch_claude([])
 
     assert exc_info.value.code == 1
-    run.assert_not_called()
+    popen.assert_not_called()
     captured = capsys.readouterr()
     assert "http://127.0.0.1:9393" in captured.err
     assert "fcc-server" in captured.err
+
+
+def test_launch_claude_auto_starts_and_stops_managed_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When no proxy answers, fcc-claude starts one and stops it on exit."""
+    monkeypatch.delenv("FCC_AUTO_SERVER", raising=False)
+    from cli import entrypoints
+
+    settings = _launcher_settings(port=9494, token="proxy-token")
+
+    server_proc = MagicMock()
+    server_proc.pid = 999
+    server_proc.poll.return_value = None  # still running at teardown
+    server_proc.wait.return_value = 0
+
+    claude_proc = MagicMock()
+    claude_proc.pid = 12345
+    claude_proc.wait.return_value = 0
+
+    registered: list[int] = []
+    unregistered: list[int] = []
+
+    with (
+        patch.object(entrypoints, "get_settings", return_value=settings),
+        patch.object(entrypoints, "_preflight_proxy", return_value="refused"),
+        patch.object(entrypoints, "_spawn_managed_server", return_value=server_proc),
+        patch.object(entrypoints, "_wait_for_proxy_ready", return_value=None),
+        patch.object(entrypoints.shutil, "which", return_value="claude"),
+        patch.object(entrypoints.subprocess, "Popen", return_value=claude_proc),
+        patch.object(entrypoints, "register_pid", side_effect=registered.append),
+        patch.object(entrypoints, "unregister_pid", side_effect=unregistered.append),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        launch = entrypoints.launch_claude
+        launch([])
+
+    assert exc_info.value.code == 0
+    # Managed proxy was started, then gracefully stopped on exit.
+    server_proc.terminate.assert_called_once()
+    assert 999 in registered and 999 in unregistered
+    assert 12345 in registered and 12345 in unregistered
+
+
+def test_launch_claude_reuses_running_proxy_without_stopping_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A proxy that already answers is reused and left running on exit."""
+    monkeypatch.delenv("FCC_AUTO_SERVER", raising=False)
+    from cli import entrypoints
+
+    settings = _launcher_settings(port=9595, token="proxy-token")
+    claude_proc = MagicMock()
+    claude_proc.pid = 22222
+    claude_proc.wait.return_value = 3
+
+    with (
+        patch.object(entrypoints, "get_settings", return_value=settings),
+        patch.object(entrypoints, "_preflight_proxy", return_value=None),
+        patch.object(entrypoints, "_spawn_managed_server") as spawn,
+        patch.object(entrypoints, "_stop_managed_server") as stop,
+        patch.object(entrypoints.shutil, "which", return_value="claude"),
+        patch.object(entrypoints.subprocess, "Popen", return_value=claude_proc),
+        patch.object(entrypoints, "register_pid"),
+        patch.object(entrypoints, "unregister_pid"),
+        pytest.raises(SystemExit) as exc_info,
+    ):
+        entrypoints.launch_claude([])
+
+    assert exc_info.value.code == 3
+    spawn.assert_not_called()
+    stop.assert_not_called()
+
+
+def test_auto_server_enabled_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cli.entrypoints import _auto_server_enabled
+
+    monkeypatch.delenv("FCC_AUTO_SERVER", raising=False)
+    assert _auto_server_enabled() is True
+    for falsy in ("0", "false", "no", "", "  FALSE  "):
+        monkeypatch.setenv("FCC_AUTO_SERVER", falsy)
+        assert _auto_server_enabled() is False
+    monkeypatch.setenv("FCC_AUTO_SERVER", "1")
+    assert _auto_server_enabled() is True
+
+
+def test_spawn_managed_server_builds_serve_command_and_suppresses_browser(
+    tmp_path: Path,
+) -> None:
+    import sys as _sys
+
+    from cli import entrypoints
+
+    log_path = tmp_path / "managed-server.log"
+    with (
+        patch.object(entrypoints, "_managed_server_log_path", return_value=log_path),
+        patch.object(entrypoints.subprocess, "Popen") as popen,
+    ):
+        entrypoints._spawn_managed_server({"PATH": "keep", "FCC_OPEN_BROWSER": "1"})
+
+    popen.assert_called_once()
+    assert popen.call_args.args[0] == [
+        _sys.executable,
+        "-c",
+        "from cli.entrypoints import serve; serve()",
+    ]
+    child_env = popen.call_args.kwargs["env"]
+    assert child_env["FCC_OPEN_BROWSER"] == "0"
+    assert child_env["PATH"] == "keep"
+
+
+def test_wait_for_proxy_ready_detects_early_exit() -> None:
+    from cli import entrypoints
+
+    process = MagicMock()
+    process.poll.return_value = 1
+    process.returncode = 1
+
+    with patch.object(entrypoints, "_preflight_proxy", return_value="refused"):
+        error = entrypoints._wait_for_proxy_ready("http://127.0.0.1:9090", process, 5.0)
+
+    assert error is not None
+    assert "exited early" in error
+
+
+def test_stop_managed_server_force_kills_on_timeout() -> None:
+    from cli import entrypoints
+
+    process = MagicMock()
+    process.pid = 4242
+    process.poll.return_value = None
+    process.wait.side_effect = entrypoints.subprocess.TimeoutExpired(cmd="x", timeout=1)
+
+    with patch.object(entrypoints, "kill_pid_tree_best_effort") as kill_tree:
+        entrypoints._stop_managed_server(process)
+
+    process.terminate.assert_called_once()
+    kill_tree.assert_called_once_with(4242)

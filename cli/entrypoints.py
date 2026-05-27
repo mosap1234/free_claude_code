@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import subprocess
@@ -30,6 +31,8 @@ from config.settings import Settings, get_settings
 PROXY_PREFLIGHT_PATH = "/health"
 PROXY_PREFLIGHT_TIMEOUT_SECONDS = 1.5
 SERVER_GRACEFUL_SHUTDOWN_SECONDS = 5
+SERVER_READY_TIMEOUT_SECONDS = 30.0
+SERVER_READY_POLL_INTERVAL_SECONDS = 0.15
 
 
 def _load_env_template() -> str:
@@ -208,18 +211,119 @@ def _preflight_proxy(proxy_root_url: str) -> str | None:
     return None
 
 
-def launch_claude(argv: Sequence[str] | None = None) -> None:
-    """Launch Claude Code with Free Claude Code proxy environment variables."""
+def _auto_server_enabled() -> bool:
+    """Whether fcc-claude may start its own proxy when none is reachable (FCC_AUTO_SERVER)."""
 
-    settings = get_settings()
-    proxy_root_url = local_proxy_root_url(settings)
-    if error := _preflight_proxy(proxy_root_url):
+    raw = os.environ.get("FCC_AUTO_SERVER", "true").strip().lower()
+    return raw not in {"", "0", "false", "no"}
+
+
+def _managed_server_log_path() -> Path:
+    """Return the log file a fcc-claude-owned proxy writes to."""
+
+    return config_dir_path() / "managed-server.log"
+
+
+def _spawn_managed_server(base_env: Mapping[str, str]) -> subprocess.Popen[bytes]:
+    """Start a background proxy this CLI owns; suppress its browser and tee logs to a file."""
+
+    env = dict(base_env)
+    env["FCC_OPEN_BROWSER"] = "0"
+    command = [sys.executable, "-c", "from cli.entrypoints import serve; serve()"]
+    log_path = _managed_server_log_path()
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return subprocess.Popen(
+            command,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    # ``with`` closes the parent's handle once the child has inherited the fd.
+    with open(log_path, "ab") as log_file:
+        return subprocess.Popen(command, env=env, stdout=log_file, stderr=log_file)
+
+
+def _wait_for_proxy_ready(
+    proxy_root_url: str,
+    process: subprocess.Popen[bytes],
+    timeout_seconds: float,
+) -> str | None:
+    """Poll /health until the managed proxy answers; return an error message on failure."""
+
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return f"proxy process exited early with code {process.returncode}"
+        if _preflight_proxy(proxy_root_url) is None:
+            return None
+        time.sleep(SERVER_READY_POLL_INTERVAL_SECONDS)
+    return f"proxy did not become reachable within {timeout_seconds:.0f}s"
+
+
+def _stop_managed_server(process: subprocess.Popen[bytes]) -> None:
+    """Gracefully stop a CLI-owned proxy: SIGTERM, wait, then force-kill the tree."""
+
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=SERVER_GRACEFUL_SHUTDOWN_SECONDS + 2)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    if process.pid:
+        kill_pid_tree_best_effort(process.pid)
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        process.wait(timeout=3)
+
+
+def _ensure_proxy_running(proxy_root_url: str) -> subprocess.Popen[bytes] | None:
+    """Make sure a proxy is reachable; return a process only when this CLI started one.
+
+    A proxy that already answers is reused and left untouched (returns ``None``).
+    Otherwise, unless ``FCC_AUTO_SERVER`` disables it, start one, wait for it to
+    become healthy, and return it so the caller can stop it when the session ends.
+    """
+
+    if _preflight_proxy(proxy_root_url) is None:
+        return None
+
+    if not _auto_server_enabled():
         print(
-            f"Free Claude Code proxy is not reachable at {proxy_root_url}: {error}",
+            f"Free Claude Code proxy is not reachable at {proxy_root_url}.",
             file=sys.stderr,
         )
         print("Start it in another terminal with: fcc-server", file=sys.stderr)
+        print(
+            "(or set FCC_AUTO_SERVER=1 to let fcc-claude start the proxy automatically)",
+            file=sys.stderr,
+        )
         raise SystemExit(1)
+
+    print(f"Starting Free Claude Code proxy at {proxy_root_url} ...", file=sys.stderr)
+    process = _spawn_managed_server(os.environ)
+    if process.pid:
+        register_pid(process.pid)
+    if error := _wait_for_proxy_ready(
+        proxy_root_url, process, SERVER_READY_TIMEOUT_SECONDS
+    ):
+        print(f"Could not start proxy at {proxy_root_url}: {error}", file=sys.stderr)
+        print(f"See {_managed_server_log_path()} for details.", file=sys.stderr)
+        _stop_managed_server(process)
+        if process.pid:
+            unregister_pid(process.pid)
+        raise SystemExit(1)
+    print("Proxy ready; it will stop when this session ends.", file=sys.stderr)
+    return process
+
+
+def _run_claude_client(settings: Settings, argv: Sequence[str] | None) -> None:
+    """Spawn the Claude Code CLI against the proxy and propagate its exit code."""
 
     args = list(sys.argv[1:] if argv is None else argv)
     claude_command = shutil.which(settings.claude_cli_bin)
@@ -262,3 +366,25 @@ def launch_claude(argv: Sequence[str] | None = None) -> None:
             unregister_pid(process.pid)
 
     raise SystemExit(return_code)
+
+
+def launch_claude(argv: Sequence[str] | None = None) -> None:
+    """Launch Claude Code with Free Claude Code proxy environment variables.
+
+    When no proxy is reachable, start one this CLI owns and tear it down when the
+    session ends (interactive or one-shot ``-p`` runs alike), unless
+    ``FCC_AUTO_SERVER`` disables auto-start. A proxy that is already running — for
+    example a separately launched ``fcc-server`` — is reused and left running.
+    """
+
+    settings = get_settings()
+    proxy_root_url = local_proxy_root_url(settings)
+
+    managed_server = _ensure_proxy_running(proxy_root_url)
+    try:
+        _run_claude_client(settings, argv)
+    finally:
+        if managed_server is not None:
+            _stop_managed_server(managed_server)
+            if managed_server.pid:
+                unregister_pid(managed_server.pid)
