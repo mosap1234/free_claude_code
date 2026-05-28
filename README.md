@@ -4,6 +4,12 @@
 
 Use Claude Code CLI, VS Code, JetBrains ACP, or chat bots through your own Anthropic-compatible proxy.
 
+> **🔧 This fork fixes the Claude Code 2.1.152 + DeepSeek thinking breakage.**
+> After the May 27 2026 auto-update, all multi-turn DeepSeek conversations fail with
+> `"Invalid request sent to provider"` / HTTP 400 `"content[].thinking must be passed back"`.
+> See [CHANGES.md](CHANGES.md) for full details and the fix.
+> Original repo: [Alishahryar1/free-claude-code](https://github.com/Alishahryar1/free-claude-code)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab.svg?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json&style=for-the-badge)](https://github.com/astral-sh/uv)

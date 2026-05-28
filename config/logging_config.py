@@ -93,16 +93,15 @@ def configure_logging(
     # Remove default loguru handler (writes to stderr)
     logger.remove()
 
-    # Truncate log file on fresh start for clean debugging
-    Path(log_file).write_text("")
-
     # Add file sink: JSON lines, DEBUG level, context vars at top level
+    # mode="w" truncates on open (replaces the manual write_text("") which
+    # caused PermissionError on Windows when the previous process held the handle)
     logger.add(
         log_file,
         level="DEBUG",
         format=_serialize_with_context,
         encoding="utf-8",
-        mode="a",
+        mode="w",
         rotation="50 MB",
     )
 

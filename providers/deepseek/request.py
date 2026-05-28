@@ -220,6 +220,36 @@ def _has_replayable_tool_thinking(data: dict[str, Any]) -> bool:
     return False
 
 
+def _has_prior_assistant_without_thinking(data: dict[str, Any]) -> bool:
+    """True if there is a prior assistant message with content but no thinking block.
+
+    DeepSeek requires that thinking blocks from prior turns are replayed in the
+    conversation history.  Claude Code 2.1+ does not include thinking blocks
+    when replaying history, causing DeepSeek to reject the request with:
+      "The content[].thinking in the thinking mode must be passed back to the API."
+    When detected, we disable thinking so DeepSeek accepts the conversation.
+    """
+    messages = data.get("messages") or []
+    # Only relevant when there is more than one message (multi-turn conversation).
+    if len(messages) < 2:
+        return False
+    for message in messages:
+        if not isinstance(message, Mapping):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        content = message.get("content")
+        if not isinstance(content, list) or not content:
+            continue
+        has_thinking = any(
+            isinstance(block, dict) and block.get("type") == "thinking"
+            for block in content
+        )
+        if not has_thinking:
+            return True
+    return False
+
+
 def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
     """Remove request hints that can keep DeepSeek in thinking mode after fallback."""
     output_config = data.get("output_config")
@@ -260,10 +290,58 @@ def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
             data.pop("context_management", None)
 
 
+def _inject_placeholder_thinking_blocks(messages: Any) -> Any:
+    """Inject placeholder thinking blocks for assistant turns that have tool_use but no thinking.
+
+    DeepSeek-v4-pro is an always-on reasoning model: it requires thinking blocks in ALL
+    prior assistant turns that contain tool_use blocks.  If Claude Code 2.1+ didn't store
+    the original thinking blocks (because they lacked a valid Anthropic signature), we
+    inject minimal placeholders so DeepSeek accepts the conversation history.
+    """
+    if not isinstance(messages, list):
+        return messages
+
+    result: list[Any] = []
+    injected = 0
+    for msg in messages:
+        if not isinstance(msg, dict):
+            result.append(msg)
+            continue
+        if msg.get("role") != "assistant":
+            result.append(msg)
+            continue
+        content = msg.get("content")
+        if not isinstance(content, list):
+            result.append(msg)
+            continue
+
+        has_thinking = any(
+            isinstance(b, dict) and b.get("type") in ("thinking", "redacted_thinking")
+            for b in content
+        )
+        has_tool_use = any(isinstance(b, dict) and b.get("type") == "tool_use" for b in content)
+
+        if has_tool_use and not has_thinking:
+            placeholder = {"type": "thinking", "thinking": "(prior reasoning not available)"}
+            new_msg = dict(msg)
+            new_msg["content"] = [placeholder] + list(content)
+            result.append(new_msg)
+            injected += 1
+        else:
+            result.append(msg)
+
+    if injected:
+        logger.debug(
+            "DEEPSEEK_REQUEST: injected {} placeholder thinking block(s) for prior tool-use turns",
+            injected,
+        )
+    return result
+
+
 def sanitize_deepseek_messages_for_native(
     messages: Any, *, thinking_enabled: bool
 ) -> Any:
-    """Filter assistant content for DeepSeek: unsigned ``thinking`` is allowed; no ``redacted_thinking``."""
+    """Filter assistant content for DeepSeek: unsigned ``thinking`` is allowed; no ``redacted_thinking``."""  # noqa: E501
     if not isinstance(messages, list):
         return messages
 
@@ -398,18 +476,28 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
 
     has_tool_history = _has_tool_history(data)
     has_replayable_tool_thinking = _has_replayable_tool_thinking(data)
-    unsafe_tool_followup = has_tool_history and not has_replayable_tool_thinking
-    effective_thinking_enabled = thinking_enabled and not unsafe_tool_followup
+    # DeepSeek-v4-pro is an always-on reasoning model: it requires thinking blocks in all
+    # prior assistant turns with tool_use.  Claude Code 2.1+ drops thinking blocks from
+    # history (no valid Anthropic signature).  Instead of disabling thinking (which still
+    # fails because DeepSeek requires prior thinking regardless of the current request
+    # parameter), inject placeholder thinking blocks into incomplete history turns.
+    missing_prior_thinking = thinking_enabled and _has_prior_assistant_without_thinking(data)
+    needs_placeholder_injection = thinking_enabled and (
+        missing_prior_thinking or (has_tool_history and not has_replayable_tool_thinking)
+    )
+    effective_thinking_enabled = thinking_enabled
+
     if thinking_enabled:
-        if unsafe_tool_followup:
+        if needs_placeholder_injection:
             logger.debug(
-                "DEEPSEEK_REQUEST: disabling thinking for tool follow-up without "
-                "replayable thinking model={} msgs={} tools={}",
+                "DEEPSEEK_REQUEST: injecting placeholder thinking for incomplete history "
+                "model={} msgs={} tools={}",
                 data.get("model"),
                 len(data.get("messages", [])),
                 len(data.get("tools", [])),
             )
-            _remove_deepseek_thinking_hints(data)
+            if "messages" in data:
+                data["messages"] = _inject_placeholder_thinking_blocks(data["messages"])
         elif has_tool_history:
             logger.debug(
                 "DEEPSEEK_REQUEST: keeping thinking for tool follow-up with "
@@ -428,11 +516,12 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
             )
 
     thinking_cfg = data.pop("thinking", None)
-    if effective_thinking_enabled and isinstance(thinking_cfg, dict):
+    if effective_thinking_enabled:
         thinking_payload: dict[str, Any] = {"type": "enabled"}
-        budget_tokens = thinking_cfg.get("budget_tokens")
-        if isinstance(budget_tokens, int):
-            thinking_payload["budget_tokens"] = budget_tokens
+        if isinstance(thinking_cfg, dict):
+            budget_tokens = thinking_cfg.get("budget_tokens")
+            if isinstance(budget_tokens, int):
+                thinking_payload["budget_tokens"] = budget_tokens
         data["thinking"] = thinking_payload
 
     if "messages" in data:

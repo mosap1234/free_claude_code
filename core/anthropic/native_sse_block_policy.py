@@ -302,6 +302,26 @@ def transform_native_sse_block_event(
         if seg is not None and seg.open:
             payload["index"] = seg.down_index
             seg.open = False
+
+            # Claude Code 2.1+ only stores thinking blocks in conversation history
+            # when they carry a ``signature`` field.  DeepSeek's native API does not
+            # emit ``signature_delta`` events, so we inject a synthetic one before
+            # the stop event.  This lets Claude Code replay thinking blocks in
+            # multi-turn conversations, which DeepSeek requires.
+            if seg.block_type == "thinking" and thinking_enabled:
+                sig_payload = {
+                    "type": "content_block_delta",
+                    "index": seg.down_index,
+                    "delta": {
+                        "type": "signature_delta",
+                        "signature": "deepseek-freecc-thinking-sig",
+                    },
+                }
+                sig_event = format_native_sse_event(
+                    "content_block_delta", json.dumps(sig_payload)
+                )
+                return sig_event + format_native_sse_event(event_name, json.dumps(payload))
+
             return format_native_sse_event(event_name, json.dumps(payload))
         if seg is not None:
             # Spurious or duplicate `content_block_stop` for a closed block.
