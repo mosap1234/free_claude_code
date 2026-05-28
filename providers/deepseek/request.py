@@ -227,7 +227,7 @@ def _has_prior_assistant_without_thinking(data: dict[str, Any]) -> bool:
     conversation history.  Claude Code 2.1+ does not include thinking blocks
     when replaying history, causing DeepSeek to reject the request with:
       "The content[].thinking in the thinking mode must be passed back to the API."
-    When detected, we disable thinking so DeepSeek accepts the conversation.
+    When detected, placeholder thinking blocks are injected into the affected turns.
     """
     messages = data.get("messages") or []
     # Only relevant when there is more than one message (multi-turn conversation).
