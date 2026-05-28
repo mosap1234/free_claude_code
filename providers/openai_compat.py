@@ -467,6 +467,7 @@ class OpenAIChatTransport(BaseProvider):
                     mapped_e,
                     provider_name=tag,
                     read_timeout_s=self._config.http_read_timeout,
+                    original_exception=e,
                 )
                 error_message = append_request_id(base_message, request_id)
                 trace_event(
