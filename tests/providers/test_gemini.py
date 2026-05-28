@@ -19,7 +19,7 @@ class MockMessage:
 
 class MockRequest:
     def __init__(self, **kwargs):
-        self.model = "gemini-2.5-flash"
+        self.model = "gemini-3-flash-preview"
         self.messages = [MockMessage("user", "Hello")]
         self.max_tokens = 100
         self.temperature = 0.5
@@ -94,7 +94,7 @@ def test_build_request_body_default_reasoning_effort(gemini_provider):
     req = MockRequest()
     body = gemini_provider._build_request_body(req)
 
-    assert body["model"] == "gemini-2.5-flash"
+    assert body["model"] == "gemini-3-flash-preview"
     assert body["messages"][0]["role"] == "system"
     assert body["reasoning_effort"] == "low"
 
@@ -119,8 +119,9 @@ def test_build_request_body_budget_maps_to_effort(gemini_provider):
     assert gemini_provider._build_request_body(req)["reasoning_effort"] == "high"
 
 
-def test_build_request_body_no_reasoning_effort_when_disabled():
-    """reasoning_effort is not set when thinking is disabled."""
+def test_build_request_body_reasoning_effort_none_when_disabled():
+    """reasoning_effort is 'none' when thinking is disabled -- for Gemini 2.5
+    models that default to thinking-on.  Gemini 3.x ignores the field."""
     provider = GeminiProvider(
         ProviderConfig(
             api_key="test_gemini_key",
@@ -130,10 +131,10 @@ def test_build_request_body_no_reasoning_effort_when_disabled():
             enable_thinking=False,
         )
     )
-    req = MockRequest()
+    req = MockRequest(model="gemini-2.5-flash")
     body = provider._build_request_body(req)
 
-    assert "reasoning_effort" not in body
+    assert body["reasoning_effort"] == "none"
     roles = [m.get("role") for m in body.get("messages", [])]
     assert "assistant_reasoning_content" not in roles
 

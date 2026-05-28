@@ -70,7 +70,9 @@ def _inject_thought_signatures(messages: list[dict[str, Any]]) -> None:
         if not isinstance(tool_calls, list):
             continue
         for tc in tool_calls:
-            extra = _ensure_dict(tc, "extra_content")  # type: ignore[arg-type]
+            if not isinstance(tc, dict):
+                continue
+            extra = _ensure_dict(tc, "extra_content")
             google = _ensure_dict(extra, "google")
             if "thought_signature" not in google:
                 google["thought_signature"] = "skip_thought_signature_validator"
@@ -107,12 +109,18 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
         body.pop("top_p", None)
         _apply_reasoning_effort(body, request_data)
         _inject_thought_signatures(body.get("messages", []))
+    else:
+        # Explicitly disable reasoning for models that default to it on
+        # (Gemini 2.5+).  Gemini 3.x ignores this, but it's harmless.
+        body["reasoning_effort"] = "none"
 
     if extra_body:
         body["extra_body"] = extra_body
 
     logger.debug(
-        "GEMINI_REQUEST body: {}",
-        {k: v for k, v in body.items() if k != "messages"},
+        "GEMINI_REQUEST: conversion done model={} msgs={} tools={}",
+        body.get("model"),
+        len(body.get("messages", [])),
+        len(body.get("tools", [])),
     )
     return body
