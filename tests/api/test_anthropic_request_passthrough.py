@@ -347,3 +347,64 @@ def test_normalize_system_messages_returns_copy() -> None:
     # Original should be unchanged
     assert len(req.messages) == 2
     assert req.system is None
+
+def test_normalize_system_messages_merges_with_list_system_content() -> None:
+    """normalize_system_messages should handle existing list[SystemContent] system field."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "Additional system"},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": [
+            {"type": "text", "text": "Original system", "cache_control": {"type": "ephemeral"}},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    assert len(normalized.messages) == 1
+    # Should preserve structured format when merging
+    assert isinstance(normalized.system, list)
+    assert len(normalized.system) == 1
+    assert "Original system" in normalized.system[0].text
+    assert "Additional system" in normalized.system[0].text
+
+
+def test_normalize_system_messages_empty_content_returns_none() -> None:
+    """normalize_system_messages should return existing system unchanged when role:system has empty content."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": ""},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": "Existing system",
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Empty system message should not add anything
+    assert len(normalized.messages) == 1
+    assert normalized.system == "Existing system"
+
+
+def test_normalize_system_messages_empty_content_blocks() -> None:
+    """normalize_system_messages should handle system messages with only empty content blocks."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": [{"type": "text", "text": ""}]},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": "Existing system",
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Empty content should not modify existing system
+    assert len(normalized.messages) == 1
+    assert normalized.system == "Existing system"
