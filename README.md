@@ -14,6 +14,8 @@ Use Claude Code CLI, VS Code, JetBrains ACP, or chat bots through your own Anthr
 
 Free Claude Code routes Anthropic Messages API traffic from Claude Code to any provider. It keeps Claude Code's client-side protocol stable while letting you choose free, paid, or local models.
 
+[English](README.md) · [Deutsch](README.de.md)
+
 [Quick Start](#quick-start) · [Providers](#choose-a-provider) · [Clients](#connect-claude-code) · [Integrations](#optional-integrations) · [Development](#development)
 
 </div>
@@ -21,6 +23,15 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
 <div align="center">
   <img src="assets/pic.png" alt="Free Claude Code in action" width="700">
 </div>
+
+## Documentation
+
+| File | English | German |
+| --- | --- | --- |
+| Main docs | [README.md](README.md) | [README.de.md](README.de.md) |
+| Agent directives | [AGENTS.md](AGENTS.md) | [AGENTS.de.md](AGENTS.de.md) |
+| Claude notice | [CLAUDE.md](CLAUDE.md) | [CLAUDE.de.md](CLAUDE.de.md) |
+| Smoke tests | [smoke/README.md](smoke/README.md) | [smoke/README.de.md](smoke/README.de.md) |
 
 ## Star History
 
@@ -353,6 +364,8 @@ Set the environment for `acp.registry.claude-acp`:
 ```
 
 Restart the IDE after changing the file.
+
+<a id="model-picker"></a>
 
 ### 4. Model Picker
 

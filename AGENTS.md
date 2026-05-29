@@ -1,6 +1,8 @@
 # AGENTIC DIRECTIVE
 
 > This file is identical to CLAUDE.md. Keep them in sync.
+>
+> Languages: [English](AGENTS.md) · [Deutsch](AGENTS.de.md)
 
 ## CODING ENVIRONMENT
 
