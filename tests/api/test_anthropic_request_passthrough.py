@@ -1,4 +1,4 @@
-"""Pydantic passthrough of Anthropic protocol fields (e.g. ``cache_control``)."""
+"""Pydantic passthrough of Anthropic protocol fields (e.g. `cache_control`)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from api.models.anthropic import (
     MessagesRequest,
     SystemContent,
     Tool,
+    normalize_system_messages,
 )
 from config.constants import ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
 from core.anthropic.native_messages_request import (
@@ -200,3 +201,149 @@ def test_native_body_preserves_context_and_output_config() -> None:
     )
     assert body["context_management"] == raw["context_management"]
     assert body["output_config"] == raw["output_config"]
+
+
+# =============================================================================
+# System Role Message Tests
+# =============================================================================
+
+
+def test_message_accepts_system_role() -> None:
+    """Message model should accept role: system for backward compatibility."""
+    msg = Message.model_validate({
+        "role": "system",
+        "content": "You are a helpful assistant.",
+    })
+    assert msg.role == "system"
+    assert msg.content == "You are a helpful assistant."
+
+
+def test_message_accepts_system_role_with_content_blocks() -> None:
+    """Message model should accept role: system with content blocks."""
+    msg = Message.model_validate({
+        "role": "system",
+        "content": [{"type": "text", "text": "You are helpful."}],
+    })
+    assert msg.role == "system"
+    assert isinstance(msg.content, list)
+    block = msg.content[0]
+    assert isinstance(block, ContentBlockText)
+    assert block.text == "You are helpful."
+
+
+def test_normalize_system_messages_extracts_system_role() -> None:
+    """normalize_system_messages should extract role: system messages to system field."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "System prompt"},
+            {"role": "user", "content": "Hello"},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # System message should be extracted
+    assert len(normalized.messages) == 1
+    assert normalized.messages[0].role == "user"
+    assert normalized.messages[0].content == "Hello"
+
+    # System field should contain the extracted content
+    assert normalized.system == "System prompt"
+
+
+def test_normalize_system_messages_merges_with_existing_system() -> None:
+    """normalize_system_messages should merge with existing system field."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "Additional system prompt"},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": "Original system prompt",
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    assert len(normalized.messages) == 1
+    assert normalized.system == "Original system prompt\n\nAdditional system prompt"
+
+
+def test_normalize_system_messages_handles_multiple_system_messages() -> None:
+    """normalize_system_messages should combine multiple role: system messages."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "System 1"},
+            {"role": "system", "content": "System 2"},
+            {"role": "user", "content": "Hello"},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    assert len(normalized.messages) == 1
+    assert isinstance(normalized.system, str)
+    assert "System 1" in normalized.system
+    assert "System 2" in normalized.system
+
+
+def test_normalize_system_messages_no_op_when_no_system_role() -> None:
+    """normalize_system_messages should return unchanged when no role: system."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there!"},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Should be the same object (no copy needed)
+    assert len(normalized.messages) == 2
+    assert normalized.system is None
+
+
+def test_normalize_system_messages_with_content_blocks() -> None:
+    """normalize_system_messages should handle system messages with content blocks."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {
+                "role": "system",
+                "content": [{"type": "text", "text": "System from blocks"}],
+            },
+            {"role": "user", "content": "Hello"},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    assert len(normalized.messages) == 1
+    assert normalized.system == "System from blocks"
+
+
+def test_normalize_system_messages_returns_copy() -> None:
+    """normalize_system_messages should return a copy when changes are made."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "System prompt"},
+            {"role": "user", "content": "Hello"},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Should be a different object
+    assert normalized is not req
+    # Original should be unchanged
+    assert len(req.messages) == 2
+    assert req.system is None

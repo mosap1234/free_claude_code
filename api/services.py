@@ -19,7 +19,11 @@ from providers.base import BaseProvider
 from providers.exceptions import InvalidRequestError, ProviderError
 
 from .model_router import ModelRouter
-from .models.anthropic import MessagesRequest, TokenCountRequest
+from .models.anthropic import (
+    MessagesRequest,
+    TokenCountRequest,
+    normalize_system_messages,
+)
 from .models.responses import TokenCountResponse
 from .optimization_handlers import try_optimizations
 from .web_tools.egress import WebFetchEgressPolicy
@@ -33,14 +37,14 @@ TokenCounter = Callable[[list[Any], str | list[Any] | None, list[Any] | None], i
 
 ProviderGetter = Callable[[str], BaseProvider]
 
-# Providers that use ``/chat/completions`` + Anthropic-to-OpenAI conversion (not native Messages).
+# Providers that use `/chat/completions` + Anthropic-to-OpenAI conversion (not native Messages).
 _OPENAI_CHAT_UPSTREAM_IDS = frozenset({"nvidia_nim", "opencode", "opencode_go"})
 
 
 def anthropic_sse_streaming_response(
     body: AsyncIterator[str],
 ) -> StreamingResponse:
-    """Return a :class:`StreamingResponse` for Anthropic-style SSE streams."""
+    """Return a :class:StreamingResponse for Anthropic-style SSE streams."""
     return StreamingResponse(
         body,
         media_type="text/event-stream",
@@ -102,6 +106,9 @@ class ClaudeProxyService:
     def create_message(self, request_data: MessagesRequest) -> object:
         """Create a message response or streaming response."""
         try:
+            # Normalize any role: system messages to the system field
+            request_data = normalize_system_messages(request_data)
+
             _require_non_empty_messages(request_data.messages)
 
             routed = self._model_router.resolve_messages_request(request_data)
@@ -144,9 +151,10 @@ class ClaudeProxyService:
                     stage="routing",
                     event="api.optimization.short_circuit",
                     source="api",
-                    model=routed.request.model,
+                    optimization_type=type(optimized).__name__,
                 )
                 return optimized
+
             logger.debug("No optimization matched, routing to provider")
 
             provider = self._provider_getter(routed.resolved.provider_id)
@@ -220,6 +228,9 @@ class ClaudeProxyService:
 
     def count_tokens(self, request_data: TokenCountRequest) -> TokenCountResponse:
         """Count tokens for a request after applying configured model routing."""
+        # Normalize any role: system messages to the system field for token counting
+        request_data = normalize_system_messages(request_data)
+
         request_id = f"req_{uuid.uuid4().hex[:12]}"
         with logger.contextualize(request_id=request_id):
             try:

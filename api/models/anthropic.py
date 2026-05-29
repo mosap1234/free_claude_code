@@ -1,7 +1,9 @@
 """Pydantic models for Anthropic-compatible requests."""
 
+from __future__ import annotations
+
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, overload
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +18,7 @@ class Role(StrEnum):
 
 
 class _AnthropicBlockBase(BaseModel):
-    """Pass through provider fields (e.g. ``cache_control``) for native transports."""
+    """Pass through provider fields (e.g. `cache_control`) for native transports."""
 
     model_config = ConfigDict(extra="allow")
 
@@ -63,7 +65,7 @@ class ContentBlockRedactedThinking(_AnthropicBlockBase):
 
 
 class ContentBlockServerToolUse(_AnthropicBlockBase):
-    """Anthropic server-side tool invocation (e.g. ``web_search``, ``web_fetch``)."""
+    """Anthropic server-side tool invocation (e.g. `web_search`, `web_fetch`)."""
 
     type: Literal["server_tool_use"]
     id: str
@@ -92,7 +94,14 @@ class SystemContent(_AnthropicBlockBase):
 # Message Types
 # =============================================================================
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
+    """Message with optional system role for backward compatibility.
+
+    Standard Anthropic API uses role: user|assistant. Some clients incorrectly
+    send role: system in the messages array. We accept it here and handle it
+    by extracting to the system field during request processing.
+    """
+
+    role: Literal["user", "assistant", "system"]
     content: (
         str
         | list[
@@ -113,8 +122,8 @@ class Message(BaseModel):
 
 class Tool(_AnthropicBlockBase):
     name: str
-    # Anthropic server tools (e.g. web_search beta tools) include a ``type`` and
-    # may omit ``input_schema`` because the provider owns the schema.
+    # Anthropic server tools (e.g. web_search beta tools) include a `type` and
+    # may omit `input_schema` because the provider owns the schema.
     type: str | None = None
     description: str | None = None
     input_schema: dict[str, Any] | None = None
@@ -172,3 +181,80 @@ class TokenCountRequest(BaseModel):
     output_config: dict[str, Any] | None = None
     mcp_servers: list[dict[str, Any]] | None = None
     betas: list[str] | None = Field(default=None, exclude=True)
+
+
+# =============================================================================
+# Request Helpers
+# =============================================================================
+
+
+def _extract_text_from_content_block(block: Any) -> str:
+    """Extract text from a content block or dict."""
+    if isinstance(block, dict):
+        return block.get("text", "")
+    if hasattr(block, "text"):
+        return str(block.text)
+    return ""
+
+
+def _extract_text_from_message_content(content: Any) -> list[str]:
+    """Extract text parts from message content."""
+    if isinstance(content, str):
+        return [content]
+    if isinstance(content, list):
+        return [_extract_text_from_content_block(block) for block in content]
+    return []
+
+
+def _merge_system_content(
+    existing_system: str | list[SystemContent] | None,
+    combined_system: str,
+) -> str | list[SystemContent]:
+    """Merge new system content with existing system field."""
+    if existing_system is None:
+        return combined_system
+    if isinstance(existing_system, str):
+        return f"{existing_system}\n\n{combined_system}"
+    # existing_system is list[SystemContent]
+    existing_text = "\n".join(_extract_text_from_content_block(block) for block in existing_system)
+    return f"{existing_text}\n\n{combined_system}"
+
+
+@overload
+def normalize_system_messages(request: MessagesRequest) -> MessagesRequest: ...
+
+
+@overload
+def normalize_system_messages(request: TokenCountRequest) -> TokenCountRequest: ...
+
+
+def normalize_system_messages(request: MessagesRequest | TokenCountRequest) -> MessagesRequest | TokenCountRequest:
+    """Extract role: system messages from the messages array to the system field.
+
+    Some clients incorrectly send system prompts as messages with role: system
+    instead of using the dedicated system field. This function normalizes such
+    requests by moving system messages to the system field.
+
+    Returns a copy of the request with system messages extracted.
+    """
+    system_messages = [msg for msg in request.messages if msg.role == "system"]
+    non_system_messages = [msg for msg in request.messages if msg.role != "system"]
+
+    if not system_messages:
+        return request
+
+    # Combine system message contents
+    system_parts: list[str] = []
+    for msg in system_messages:
+        system_parts.extend(_extract_text_from_message_content(msg.content))
+
+    combined_system = "\n\n".join(system_parts).strip()
+    new_system = _merge_system_content(request.system, combined_system)
+
+    return request.model_copy(
+        update={
+            "messages": non_system_messages,
+            "system": new_system,
+        },
+        deep=True,
+    )
