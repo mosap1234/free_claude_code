@@ -209,15 +209,25 @@ def _extract_text_from_message_content(content: Any) -> list[str]:
 def _merge_system_content(
     existing_system: str | list[SystemContent] | None,
     combined_system: str,
-) -> str | list[SystemContent]:
-    """Merge new system content with existing system field."""
+) -> str | list[SystemContent] | None:
+    """Merge new system content with existing system field.
+
+    Preserves structured list[SystemContent] format when possible to maintain
+    metadata like cache_control. Falls back to string only when needed.
+    """
+    if not combined_system:
+        # No new system content to add
+        return existing_system
+
     if existing_system is None:
         return combined_system
+
     if isinstance(existing_system, str):
         return f"{existing_system}\n\n{combined_system}"
-    # existing_system is list[SystemContent]
-    existing_text = "\n".join(_extract_text_from_content_block(block) for block in existing_system)
-    return f"{existing_text}\n\n{combined_system}"
+
+    # existing_system is list[SystemContent] - preserve structured format
+    # by appending new content as additional SystemContent block
+    return existing_system + [SystemContent(type="text", text=combined_system)]
 
 
 @overload

@@ -347,3 +347,95 @@ def test_normalize_system_messages_returns_copy() -> None:
     # Original should be unchanged
     assert len(req.messages) == 2
     assert req.system is None
+
+def test_normalize_system_messages_merges_with_list_system_content() -> None:
+    """normalize_system_messages should handle existing list[SystemContent] system field."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "Additional system"},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": [
+            {"type": "text", "text": "Original system", "cache_control": {"type": "ephemeral"}},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    assert len(normalized.messages) == 1
+    # Should preserve structured format by appending new block
+    assert isinstance(normalized.system, list)
+    assert len(normalized.system) == 2
+    # First block should have cache_control preserved
+    assert normalized.system[0].text == "Original system"
+    assert normalized.system[0].cache_control == {"type": "ephemeral"}
+    # Second block should have combined system text
+    assert normalized.system[1].text == "Additional system"
+
+
+def test_normalize_system_messages_empty_content_returns_existing() -> None:
+    """normalize_system_messages should return existing system unchanged when role:system has empty content."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": ""},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": "Existing system",
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Empty system message should not add anything
+    assert len(normalized.messages) == 1
+    assert normalized.system == "Existing system"
+
+
+def test_normalize_system_messages_empty_content_blocks_preserved() -> None:
+    """normalize_system_messages should handle system messages with only empty content blocks."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": [{"type": "text", "text": ""}]},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": "Existing system",
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Empty content should not modify existing system
+    assert len(normalized.messages) == 1
+    assert normalized.system == "Existing system"
+
+
+def test_normalize_system_messages_list_content_with_cache_control_preserved() -> None:
+    """normalize_system_messages should preserve cache_control on existing list[SystemContent]."""
+    raw = {
+        "model": "m",
+        "max_tokens": 20,
+        "messages": [
+            {"role": "system", "content": "New system content"},
+            {"role": "user", "content": "Hello"},
+        ],
+        "system": [
+            {"type": "text", "text": "First", "cache_control": {"type": "ephemeral", "index": 0}},
+            {"type": "text", "text": "Second", "cache_control": {"type": "ephemeral", "index": 1}},
+        ],
+    }
+    req = MessagesRequest.model_validate(raw)
+    normalized = normalize_system_messages(req)
+
+    # Both original blocks with cache_control should be preserved
+    assert isinstance(normalized.system, list)
+    assert len(normalized.system) == 3  # 2 original + 1 new
+    # First two blocks preserve cache_control
+    assert normalized.system[0].cache_control == {"type": "ephemeral", "index": 0}
+    assert normalized.system[1].cache_control == {"type": "ephemeral", "index": 1}
+    # New block has no cache_control
+    assert normalized.system[2].text == "New system content"
+    assert not hasattr(normalized.system[2], "cache_control") or normalized.system[2].cache_control is None
