@@ -1,5 +1,7 @@
 # Product E2E Smoke Tests
 
+Languages: [English](README.md) · [Deutsch](README.de.md)
+
 `smoke/` is local-only. It can launch subprocesses, call real providers, touch
 local model servers, and optionally send/delete bot messages. Hermetic contracts
 belong under `tests/` and must stay green with plain `uv run pytest`.
