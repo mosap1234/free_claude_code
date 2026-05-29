@@ -234,7 +234,16 @@ class AnthropicToOpenAIConverter:
                         converted["content"] = "\n\n".join(content_parts)
                 result.append(converted)
             elif isinstance(content, list):
-                if role == "user":
+                if role == "system":
+                    text_parts = [
+                        get_block_attr(b, "text", "")
+                        for b in content
+                        if get_block_type(b) == "text"
+                    ]
+                    result.append(
+                        {"role": "system", "content": "\n\n".join(text_parts).strip()}
+                    )
+                elif role == "user":
                     if pending is not None and pending.needs_deferred():
                         if not pending.remaining_tool_ids:
                             result.extend(
