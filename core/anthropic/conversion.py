@@ -214,6 +214,19 @@ class AnthropicToOpenAIConverter:
                             reasoning_replay=reasoning_replay,
                         )
                     )
+            elif role == "system":
+                # Mid-conversation system messages (context-management edits) cannot be
+                # sent as role:system in OpenAI chat arrays. Re-route as user messages.
+                if isinstance(content, str):
+                    result.append({"role": "user", "content": content})
+                elif isinstance(content, list):
+                    parts = [
+                        get_block_attr(b, "text", "")
+                        for b in content
+                        if isinstance(b, dict) and get_block_type(b) == "text"
+                    ]
+                    if parts:
+                        result.append({"role": "user", "content": "\n\n".join(parts)})
             elif isinstance(content, str):
                 if role == "user" and pending is not None and pending.needs_deferred():
                     result.extend(

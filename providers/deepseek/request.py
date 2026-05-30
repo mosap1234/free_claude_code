@@ -382,6 +382,50 @@ def _strip_reasoning_content_when_native(messages: Any) -> Any:
     return out
 
 
+def _fold_system_messages_to_top_level(messages: Any, existing_system: Any) -> tuple[Any, Any]:
+    """Move ``role: system`` messages out of the messages array into the top-level ``system`` field.
+
+    DeepSeek's native API rejects ``system``-role messages in the conversation array.
+    Claude Code sends them as context-management edits (mid-conversation system updates).
+    """
+    if not isinstance(messages, list):
+        return messages, existing_system
+
+    sys_parts: list[str] = []
+    user_assistant: list[Any] = []
+
+    for message in messages:
+        if not isinstance(message, dict) or message.get("role") != "system":
+            user_assistant.append(message)
+            continue
+        content = message.get("content")
+        if isinstance(content, str):
+            sys_parts.append(content)
+        elif isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    sys_parts.append(str(block.get("text", "")))
+
+    if not sys_parts:
+        return messages, existing_system
+
+    new_system_parts: list[str] = []
+    if isinstance(existing_system, str):
+        new_system_parts.append(existing_system)
+    elif isinstance(existing_system, list):
+        for block in existing_system:
+            if isinstance(block, dict) and block.get("type") == "text":
+                new_system_parts.append(str(block.get("text", "")))
+    new_system_parts.extend(sys_parts)
+
+    logger.debug(
+        "DEEPSEEK_REQUEST: folded {} system messages → top-level system ({:,} chars)".format(
+            len(messages) - len(user_assistant), sum(len(p) for p in sys_parts)
+        )
+    )
+    return user_assistant, "\n\n".join(new_system_parts)
+
+
 def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     """Build a DeepSeek ``/v1/messages`` JSON body (Anthropic format)."""
     logger.debug(
@@ -393,6 +437,9 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     data = dump_raw_messages_request(request_data)
     if "messages" in data:
         data["messages"] = _strip_unsupported_attachment_blocks(data["messages"])
+        data["messages"], data["system"] = _fold_system_messages_to_top_level(
+            data["messages"], data.get("system")
+        )
     _validate_deepseek_native_request_dict(data)
     data.pop("extra_body", None)
 
