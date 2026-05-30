@@ -110,16 +110,6 @@ class AgentRouterProvider(AnthropicMessagesTransport):
         """Return whether *line* is a spurious ``data: null`` sentinel."""
         return line.strip() in _NULL_DATA_LINES
 
-    async def _iter_sse_lines(self, response: httpx.Response) -> AsyncIterator[str]:
-        """Yield SSE lines, silently dropping ``data: null`` sentinel lines."""
-        async for line in response.aiter_lines():
-            if self._is_null_data_line(line):
-                continue
-            if line:
-                yield f"{line}\n"
-            else:
-                yield "\n"
-
     async def _iter_sse_events(self, response: httpx.Response) -> AsyncIterator[str]:
         """Group SSE lines into events, filtering ``data: null`` sentinels."""
         event_lines: list[str] = []
