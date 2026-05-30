@@ -252,6 +252,38 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         ),
     ),
     ConfigFieldSpec(
+        "VERTEX_AI_API_KEY",
+        "Vertex AI API Key",
+        "providers",
+        "secret",
+        settings_attr="vertex_ai_api_key",
+        secret=True,
+        description=(
+            "Google Cloud Vertex AI API key or access token. "
+            "Provide this alone, or use Project ID + Location instead."
+        ),
+    ),
+    ConfigFieldSpec(
+        "VERTEX_AI_PROJECT_ID",
+        "Vertex AI Project ID",
+        "providers",
+        settings_attr="vertex_ai_project_id",
+        description=(
+            "Google Cloud project ID for Vertex AI. "
+            "Used together with Location as an alternative to API Key."
+        ),
+    ),
+    ConfigFieldSpec(
+        "VERTEX_AI_LOCATION",
+        "Vertex AI Location",
+        "providers",
+        settings_attr="vertex_ai_location",
+        description=(
+            "Google Cloud region for Vertex AI (e.g. us-central1). "
+            "Used together with Project ID as an alternative to API Key."
+        ),
+    ),
+    ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
         "LM Studio Base URL",
         "providers",
@@ -404,6 +436,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "providers",
         "secret",
         settings_attr="cerebras_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
+        "VERTEX_AI_PROXY",
+        "Vertex AI Proxy",
+        "providers",
+        "secret",
+        settings_attr="vertex_ai_proxy",
         secret=True,
         advanced=True,
     ),
