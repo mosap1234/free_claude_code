@@ -260,7 +260,18 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         secret=True,
         description=(
             "Google Cloud Vertex AI API key or access token. "
-            "Provide this alone, or use Project ID + Location instead."
+            "Required for requests (Project ID + Location only build the URL). "
+            "Create keys in [Google Cloud Console](https://console.cloud.google.com/apis/credentials)."
+        ),
+    ),
+    ConfigFieldSpec(
+        "VERTEX_AI_BASE_URL",
+        "Vertex AI Base URL",
+        "providers",
+        settings_attr="vertex_ai_base_url",
+        description=(
+            "OpenAI-compatible Vertex AI endpoint base URL. "
+            "Set this or use Project ID + Location to build it."
         ),
     ),
     ConfigFieldSpec(
@@ -270,7 +281,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         settings_attr="vertex_ai_project_id",
         description=(
             "Google Cloud project ID for Vertex AI. "
-            "Used together with Location as an alternative to API Key."
+            "Used with Location to build the base URL."
         ),
     ),
     ConfigFieldSpec(
@@ -280,7 +291,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         settings_attr="vertex_ai_location",
         description=(
             "Google Cloud region for Vertex AI (e.g. us-central1). "
-            "Used together with Project ID as an alternative to API Key."
+            "Used with Project ID to build the base URL."
         ),
     ),
     ConfigFieldSpec(

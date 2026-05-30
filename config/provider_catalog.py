@@ -253,6 +253,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_url="https://cloud.google.com/vertex-ai",
         credential_attr="vertex_ai_api_key",
         default_base_url=None,
+        base_url_attr="vertex_ai_base_url",
         proxy_attr="vertex_ai_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),

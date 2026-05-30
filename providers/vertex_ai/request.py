@@ -28,6 +28,13 @@ def _apply_thinking_config(extra_body: dict[str, Any]) -> None:
     thinking_cfg.setdefault("include_thoughts", True)
 
 
+def _apply_thinking_disabled(extra_body: dict[str, Any]) -> None:
+    literal_extra_body = _ensure_dict(extra_body, "extra_body")
+    google_section = _ensure_dict(literal_extra_body, "google")
+    thinking_cfg = _ensure_dict(google_section, "thinking_config")
+    thinking_cfg["include_thoughts"] = False
+
+
 def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     """Build OpenAI-format request body from an Anthropic request for Vertex AI."""
     logger.debug(
@@ -53,7 +60,7 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     if thinking_enabled:
         _apply_thinking_config(extra_body)
     else:
-        body["reasoning_effort"] = "none"
+        _apply_thinking_disabled(extra_body)
 
     if extra_body:
         body["extra_body"] = extra_body

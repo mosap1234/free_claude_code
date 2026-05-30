@@ -145,13 +145,16 @@ class Settings(BaseSettings):
     cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
 
     # ==================== Google Vertex AI ====================
-    # Provide either VERTEX_AI_API_KEY or VERTEX_AI_PROJECT_ID + VERTEX_AI_LOCATION.
+    # API key (or access token) required. Provide base URL or project + location.
     vertex_ai_api_key: str = Field(default="", validation_alias="VERTEX_AI_API_KEY")
     vertex_ai_project_id: str = Field(
         default="", validation_alias="VERTEX_AI_PROJECT_ID"
     )
     vertex_ai_location: str = Field(
         default="", validation_alias="VERTEX_AI_LOCATION"
+    )
+    vertex_ai_base_url: str = Field(
+        default="", validation_alias="VERTEX_AI_BASE_URL"
     )
 
     # ==================== Messaging Platform Selection ====================

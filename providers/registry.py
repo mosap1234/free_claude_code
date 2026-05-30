@@ -199,13 +199,6 @@ def _require_credential(
         return
     if credential and credential.strip():
         return
-    # Vertex AI accepts project_id + location as an alternative to API key.
-    if descriptor.provider_id == "vertex_ai":
-        if (
-            settings.vertex_ai_project_id.strip()
-            and settings.vertex_ai_location.strip()
-        ):
-            return
     message = f"{descriptor.credential_env} is not set. Add it to your .env file."
     if descriptor.credential_url:
         message = f"{message} Get a key at {descriptor.credential_url}"
@@ -306,13 +299,6 @@ def _model_list_provider_ids_for_settings(settings: Settings) -> tuple[str, ...]
         ):
             provider_ids.append(provider_id)
             continue
-        # Vertex AI: also consider configured when project_id + location are set.
-        if (
-            provider_id == "vertex_ai"
-            and settings.vertex_ai_project_id.strip()
-            and settings.vertex_ai_location.strip()
-        ):
-            provider_ids.append(provider_id)
     return tuple(provider_ids)
 
 

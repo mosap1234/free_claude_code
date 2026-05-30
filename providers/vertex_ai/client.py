@@ -1,10 +1,9 @@
 """Google Cloud Vertex AI provider (OpenAI-compatible chat completions).
 
 Supports two authentication modes:
-1. API key only: set ``VERTEX_AI_API_KEY``.
-2. Project + location: set ``VERTEX_AI_PROJECT_ID`` and ``VERTEX_AI_LOCATION``.
-   The base URL is built from the project/location and the API key is used
-   as a bearer token (typically a service-account access token).
+1. API key or access token: set ``VERTEX_AI_API_KEY``.
+2. Provide ``VERTEX_AI_BASE_URL`` or set ``VERTEX_AI_PROJECT_ID`` and
+    ``VERTEX_AI_LOCATION`` to build it.
 """
 
 from __future__ import annotations
@@ -14,6 +13,7 @@ from typing import Any
 import openai
 
 from providers.base import ProviderConfig
+from providers.exceptions import AuthenticationError
 from providers.openai_compat import OpenAIChatTransport
 
 from .request import build_request_body
@@ -47,11 +47,16 @@ class VertexAIProvider(OpenAIChatTransport):
         base_url = config.base_url
         if not base_url and project_id.strip() and location.strip():
             base_url = build_vertex_base_url(project_id, location)
+        if not base_url:
+            raise AuthenticationError(
+                "Vertex AI base URL not set. Set VERTEX_AI_BASE_URL or "
+                "VERTEX_AI_PROJECT_ID + VERTEX_AI_LOCATION."
+            )
 
         super().__init__(
             config,
             provider_name="VERTEX_AI",
-            base_url=base_url or "",
+            base_url=base_url,
             api_key=config.api_key,
         )
 
