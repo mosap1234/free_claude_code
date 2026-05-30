@@ -57,7 +57,7 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "gemini": "gemini/gemini-2.5-flash",
     "groq": "groq/llama-3.3-70b-versatile",
     "cerebras": "cerebras/llama3.1-8b",
-    "vertex_ai_agent": "vertex_ai_agent/google/gemini-2.5-pro",
+    "vertex_ai": "vertex_ai/google/gemini-3.5-flash",
 }
 
 NVIDIA_NIM_CLI_DEFAULT_MODELS: tuple[str, ...] = (
@@ -260,7 +260,7 @@ class SmokeConfig:
             return bool(self.settings.groq_api_key.strip())
         if provider == "cerebras":
             return bool(self.settings.cerebras_api_key.strip())
-        if provider == "vertex_ai_agent":
+        if provider == "vertex_ai":
             if not self.settings.vertex_ai_api_key.strip():
                 return False
             if self.settings.vertex_ai_base_url.strip():

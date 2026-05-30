@@ -28,7 +28,7 @@ from providers.registry import (
     build_provider_config,
     create_provider,
 )
-from providers.vertex_ai_agent import VertexAIAgentProvider
+from providers.vertex_ai import VertexAIProvider
 from providers.wafer import WaferProvider
 from providers.zai import ZaiProvider
 
@@ -194,7 +194,7 @@ def test_create_provider_instantiates_each_builtin():
         "gemini": GeminiProvider,
         "groq": GroqProvider,
         "cerebras": CerebrasProvider,
-        "vertex_ai_agent": VertexAIAgentProvider,
+        "vertex_ai": VertexAIProvider,
     }
 
     with (
