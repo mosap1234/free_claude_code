@@ -252,6 +252,19 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         ),
     ),
     ConfigFieldSpec(
+        "DEEPINFRA_API_KEY",
+        "DeepInfra API Key",
+        "providers",
+        "secret",
+        settings_attr="deepinfra_api_key",
+        secret=True,
+        description=(
+            "DeepInfra API key (create at [deepinfra.com/dash/api_keys]("
+            "https://deepinfra.com/dash/api_keys)); see "
+            "[OpenAI compatibility docs](https://deepinfra.com/docs/openai_api)."
+        ),
+    ),
+    ConfigFieldSpec(
         "LM_STUDIO_BASE_URL",
         "LM Studio Base URL",
         "providers",
@@ -408,12 +421,31 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "DEEPINFRA_PROXY",
+        "DeepInfra Proxy",
+        "providers",
+        "secret",
+        settings_attr="deepinfra_proxy",
+        secret=True,
+        advanced=True,
+    ),
+    ConfigFieldSpec(
         "MODEL",
         "Default Model",
         "models",
         settings_attr="model",
         default="nvidia_nim/nvidia/nemotron-3-super-120b-a12b",
         description="Fallback provider/model route for all Claude model names.",
+    ),
+    ConfigFieldSpec(
+        "DEEPINFRA_MODEL_NAME",
+        "DeepInfra Model",
+        "models",
+        settings_attr="deepinfra_model_name",
+        description=(
+            "Bare DeepInfra model id (no provider prefix). When set, routes all "
+            "Claude traffic to deepinfra/<value> and overrides Default Model."
+        ),
     ),
     ConfigFieldSpec(
         "MODEL_OPUS",

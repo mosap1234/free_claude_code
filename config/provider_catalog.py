@@ -36,6 +36,8 @@ ZAI_DEFAULT_BASE = "https://api.z.ai/api/anthropic/v1"
 GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
 CEREBRAS_DEFAULT_BASE = "https://api.cerebras.ai/v1"
+# DeepInfra OpenAI-compatible Chat Completions (see https://deepinfra.com/docs/openai_api).
+DEEPINFRA_DEFAULT_BASE = "https://api.deepinfra.com/v1/openai"
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +170,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="cerebras_api_key",
         default_base_url=CEREBRAS_DEFAULT_BASE,
         proxy_attr="cerebras_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
+    ),
+    "deepinfra": ProviderDescriptor(
+        provider_id="deepinfra",
+        transport_type="openai_chat",
+        credential_env="DEEPINFRA_API_KEY",
+        credential_url="https://deepinfra.com/dash/api_keys",
+        credential_attr="deepinfra_api_key",
+        default_base_url=DEEPINFRA_DEFAULT_BASE,
+        proxy_attr="deepinfra_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
     "groq": ProviderDescriptor(
