@@ -1,5 +1,6 @@
 """Tests for core.anthropic.sse."""
 
+import json
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -80,6 +81,28 @@ class TestContentBlockManager:
         text = " | ".join(r.message for r in caplog.records)
         assert "sk-live-super-secret" not in text
         assert "buffer_sha256_prefix=" in text
+
+    @pytest.mark.parametrize("payload", ["[]", "42", "true", '"x"'])
+    def test_buffer_task_args_non_object_json_does_not_raise(self, payload):
+        """Valid-but-non-object Task args must not abort the stream (AttributeError)."""
+        mgr = ContentBlockManager()
+        mgr.tool_states[0] = ToolCallState(
+            block_index=0, tool_id="call_x", name="Task", started=True
+        )
+        # Must not raise; the value is passed through unchanged (no run_in_background).
+        parsed = mgr.buffer_task_args(0, payload)
+        assert parsed == json.loads(payload)
+
+    @pytest.mark.parametrize("payload", ["[]", "42", "true", '"x"'])
+    def test_flush_task_arg_buffers_non_object_json_does_not_raise(self, payload):
+        """flush must tolerate valid-but-non-object buffered Task args."""
+        mgr = ContentBlockManager()
+        mgr.tool_states[0] = ToolCallState(
+            block_index=0, tool_id="call_x", name="Task", started=True
+        )
+        mgr.tool_states[0].task_arg_buffer = payload
+        out = mgr.flush_task_arg_buffers()
+        assert out == [(0, json.dumps(json.loads(payload)))]
 
 
 class TestSSEBuilderMessageLifecycle:
