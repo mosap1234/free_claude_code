@@ -141,6 +141,9 @@ class Settings(BaseSettings):
     # ==================== Groq (OpenAI-compatible) ====================
     groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
 
+    # ==================== MiniMax Config ====================
+    minimax_api_key: str = Field(default="", validation_alias="MINIMAX_API_KEY")
+
     # ==================== Cerebras Inference (OpenAI-compatible) ====================
     cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
 

@@ -37,7 +37,7 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
 ## What You Get
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
-- Seventeen provider backends: NVIDIA NIM, OpenRouter, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama.
+- Eighteen provider backends: NVIDIA NIM, OpenRouter, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, MiniMax, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint (Claude Code must opt in to Gateway model discovery; see [Model Picker](#model-picker)).
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -228,7 +228,15 @@ This provider calls Kimi's **Anthropic-compatible** Messages API (`https://api.m
 
 Browse models at [platform.moonshot.ai](https://platform.moonshot.ai).
 
-### 11. [Cerebras Inference](https://inference-docs.cerebras.ai/quickstart)
+### 11. [MiniMax](https://platform.minimaxi.com/)
+
+Get a key at [platform.minimaxi.com/user-center/basic-information/interface-key](https://platform.minimaxi.com/user-center/basic-information/interface-key).
+
+In the Admin UI, paste it into `MINIMAX_API_KEY`, then set `MODEL` to a MiniMax slug such as `minimax/MiniMax-M2.7`.
+
+This provider calls MiniMax's **Anthropic-compatible** Messages API (`https://api.minimax.io/anthropic/v1/messages`; model discovery uses `GET https://api.minimax.io/models`). Authentication uses the `X-Api-Key` header — MiniMax rejects `Authorization: Bearer` with "login fail: Please carry the API secret key in the X-Api-Key field".
+
+### 12. [Cerebras Inference](https://inference-docs.cerebras.ai/quickstart)
 
 Sign up and create an API key in the [Cerebras Cloud Console](https://cloud.cerebras.ai) (see [Quickstart](https://inference-docs.cerebras.ai/quickstart)).
 
@@ -236,7 +244,7 @@ In the Admin UI, set `CEREBRAS_API_KEY`, then route with `MODEL` such as `cerebr
 
 Cerebras exposes an OpenAI-compatible API at `https://api.cerebras.ai/v1` ([OpenAI compatibility](https://inference-docs.cerebras.ai/resources/openai)). Non-standard request fields should go in `extra_body` when using the OpenAI client; see the same page. For reasoning models and parameters, see [Reasoning](https://inference-docs.cerebras.ai/capabilities/reasoning). This proxy follows other OpenAI-compat adapters for thinking via `reasoning_content` when Claude-style thinking is enabled.
 
-### 12. [Groq](https://console.groq.com/)
+### 13. [Groq](https://console.groq.com/)
 
 Get an API key at [console.groq.com/keys](https://console.groq.com/keys).
 
@@ -248,7 +256,7 @@ Reasoning-heavy models expose extra knobs documented under [Groq reasoning](http
 
 Browse models at [console.groq.com/docs/models](https://console.groq.com/docs/models).
 
-### 13. [Fireworks AI](https://fireworks.ai/)
+### 14. [Fireworks AI](https://fireworks.ai/)
 
 Get an API key at [fireworks.ai/account/api-keys](https://fireworks.ai/account/api-keys).
 
@@ -258,7 +266,7 @@ Fireworks exposes an **Anthropic-compatible** Messages API at `https://api.firew
 
 Browse models at [fireworks.ai/models](https://fireworks.ai/models).
 
-### 14. [Z.ai](https://z.ai/)
+### 15. [Z.ai](https://z.ai/)
 
 Get an API key at [Z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list).
 
@@ -273,13 +281,13 @@ Popular examples:
 
 Browse models at [Z.ai](https://z.ai).
 
-### 15. [LM Studio](https://lmstudio.ai/)
+### 16. [LM Studio](https://lmstudio.ai/)
 
 Start LM Studio's local server and load a model. In the Admin UI, keep or update `LM_STUDIO_BASE_URL`, then set `MODEL` to the model identifier shown by LM Studio, prefixed with `lmstudio/`.
 
 Prefer models with tool-use support for Claude Code workflows.
 
-### 16. [llama.cpp](https://github.com/ggml-org/llama.cpp)
+### 17. [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 Start `llama-server` with an Anthropic-compatible `/v1/messages` endpoint and enough context for Claude Code requests.
 
@@ -287,7 +295,7 @@ In the Admin UI, keep or update `LLAMACPP_BASE_URL`, then set `MODEL` to the loc
 
 For local coding models, context size matters. If llama.cpp returns HTTP 400 for normal Claude Code requests, increase `--ctx-size` and verify the model/server build supports the requested features.
 
-### 17. [Ollama](https://ollama.com/)
+### 18. [Ollama](https://ollama.com/)
 
 Run Ollama and pull a model:
 
@@ -300,7 +308,7 @@ In the Admin UI, keep or update `OLLAMA_BASE_URL`, then set `MODEL` to the same 
 
 `OLLAMA_BASE_URL` is the Ollama server root; do not append `/v1`. Example model slugs include `ollama/llama3.1` and `ollama/llama3.1:8b`.
 
-### 18. Mix Providers By Model Tier
+### 19. Mix Providers By Model Tier
 
 Each model tier can use a different provider by setting `MODEL_OPUS`, `MODEL_SONNET`, and `MODEL_HAIKU` in the Admin UI. Leave a tier blank to inherit `MODEL`.
 
@@ -453,7 +461,7 @@ Important pieces:
 - FastAPI exposes Anthropic-compatible routes such as `/v1/messages`, `/v1/messages/count_tokens`, and `/v1/models`.
 - Model routing resolves the Claude model name to `MODEL_OPUS`, `MODEL_SONNET`, `MODEL_HAIKU`, or `MODEL`.
 - NIM, OpenCode Zen, and OpenCode Go use OpenAI chat streaming translated into Anthropic SSE.
-- Wafer, OpenRouter, DeepSeek, Kimi, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama use Anthropic Messages style transports where applicable (with provider-specific quirks and model-list URLs).
+- Wafer, OpenRouter, DeepSeek, Kimi, MiniMax, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama use Anthropic Messages style transports where applicable (with provider-specific quirks and model-list URLs).
 - The proxy normalizes thinking blocks, tool calls, token usage metadata, and provider errors into the shape Claude Code expects.
 - Request optimizations answer trivial Claude Code probes locally to save latency and quota.
 
