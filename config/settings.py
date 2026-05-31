@@ -498,10 +498,10 @@ class Settings(BaseSettings):
         name_lower = claude_model_name.lower()
         if "opus" in name_lower and self.model_opus is not None:
             return self.model_opus
-        if "haiku" in name_lower and self.model_haiku is not None:
-            return self.model_haiku
         if "sonnet" in name_lower and self.model_sonnet is not None:
             return self.model_sonnet
+        if "haiku" in name_lower and self.model_haiku is not None:
+            return self.model_haiku
         return self.model
 
     def configured_chat_model_refs(self) -> tuple[ConfiguredChatModelRef, ...]:
@@ -533,10 +533,10 @@ class Settings(BaseSettings):
         name_lower = claude_model_name.lower()
         if "opus" in name_lower and self.enable_opus_thinking is not None:
             return self.enable_opus_thinking
-        if "haiku" in name_lower and self.enable_haiku_thinking is not None:
-            return self.enable_haiku_thinking
         if "sonnet" in name_lower and self.enable_sonnet_thinking is not None:
             return self.enable_sonnet_thinking
+        if "haiku" in name_lower and self.enable_haiku_thinking is not None:
+            return self.enable_haiku_thinking
         return self.enable_model_thinking
 
     def web_fetch_allowed_scheme_set(self) -> frozenset[str]:

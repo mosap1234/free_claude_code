@@ -36,7 +36,12 @@ _TELEGRAM_BOT_RE = re.compile(
 )
 # Authorization: Bearer <token> (HTTP client / proxy debug lines)
 _AUTH_BEARER_RE = re.compile(
-    r"(\bAuthorization\s*:\s*Bearer\s+)([^\s'\"]+)",
+    r"(\bAuthorization\s*:\s*Bearer\s+)([^\s'\"\\]+)",
+    re.IGNORECASE,
+)
+# x-api-key: *** (used by Claude CLI / Anthropic clients)
+_X_API_KEY_RE = re.compile(
+    r"(\bx-api-key\s*:\s*)([^\s'\"\\]+)",
     re.IGNORECASE,
 )
 
@@ -44,7 +49,9 @@ _AUTH_BEARER_RE = re.compile(
 def _redact_sensitive_substrings(message: str) -> str:
     """Remove obvious API tokens and secrets before JSON log line emission."""
     text = _TELEGRAM_BOT_RE.sub(r"\1bot<redacted>\3", message)
-    return _AUTH_BEARER_RE.sub(r"\1<redacted>", text)
+    text = _AUTH_BEARER_RE.sub(r"\1<redacted>", text)
+    text = _X_API_KEY_RE.sub(r"\1<redacted>", text)
+    return text
 
 
 def _serialize_with_context(record) -> str:
