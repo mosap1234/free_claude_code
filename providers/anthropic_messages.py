@@ -166,12 +166,12 @@ class AnthropicMessagesTransport(BaseProvider):
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
+            preview, truncated = await self._read_error_body_preview(
+                response, NATIVE_MESSAGES_ERROR_BODY_LOG_CAP_BYTES
+            )
+            body_text = preview.decode("utf-8", errors="replace") if preview else ""
             if self._config.log_api_error_tracebacks:
-                preview, truncated = await self._read_error_body_preview(
-                    response, NATIVE_MESSAGES_ERROR_BODY_LOG_CAP_BYTES
-                )
                 if preview:
-                    text = preview.decode("utf-8", errors="replace")
                     logger.error(
                         "{}_ERROR:{} HTTP {} body_preview_bytes={} truncated={}: {}",
                         self._provider_name,
@@ -179,7 +179,7 @@ class AnthropicMessagesTransport(BaseProvider):
                         response.status_code,
                         len(preview),
                         truncated,
-                        text,
+                        body_text,
                     )
                 else:
                     logger.error(
@@ -198,6 +198,8 @@ class AnthropicMessagesTransport(BaseProvider):
                     response.status_code,
                     extra,
                 )
+            if body_text:
+                error.upstream_body = body_text  # type: ignore[attr-defined]
             raise error
 
     async def _read_error_body_preview(
@@ -279,6 +281,7 @@ class AnthropicMessagesTransport(BaseProvider):
             mapped_error,
             provider_name=self._provider_name,
             read_timeout_s=self._config.http_read_timeout,
+            original_exception=error,
         )
         return self._format_error_message(base_message, request_id)
 

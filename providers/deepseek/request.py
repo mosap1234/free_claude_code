@@ -211,13 +211,46 @@ def _has_tool_history(data: dict[str, Any]) -> bool:
     return False
 
 
-def _has_replayable_tool_thinking(data: dict[str, Any]) -> bool:
-    for message in data.get("messages") or ():
-        if isinstance(message, Mapping) and _has_replayable_thinking_before_tool_use(
-            message
+def _message_has_tool_use(message: Mapping[str, Any]) -> bool:
+    if message.get("role") != "assistant":
+        return False
+    content = message.get("content")
+    if not isinstance(content, list):
+        return False
+    return any(
+        isinstance(b, dict) and b.get("type") == "tool_use" for b in content
+    )
+
+
+def _assistant_message_has_thinking_block(message: Mapping[str, Any]) -> bool:
+    content = message.get("content")
+    if not isinstance(content, list):
+        return False
+    for block in content:
+        if (
+            isinstance(block, dict)
+            and block.get("type") == "thinking"
+            and isinstance(block.get("thinking"), str)
+            and block["thinking"]
         ):
             return True
     return False
+
+
+def _has_replayable_tool_thinking(data: dict[str, Any]) -> bool:
+    """True only if every assistant message in history carries a non-empty
+    ``thinking`` block. DeepSeek 400s if any prior assistant turn lacks it
+    while thinking mode is enabled."""
+    saw_any_assistant = False
+    for message in data.get("messages") or ():
+        if not isinstance(message, Mapping):
+            continue
+        if message.get("role") != "assistant":
+            continue
+        saw_any_assistant = True
+        if not _assistant_message_has_thinking_block(message):
+            return False
+    return saw_any_assistant
 
 
 def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
@@ -260,10 +293,37 @@ def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
             data.pop("context_management", None)
 
 
+_SYNTHETIC_THINKING_BLOCK = {"type": "thinking", "thinking": " "}
+
+
+def _ensure_thinking_block(content: list[Any]) -> list[Any]:
+    """Prepend a placeholder ``thinking`` block when assistant content lacks one.
+
+    DeepSeek's v4 models always run in thinking mode on their Anthropic-compat
+    endpoint and reject history that omits ``thinking`` blocks. Unsigned thinking
+    is accepted, so a minimal placeholder satisfies the validator without
+    altering model behavior.
+    """
+    for block in content:
+        if (
+            isinstance(block, dict)
+            and block.get("type") == "thinking"
+            and isinstance(block.get("thinking"), str)
+            and block["thinking"]
+        ):
+            return content
+    return [dict(_SYNTHETIC_THINKING_BLOCK), *content]
+
+
 def sanitize_deepseek_messages_for_native(
     messages: Any, *, thinking_enabled: bool
 ) -> Any:
-    """Filter assistant content for DeepSeek: unsigned ``thinking`` is allowed; no ``redacted_thinking``."""
+    """Filter assistant content for DeepSeek: unsigned ``thinking`` is allowed; no ``redacted_thinking``.
+
+    DeepSeek v4 endpoints always require ``thinking`` blocks on every assistant
+    turn, regardless of whether the client requested thinking mode. Missing
+    blocks are backfilled with an unsigned placeholder.
+    """
     if not isinstance(messages, list):
         return messages
 
@@ -280,23 +340,24 @@ def sanitize_deepseek_messages_for_native(
             sanitized.append(message)
             continue
 
-        if not thinking_enabled:
-            filtered = [
-                block
-                for block in content
-                if not (
-                    isinstance(block, dict)
-                    and block.get("type") in ("thinking", "redacted_thinking")
+        filtered = [
+            block
+            for block in content
+            if not (
+                isinstance(block, dict)
+                and (
+                    block.get("type") == "redacted_thinking"
+                    or (
+                        block.get("type") == "thinking"
+                        and not (
+                            isinstance(block.get("thinking"), str)
+                            and block["thinking"]
+                        )
+                    )
                 )
-            ]
-        else:
-            filtered = [
-                block
-                for block in content
-                if not (
-                    isinstance(block, dict) and block.get("type") == "redacted_thinking"
-                )
-            ]
+            )
+        ]
+        filtered = _ensure_thinking_block(filtered)
         new_msg = dict(message)
         new_msg["content"] = filtered or ""
         sanitized.append(new_msg)
@@ -399,8 +460,13 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
 
     has_tool_history = _has_tool_history(data)
     has_replayable_tool_thinking = _has_replayable_tool_thinking(data)
+    has_assistant_history = any(
+        isinstance(m, Mapping) and m.get("role") == "assistant"
+        for m in data.get("messages") or ()
+    )
+    unsafe_followup = has_assistant_history and not has_replayable_tool_thinking
     unsafe_tool_followup = has_tool_history and not has_replayable_tool_thinking
-    effective_thinking_enabled = thinking_enabled and not unsafe_tool_followup
+    effective_thinking_enabled = thinking_enabled and not unsafe_followup
     if thinking_enabled:
         if unsafe_tool_followup:
             logger.debug(

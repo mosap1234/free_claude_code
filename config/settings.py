@@ -206,9 +206,9 @@ class Settings(BaseSettings):
     cerebras_proxy: str = Field(default="", validation_alias="CEREBRAS_PROXY")
 
     # ==================== Provider Rate Limiting ====================
-    provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
+    provider_rate_limit: int = Field(default=1, validation_alias="PROVIDER_RATE_LIMIT")
     provider_rate_window: int = Field(
-        default=60, validation_alias="PROVIDER_RATE_WINDOW"
+        default=3, validation_alias="PROVIDER_RATE_WINDOW"
     )
     provider_max_concurrency: int = Field(
         default=5, validation_alias="PROVIDER_MAX_CONCURRENCY"
@@ -228,10 +228,10 @@ class Settings(BaseSettings):
 
     # ==================== HTTP Client Timeouts ====================
     http_read_timeout: float = Field(
-        default=120.0, validation_alias="HTTP_READ_TIMEOUT"
+        default=300.0, validation_alias="HTTP_READ_TIMEOUT"
     )
     http_write_timeout: float = Field(
-        default=10.0, validation_alias="HTTP_WRITE_TIMEOUT"
+        default=60.0, validation_alias="HTTP_WRITE_TIMEOUT"
     )
     http_connect_timeout: float = Field(
         default=HTTP_CONNECT_TIMEOUT_DEFAULT,
@@ -498,10 +498,10 @@ class Settings(BaseSettings):
         name_lower = claude_model_name.lower()
         if "opus" in name_lower and self.model_opus is not None:
             return self.model_opus
-        if "haiku" in name_lower and self.model_haiku is not None:
-            return self.model_haiku
         if "sonnet" in name_lower and self.model_sonnet is not None:
             return self.model_sonnet
+        if "haiku" in name_lower and self.model_haiku is not None:
+            return self.model_haiku
         return self.model
 
     def configured_chat_model_refs(self) -> tuple[ConfiguredChatModelRef, ...]:
@@ -533,10 +533,10 @@ class Settings(BaseSettings):
         name_lower = claude_model_name.lower()
         if "opus" in name_lower and self.enable_opus_thinking is not None:
             return self.enable_opus_thinking
-        if "haiku" in name_lower and self.enable_haiku_thinking is not None:
-            return self.enable_haiku_thinking
         if "sonnet" in name_lower and self.enable_sonnet_thinking is not None:
             return self.enable_sonnet_thinking
+        if "haiku" in name_lower and self.enable_haiku_thinking is not None:
+            return self.enable_haiku_thinking
         return self.enable_model_thinking
 
     def web_fetch_allowed_scheme_set(self) -> frozenset[str]:

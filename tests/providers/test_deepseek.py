@@ -401,7 +401,12 @@ def test_tool_history_without_thinking_disables_thinking_and_hints(deepseek_prov
     assert body["output_config"] == {"format": "text"}
     assert body["tools"][0]["name"] == "Read"
     assert body["tool_choice"] == {"type": "auto"}
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    # DeepSeek v4 requires a thinking block on every assistant turn even when
+    # the request omits thinking; a placeholder is backfilled.
+    assert [b["type"] for b in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
 
 
@@ -440,7 +445,12 @@ def test_tool_history_with_empty_thinking_disables_thinking(deepseek_provider):
     body = deepseek_provider._build_request_body(request)
 
     assert "thinking" not in body
-    assert [block["type"] for block in body["messages"][0]["content"]] == ["tool_use"]
+    # Empty thinking block is replaced with a non-empty placeholder so DeepSeek
+    # accepts the assistant turn.
+    assert [block["type"] for block in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
 
 
 def test_thinking_off_strips_thinking_history():
@@ -468,9 +478,9 @@ def test_thinking_off_strips_thinking_history():
         }
     )
     body = provider._build_request_body(request)
-    for b in body["messages"][0]["content"]:
-        assert b["type"] != "thinking"
-    assert "sec" not in str(body["messages"])
+    # DeepSeek v4 always requires thinking blocks in history; the original
+    # signed/text content is preserved rather than stripped.
+    assert any(b["type"] == "thinking" for b in body["messages"][0]["content"])
 
 
 def test_passthrough_tool_use_and_result(deepseek_provider):
@@ -503,7 +513,11 @@ def test_passthrough_tool_use_and_result(deepseek_provider):
         }
     )
     body = deepseek_provider._build_request_body(request)
-    assert body["messages"][0]["content"][0]["type"] == "tool_use"
+    # Placeholder thinking block is prepended; tool_use follows.
+    assert [b["type"] for b in body["messages"][0]["content"]] == [
+        "thinking",
+        "tool_use",
+    ]
     assert body["messages"][1]["content"][0]["type"] == "tool_result"
 
 
