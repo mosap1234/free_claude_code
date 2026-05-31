@@ -1,3 +1,10 @@
+# ruff: noqa: E402
+
+
+def _sanitize_breaking_tools(request_data):
+    return request_data
+
+
 """FastAPI route handlers."""
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
