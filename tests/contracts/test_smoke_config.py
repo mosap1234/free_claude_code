@@ -29,6 +29,7 @@ def _settings(**overrides):
         "codestral_api_key": "",
         "deepseek_api_key": "",
         "kimi_api_key": "",
+        "minimax_api_key": "",
         "wafer_api_key": "",
         "opencode_api_key": "",
         "zai_api_key": "",

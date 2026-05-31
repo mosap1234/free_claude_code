@@ -174,6 +174,18 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         secret=True,
     ),
     ConfigFieldSpec(
+        "MINIMAX_API_KEY",
+        "MiniMax API Key",
+        "providers",
+        "secret",
+        settings_attr="minimax_api_key",
+        secret=True,
+        description=(
+            "MiniMax Anthropic-compatible Messages API key (api.minimax.io/anthropic/v1); "
+            "authenticates via the X-Api-Key header."
+        ),
+    ),
+    ConfigFieldSpec(
         "WAFER_API_KEY",
         "Wafer API Key",
         "providers",

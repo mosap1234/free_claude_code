@@ -17,6 +17,7 @@ from providers.groq import GroqProvider
 from providers.kimi import KimiProvider
 from providers.llamacpp import LlamaCppProvider
 from providers.lmstudio import LMStudioProvider
+from providers.minimax import MiniMaxProvider
 from providers.mistral import MistralProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
@@ -55,6 +56,7 @@ def _make_settings(**overrides):
     mock.codestral_proxy = ""
     mock.kimi_proxy = ""
     mock.kimi_api_key = "test_kimi_key"
+    mock.minimax_api_key = "test_minimax_key"
     mock.wafer_proxy = ""
     mock.opencode_proxy = ""
     mock.opencode_go_proxy = ""
@@ -177,6 +179,7 @@ def test_create_provider_instantiates_each_builtin():
         "mistral_codestral": CodestralProvider,
         "deepseek": DeepSeekProvider,
         "kimi": KimiProvider,
+        "minimax": MiniMaxProvider,
         "fireworks": FireworksProvider,
         "lmstudio": LMStudioProvider,
         "llamacpp": LlamaCppProvider,

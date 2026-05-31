@@ -15,6 +15,8 @@ TransportType = Literal["openai_chat", "anthropic_messages"]
 NVIDIA_NIM_DEFAULT_BASE = "https://integrate.api.nvidia.com/v1"
 # Moonshot Kimi Anthropic-compatible Messages API (POST …/messages).
 KIMI_DEFAULT_BASE = "https://api.moonshot.ai/anthropic/v1"
+# MiniMax Anthropic-compatible Messages API; auth via X-Api-Key (not Bearer).
+MINIMAX_DEFAULT_BASE = "https://api.minimax.io/anthropic/v1"
 WAFER_DEFAULT_BASE = "https://pass.wafer.ai/v1"
 # DeepSeek Anthropic-compatible Messages API (not OpenAI ``/v1`` chat completions).
 DEEPSEEK_ANTHROPIC_DEFAULT_BASE = "https://api.deepseek.com/anthropic"
@@ -159,6 +161,15 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
             "thinking",
             "native_anthropic",
         ),
+    ),
+    "minimax": ProviderDescriptor(
+        provider_id="minimax",
+        transport_type="anthropic_messages",
+        credential_env="MINIMAX_API_KEY",
+        credential_url="https://platform.minimaxi.com/user-center/basic-information/interface-key",
+        credential_attr="minimax_api_key",
+        default_base_url=MINIMAX_DEFAULT_BASE,
+        capabilities=("chat", "streaming", "tools", "native_anthropic"),
     ),
     "cerebras": ProviderDescriptor(
         provider_id="cerebras",

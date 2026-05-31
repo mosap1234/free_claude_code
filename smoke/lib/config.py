@@ -237,6 +237,8 @@ class SmokeConfig:
             return bool(self.settings.deepseek_api_key.strip())
         if provider == "kimi":
             return bool(self.settings.kimi_api_key.strip())
+        if provider == "minimax":
+            return bool(self.settings.minimax_api_key.strip())
         if provider == "lmstudio":
             return bool(self.settings.lm_studio_base_url.strip())
         if provider == "llamacpp":
@@ -295,7 +297,9 @@ def _provider_smoke_model(provider: str) -> tuple[str, str]:
     return default, "provider_default"
 
 
-def _normalize_provider_model(provider: str, raw_model: str) -> str:
+def _normalize_provider_model(
+    provider: str, raw_model: str, *, trusted: bool = False
+) -> str:
     model = raw_model.strip()
     if not model:
         msg = f"FCC_SMOKE_MODEL_{provider.upper()} must not be empty"
@@ -305,7 +309,11 @@ def _normalize_provider_model(provider: str, raw_model: str) -> str:
     prefix = Settings.parse_provider_type(model)
     if prefix == provider:
         return model
-    if prefix in SUPPORTED_PROVIDER_IDS:
+    # ``trusted`` models come from curated default lists (e.g. OpenRouter slugs
+    # like ``minimax/minimax-m2.5:free`` whose vendor segment may collide with a
+    # provider id). Only env-supplied overrides get the wrong-prefix guard, which
+    # protects against typos like FCC_SMOKE_MODEL_DEEPSEEK=ollama/llama3.1.
+    if not trusted and prefix in SUPPORTED_PROVIDER_IDS:
         msg = (
             f"FCC_SMOKE_MODEL_{provider.upper()} must use provider prefix "
             f"{provider!r}, got {model!r}"
@@ -329,17 +337,20 @@ def nvidia_nim_cli_model_refs(
     if "FCC_SMOKE_NIM_MODELS" in source and not explicit_models:
         raise ValueError("FCC_SMOKE_NIM_MODELS must list at least one model")
 
-    models: list[tuple[str, str]] = []
+    models: list[tuple[str, str, bool]] = []
     base_models = explicit_models or NVIDIA_NIM_CLI_DEFAULT_MODELS
     base_source = (
         "FCC_SMOKE_NIM_MODELS" if explicit_models else "nvidia_nim_cli_default"
     )
-    models.extend((model, base_source) for model in base_models)
-    models.extend((model, "FCC_SMOKE_NIM_EXTRA_MODELS") for model in extra_models)
+    base_trusted = not explicit_models
+    models.extend((model, base_source, base_trusted) for model in base_models)
+    models.extend(
+        (model, "FCC_SMOKE_NIM_EXTRA_MODELS", False) for model in extra_models
+    )
 
     normalized: dict[str, str] = {}
-    for raw_model, model_source in models:
-        full_model = _normalize_provider_model("nvidia_nim", raw_model)
+    for raw_model, model_source, trusted in models:
+        full_model = _normalize_provider_model("nvidia_nim", raw_model, trusted=trusted)
         normalized.setdefault(full_model, model_source)
     return normalized
 
@@ -359,21 +370,25 @@ def openrouter_free_cli_model_refs(
             "FCC_SMOKE_OPENROUTER_FREE_MODELS must list at least one model"
         )
 
-    models: list[tuple[str, str]] = []
+    models: list[tuple[str, str, bool]] = []
     base_models = explicit_models or OPENROUTER_FREE_CLI_DEFAULT_MODELS
     base_source = (
         "FCC_SMOKE_OPENROUTER_FREE_MODELS"
         if explicit_models
         else "openrouter_free_cli_default"
     )
-    models.extend((model, base_source) for model in base_models)
+    base_trusted = not explicit_models
+    models.extend((model, base_source, base_trusted) for model in base_models)
     models.extend(
-        (model, "FCC_SMOKE_OPENROUTER_FREE_EXTRA_MODELS") for model in extra_models
+        (model, "FCC_SMOKE_OPENROUTER_FREE_EXTRA_MODELS", False)
+        for model in extra_models
     )
 
     normalized: dict[str, str] = {}
-    for raw_model, model_source in models:
-        full_model = _normalize_provider_model("open_router", raw_model)
+    for raw_model, model_source, trusted in models:
+        full_model = _normalize_provider_model(
+            "open_router", raw_model, trusted=trusted
+        )
         normalized.setdefault(full_model, model_source)
     return normalized
 
