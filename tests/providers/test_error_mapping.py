@@ -44,7 +44,7 @@ def test_authentication_error_with_raw_upstream_error_attaches_preview():
     message = get_user_facing_error_message(result)
     assert message.startswith("Provider authentication failed. Check API key.")
     assert "Upstream recap:" in message
-    assert "REDACTED" in message or "401" in message
+    assert "REDACTED" in message and "401" in message
 
 
 def test_authentication_error_raw_error_bearing_token_is_redacted():
