@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # =============================================================================
@@ -91,8 +91,64 @@ class SystemContent(_AnthropicBlockBase):
 # =============================================================================
 # Message Types
 # =============================================================================
+def _message_content_to_text(content: Any) -> str:
+    """Flatten a message ``content`` (str or list of blocks) to plain text."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            text = getattr(block, "text", None)
+            if text is None and isinstance(block, dict):
+                text = block.get("text")
+            if isinstance(text, str):
+                parts.append(text)
+        return "\n\n".join(parts)
+    return ""
+
+
+def _hoist_system_role_messages(messages: list[Any], system: Any) -> tuple[list[Any], Any]:
+    """Move ``system``-role messages out of ``messages`` into the ``system`` field.
+
+    The Anthropic Messages API (and DeepSeek's native ``/anthropic`` endpoint)
+    only accept ``user``/``assistant`` roles inside ``messages``; system text
+    belongs in the dedicated top-level ``system`` field. Returns the cleaned
+    ``(messages, system)`` pair. No-op when there are no system-role messages.
+    """
+    if not any(getattr(m, "role", None) == "system" for m in messages):
+        return messages, system
+
+    hoisted: list[str] = []
+    kept: list[Any] = []
+    for m in messages:
+        if getattr(m, "role", None) == "system":
+            text = _message_content_to_text(m.content).strip()
+            if text:
+                hoisted.append(text)
+        else:
+            kept.append(m)
+
+    if not hoisted:
+        return kept, system
+
+    blocks: list[SystemContent] = []
+    if isinstance(system, str):
+        if system.strip():
+            blocks.append(SystemContent(type="text", text=system))
+    elif isinstance(system, list):
+        blocks.extend(system)
+    for text in hoisted:
+        blocks.append(SystemContent(type="text", text=text))
+    return kept, blocks
+
+
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
+    # Claude Code (>= 2.1.x) may emit ``system``-role messages inside the
+    # ``messages`` array. The Anthropic Messages API only allows user/assistant
+    # there, so such messages are hoisted into the top-level ``system`` field by
+    # ``MessagesRequest._hoist_system_role_messages``. Accepting the literal here
+    # is what keeps the FastAPI ingress from 422-ing before that normalization runs.
+    role: Literal["user", "assistant", "system"]
     content: (
         str
         | list[
@@ -156,6 +212,13 @@ class MessagesRequest(BaseModel):
     # Beta feature flags sent by Claude Code as a body field; accepted but never forwarded.
     betas: list[str] | None = Field(default=None, exclude=True)
 
+    @model_validator(mode="after")
+    def _normalize_system_role_messages(self) -> "MessagesRequest":
+        self.messages, self.system = _hoist_system_role_messages(
+            self.messages, self.system
+        )
+        return self
+
 
 class TokenCountRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -172,3 +235,10 @@ class TokenCountRequest(BaseModel):
     output_config: dict[str, Any] | None = None
     mcp_servers: list[dict[str, Any]] | None = None
     betas: list[str] | None = Field(default=None, exclude=True)
+
+    @model_validator(mode="after")
+    def _normalize_system_role_messages(self) -> "TokenCountRequest":
+        self.messages, self.system = _hoist_system_role_messages(
+            self.messages, self.system
+        )
+        return self
