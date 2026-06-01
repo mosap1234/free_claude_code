@@ -378,7 +378,7 @@ class Settings(BaseSettings):
     def claude_cli_bin(self) -> str:
         """Return the fixed Claude Code binary name."""
 
-        return "claude"
+        return "claude.cmd"
 
     @field_validator("whisper_device")
     @classmethod
