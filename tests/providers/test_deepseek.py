@@ -90,8 +90,38 @@ def test_build_request_body_native_shape(deepseek_provider):
         "Hello",
         [{"type": "text", "text": "Hello"}],
     )
-    assert body["system"] == "S"
+    # The routing banner (and any EXTRA_SYSTEM_PROMPT) is appended, so ``system``
+    # becomes a list of text blocks whose first block preserves the original prompt.
+    if isinstance(body["system"], list):
+        assert body["system"][0]["text"] == "S"
+    else:
+        assert body["system"] == "S"
     assert body["max_tokens"] == 100
+
+
+def test_system_role_message_is_hoisted_into_system_field(deepseek_provider):
+    """Claude Code >= 2.1.x emits ``system``-role messages inside ``messages``.
+
+    These must be normalized into the top-level ``system`` field so the FastAPI
+    ingress does not 422 and DeepSeek's native endpoint only sees user/assistant
+    roles. Regression test for the 422 literal_error on ``messages[1].role``.
+    """
+    request = MessagesRequest(
+        model="deepseek-v4-pro",
+        max_tokens=100,
+        messages=[
+            Message(role="user", content="Hola"),
+            Message(role="system", content="system note"),
+            Message(role="user", content="sigue"),
+        ],
+    )
+    # Normalization happens at parse time (model_validator).
+    assert [m.role for m in request.messages] == ["user", "user"]
+    assert request.system is not None
+    assert any("system note" in b.text for b in request.system)
+
+    body = deepseek_provider._build_request_body(request)
+    assert all(m["role"] in ("user", "assistant") for m in body["messages"])
 
 
 def test_build_request_body_default_max_tokens(deepseek_provider):
