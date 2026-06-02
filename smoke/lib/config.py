@@ -44,6 +44,7 @@ SECRET_KEY_PARTS = ("KEY", "TOKEN", "SECRET", "WEBHOOK", "AUTH")
 PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "nvidia_nim": "nvidia_nim/nvidia/nemotron-3-super-120b-a12b",
     "open_router": "open_router/moonshotai/kimi-k2.6:free",
+    "freellmapi": "freellmapi/auto",
     "mistral": "mistral/devstral-small-latest",
     "mistral_codestral": "mistral_codestral/codestral-latest",
     "deepseek": "deepseek/deepseek-v4-pro",
@@ -227,6 +228,11 @@ class SmokeConfig:
             return bool(self.settings.nvidia_nim_api_key.strip())
         if provider == "open_router":
             return bool(self.settings.open_router_api_key.strip())
+        if provider == "freellmapi":
+            return bool(
+                self.settings.freellmapi_api_key.strip()
+                and self.settings.freellmapi_base_url.strip()
+            )
         if provider == "mistral":
             return bool(self.settings.mistral_api_key.strip())
         if provider == "mistral_codestral":

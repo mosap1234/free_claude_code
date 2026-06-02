@@ -30,6 +30,8 @@ def _settings(**overrides):
         "model_haiku": None,
         "nvidia_nim_api_key": "",
         "open_router_api_key": "",
+        "freellmapi_api_key": "",
+        "freellmapi_base_url": "http://localhost:3001/v1",
         "mistral_api_key": "",
         "codestral_api_key": "",
         "deepseek_api_key": "",
@@ -125,6 +127,19 @@ def test_openrouter_provider_smoke_uses_concrete_free_model(monkeypatch) -> None
 
     assert [model.provider for model in models] == ["open_router"]
     assert models[0].full_model == "open_router/moonshotai/kimi-k2.6:free"
+    assert models[0].source == "provider_default"
+
+
+def test_freellmapi_provider_smoke_uses_auto_router_model(monkeypatch) -> None:
+    monkeypatch.delenv("FCC_SMOKE_MODEL_FREELLMAPI", raising=False)
+    config = _smoke_config(
+        settings=_settings(freellmapi_api_key="free-key", ollama_base_url="")
+    )
+
+    models = config.provider_smoke_models()
+
+    assert [model.provider for model in models] == ["freellmapi"]
+    assert models[0].full_model == "freellmapi/auto"
     assert models[0].source == "provider_default"
 
 
