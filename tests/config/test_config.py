@@ -634,6 +634,7 @@ class TestPerModelMapping:
                 "open_router/anthropic/claude-3-haiku",
             ),
             ({"MODEL": "deepseek/deepseek-chat"}, "deepseek/deepseek-chat", None),
+            ({"MODEL": "freellmapi/auto"}, "freellmapi/auto", None),
             ({"MODEL": "wafer/DeepSeek-V4-Pro"}, "wafer/DeepSeek-V4-Pro", None),
             ({"MODEL": "lmstudio/qwen2.5-7b"}, "lmstudio/qwen2.5-7b", None),
             ({"MODEL": "llamacpp/local-model"}, "llamacpp/local-model", None),
@@ -771,6 +772,7 @@ class TestPerModelMapping:
 
         assert Settings.parse_provider_type("nvidia_nim/meta/llama") == "nvidia_nim"
         assert Settings.parse_provider_type("open_router/deepseek/r1") == "open_router"
+        assert Settings.parse_provider_type("freellmapi/auto") == "freellmapi"
         assert (
             Settings.parse_provider_type("mistral/devstral-small-latest") == "mistral"
         )
@@ -799,6 +801,7 @@ class TestPerModelMapping:
             Settings.parse_model_name("mistral/devstral-small-latest")
             == "devstral-small-latest"
         )
+        assert Settings.parse_model_name("freellmapi/auto") == "auto"
         assert (
             Settings.parse_model_name("mistral_codestral/codestral-latest")
             == "codestral-latest"

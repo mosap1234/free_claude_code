@@ -5,13 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from config.nim import NimSettings
-from config.provider_catalog import PROVIDER_CATALOG, ZAI_DEFAULT_BASE
+from config.provider_catalog import (
+    FREELLMAPI_DEFAULT_BASE,
+    PROVIDER_CATALOG,
+    ZAI_DEFAULT_BASE,
+)
 from config.provider_ids import SUPPORTED_PROVIDER_IDS
 from providers.cerebras import CerebrasProvider
 from providers.codestral import CodestralProvider
 from providers.deepseek import DeepSeekProvider
 from providers.exceptions import UnknownProviderTypeError
 from providers.fireworks import FireworksProvider
+from providers.freellmapi import FreeLLMAPIProvider
 from providers.gemini import GeminiProvider
 from providers.groq import GroqProvider
 from providers.kimi import KimiProvider
@@ -38,6 +43,8 @@ def _make_settings(**overrides):
     mock.provider_type = "nvidia_nim"
     mock.nvidia_nim_api_key = "test_key"
     mock.open_router_api_key = "test_openrouter_key"
+    mock.freellmapi_api_key = "test_freellmapi_key"
+    mock.freellmapi_base_url = FREELLMAPI_DEFAULT_BASE
     mock.mistral_api_key = "test_mistral_key"
     mock.codestral_api_key = "test_codestral_key"
     mock.deepseek_api_key = "test_deepseek_key"
@@ -49,6 +56,7 @@ def _make_settings(**overrides):
     mock.ollama_base_url = "http://localhost:11434"
     mock.nvidia_nim_proxy = ""
     mock.open_router_proxy = ""
+    mock.freellmapi_proxy = ""
     mock.lmstudio_proxy = ""
     mock.llamacpp_proxy = ""
     mock.mistral_proxy = ""
@@ -112,6 +120,30 @@ def test_ollama_descriptor_uses_native_anthropic_transport():
     assert "native_anthropic" in descriptor.capabilities
 
 
+def test_freellmapi_descriptor_uses_configurable_openai_base_url():
+    descriptor = PROVIDER_DESCRIPTORS["freellmapi"]
+
+    assert descriptor.transport_type == "openai_chat"
+    assert descriptor.default_base_url == FREELLMAPI_DEFAULT_BASE
+    assert descriptor.base_url_attr == "freellmapi_base_url"
+    assert descriptor.credential_env == "FREELLMAPI_API_KEY"
+
+
+def test_freellmapi_provider_config_uses_key_and_base_url():
+    descriptor = PROVIDER_DESCRIPTORS["freellmapi"]
+
+    config = build_provider_config(
+        descriptor,
+        _make_settings(
+            freellmapi_api_key="free-key",
+            freellmapi_base_url="http://127.0.0.1:3001/v1",
+        ),
+    )
+
+    assert config.api_key == "free-key"
+    assert config.base_url == "http://127.0.0.1:3001/v1"
+
+
 def test_zai_descriptor_uses_fixed_cloud_base_url():
     descriptor = PROVIDER_DESCRIPTORS["zai"]
 
@@ -173,6 +205,7 @@ def test_create_provider_instantiates_each_builtin():
     )
     cases = {
         "nvidia_nim": NvidiaNimProvider,
+        "freellmapi": FreeLLMAPIProvider,
         "mistral": MistralProvider,
         "mistral_codestral": CodestralProvider,
         "deepseek": DeepSeekProvider,
