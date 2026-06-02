@@ -21,11 +21,15 @@ class XiaomiProvider(OpenAIChatTransport):
     def _build_request_body(
         self, request: Any, thinking_enabled: bool | None = None
     ) -> dict:
+        # Greptile Bot is correct: thinking_enabled can be None here.
+        # We must resolve the effective state using the base class helper.
+        effective_thinking = self._is_thinking_enabled(request, thinking_enabled)
+        
         try:
             body = build_base_request_body(
                 request,
                 reasoning_replay=ReasoningReplayMode.REASONING_CONTENT
-                if thinking_enabled
+                if effective_thinking
                 else ReasoningReplayMode.DISABLED,
             )
         except OpenAIConversionError as exc:
