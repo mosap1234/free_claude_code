@@ -118,6 +118,21 @@ SECTIONS: tuple[ConfigSectionSpec, ...] = (
 
 FIELDS: tuple[ConfigFieldSpec, ...] = (
     ConfigFieldSpec(
+        "XIAOMI_API_KEY",
+        "Xiaomi MiMo API Key",
+        "providers",
+        "secret",
+        settings_attr="xiaomi_api_key",
+        secret=True,
+    ),
+    ConfigFieldSpec(
+        "XIAOMI_BASE_URL",
+        "Xiaomi Base URL",
+        "providers",
+        "text",
+        settings_attr="xiaomi_base_url",
+    ),
+    ConfigFieldSpec(
         "NVIDIA_NIM_API_KEY",
         "NVIDIA NIM API Key",
         "providers",
@@ -412,7 +427,7 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         "Default Model",
         "models",
         settings_attr="model",
-        default="nvidia_nim/nvidia/nemotron-3-super-120b-a12b",
+        default="nvidia_nim/z-ai/glm4.7",
         description="Fallback provider/model route for all Claude model names.",
     ),
     ConfigFieldSpec(
