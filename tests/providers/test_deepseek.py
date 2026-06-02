@@ -749,11 +749,18 @@ def test_strips_document_blocks_for_deepseek(deepseek_provider):
 
     body = deepseek_provider._build_request_body(request)
 
-    # Document block should be stripped; tool_result preserved
+    # Document block is stripped. The tool_result is orphaned (no preceding
+    # tool_use), which DeepSeek rejects with HTTP 400, so it is reframed as a
+    # text block — the extracted PDF text is preserved, the unpaired
+    # ``tool_use_id`` is removed.
     content = body["messages"][0]["content"]
     block_types = [block["type"] for block in content]
     assert "document" not in block_types
-    assert "tool_result" in block_types
+    assert "tool_result" not in block_types
+    assert "text" in block_types
+    assert any(
+        b["type"] == "text" and "PDF text extracted" in b["text"] for b in content
+    )
 
 
 def test_strips_image_blocks_for_deepseek(deepseek_provider):
@@ -1118,6 +1125,204 @@ def test_no_warning_when_no_attachments(deepseek_provider, caplog):
 
     assert not any(
         "stripped unsupported attachment blocks" in r.message
+        for r in caplog.records
+        if r.levelno == logging.WARNING
+    )
+
+
+# ---------------------------------------------------------------------------
+# Orphaned tool_use / tool_result reconciliation
+#
+# DeepSeek's native Anthropic endpoint rejects unpaired tool blocks with HTTP
+# 400 invalid_request_error (surfaced to the client as the opaque
+# "Invalid request sent to provider."). Claude Code conversations trimmed
+# mid-tool-use routinely leave these behind; build_request_body must repair them.
+# ---------------------------------------------------------------------------
+
+
+def _roles_and_blocks(body):
+    """[(role, [block types or 'str']) ...] for compact assertions."""
+    out = []
+    for m in body["messages"]:
+        content = m["content"]
+        if isinstance(content, str):
+            out.append((m["role"], "str"))
+        else:
+            out.append((m["role"], [b.get("type") for b in content]))
+    return out
+
+
+def test_orphan_tool_use_gets_placeholder_tool_result(deepseek_provider):
+    """Assistant tool_use with no following tool_result -> placeholder injected."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "calc"},
+                        {"type": "tool_use", "id": "toolu_z", "name": "calc", "input": {}},
+                    ],
+                },
+                {"role": "user", "content": "sigue"},
+            ],
+        }
+    )
+    body = deepseek_provider._build_request_body(request)
+    user_after = body["messages"][2]
+    assert user_after["role"] == "user"
+    assert isinstance(user_after["content"], list)
+    first = user_after["content"][0]
+    assert first["type"] == "tool_result"
+    assert first["tool_use_id"] == "toolu_z"
+    # The original user text survives after the synthesized result.
+    assert any(
+        b.get("type") == "text" and b.get("text") == "sigue"
+        for b in user_after["content"]
+    )
+
+
+def test_orphan_tool_use_trailing_inserts_user_message(deepseek_provider):
+    """Assistant tool_use as the final message -> a user message is appended."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "tool_use", "id": "toolu_a", "name": "calc", "input": {}},
+                    ],
+                },
+            ],
+        }
+    )
+    body = deepseek_provider._build_request_body(request)
+    last = body["messages"][-1]
+    assert last["role"] == "user"
+    assert last["content"][0]["type"] == "tool_result"
+    assert last["content"][0]["tool_use_id"] == "toolu_a"
+
+
+def test_orphan_tool_result_reframed_as_text(deepseek_provider):
+    """User tool_result with no preceding tool_use -> reframed as text (payload kept)."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {"role": "assistant", "content": "ok"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_zzz", "content": "42"},
+                        {"type": "text", "text": "y esto"},
+                    ],
+                },
+            ],
+        }
+    )
+    body = deepseek_provider._build_request_body(request)
+    last = body["messages"][-1]
+    assert not any(
+        isinstance(b, dict) and b.get("type") == "tool_result"
+        for b in last["content"]
+    )
+    # The orphan result's payload survives as a text block.
+    assert any(
+        b.get("type") == "text" and b.get("text") == "42" for b in last["content"]
+    )
+    assert any(
+        b.get("type") == "text" and b.get("text") == "y esto" for b in last["content"]
+    )
+
+
+def test_orphan_only_tool_result_message_keeps_text(deepseek_provider):
+    """A user message of only-orphan tool_results survives as text (never empty)."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {"role": "assistant", "content": "ok"},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "ghost", "content": "x"},
+                    ],
+                },
+            ],
+        }
+    )
+    body = deepseek_provider._build_request_body(request)
+    for m in body["messages"]:
+        assert m["content"] != []
+    last = body["messages"][-1]
+    assert last["content"][0]["type"] == "text"
+    assert last["content"][0]["text"] == "x"
+
+
+def test_well_paired_tools_are_unchanged(deepseek_provider):
+    """Correctly paired tool_use/tool_result must not be touched (idempotent)."""
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "tool_use", "id": "toolu_ok", "name": "calc", "input": {}},
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "tool_result", "tool_use_id": "toolu_ok", "content": "7"},
+                    ],
+                },
+            ],
+        }
+    )
+    body = deepseek_provider._build_request_body(request)
+    assert _roles_and_blocks(body) == [
+        ("user", "str") if isinstance(body["messages"][0]["content"], str)
+        else ("user", ["text"]),
+        ("assistant", ["tool_use"]),
+        ("user", ["tool_result"]),
+    ]
+    assert body["messages"][2]["content"][0]["tool_use_id"] == "toolu_ok"
+
+
+def test_reconcile_logs_warning_when_repairing(deepseek_provider, caplog):
+    request = MessagesRequest.model_validate(
+        {
+            "model": "deepseek-v4-pro",
+            "max_tokens": 64,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "tool_use", "id": "toolu_w", "name": "calc", "input": {}},
+                    ],
+                },
+                {"role": "user", "content": "sigue"},
+            ],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        deepseek_provider._build_request_body(request)
+    assert any(
+        "reconciled orphaned tool pairs" in r.message
         for r in caplog.records
         if r.levelno == logging.WARNING
     )

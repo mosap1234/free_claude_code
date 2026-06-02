@@ -25,6 +25,7 @@ from core.anthropic.native_sse_block_policy import (
 from core.trace import provider_native_messages_body_snapshot, trace_event
 from providers.base import BaseProvider, ProviderConfig
 from providers.error_mapping import (
+    PROVIDER_ERROR_BODY_ATTR,
     map_error,
     user_visible_message_for_mapped_provider_error,
 )
@@ -162,7 +163,16 @@ class AnthropicMessagesTransport(BaseProvider):
     async def _raise_for_status(
         self, response: httpx.Response, *, req_tag: str
     ) -> None:
-        """Raise for non-200 responses after logging safe metadata (or capped body if opted in)."""
+        """Raise for non-200 responses after logging safe metadata (or capped body if opted in).
+
+        Default stays metadata-only (the upstream body may echo request content,
+        so it is gated behind ``log_api_error_tracebacks``). When the operator
+        opts into verbose errors the capped body is both logged AND attached to
+        the raised exception via :data:`PROVIDER_ERROR_BODY_ATTR`, so the real
+        reason (e.g. ``max_tokens`` too large, orphaned ``tool_use_id``) is
+        surfaced to the client instead of the opaque
+        ``Invalid request sent to provider.``.
+        """
         try:
             response.raise_for_status()
         except httpx.HTTPStatusError as error:
@@ -172,6 +182,7 @@ class AnthropicMessagesTransport(BaseProvider):
                 )
                 if preview:
                     text = preview.decode("utf-8", errors="replace")
+                    setattr(error, PROVIDER_ERROR_BODY_ATTR, text)
                     logger.error(
                         "{}_ERROR:{} HTTP {} body_preview_bytes={} truncated={}: {}",
                         self._provider_name,
@@ -279,6 +290,7 @@ class AnthropicMessagesTransport(BaseProvider):
             mapped_error,
             provider_name=self._provider_name,
             read_timeout_s=self._config.http_read_timeout,
+            include_provider_detail=self._config.log_api_error_tracebacks,
         )
         return self._format_error_message(base_message, request_id)
 

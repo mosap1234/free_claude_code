@@ -383,6 +383,158 @@ def _strip_reasoning_content_when_native(messages: Any) -> Any:
     return out
 
 
+# Placeholder used when a tool call's real result was trimmed from context before
+# the request reached the proxy. Satisfies the Anthropic/DeepSeek pairing contract
+# without fabricating a substantive answer.
+_TRIMMED_TOOL_RESULT_TEXT = (
+    "[tool result omitted: trimmed from conversation context before reaching the provider]"
+)
+
+
+def _assistant_tool_use_ids(message: Any) -> list[str]:
+    """Ordered ``tool_use`` ids declared in an assistant message."""
+    ids: list[str] = []
+    if not isinstance(message, dict) or message.get("role") != "assistant":
+        return ids
+    content = message.get("content")
+    if not isinstance(content, list):
+        return ids
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "tool_use":
+            tid = block.get("id")
+            if isinstance(tid, str):
+                ids.append(tid)
+    return ids
+
+
+def _user_tool_result_ids(message: Any) -> set[str]:
+    """``tool_use_id`` values answered by ``tool_result`` blocks in a user message."""
+    ids: set[str] = set()
+    if not isinstance(message, dict) or message.get("role") != "user":
+        return ids
+    content = message.get("content")
+    if not isinstance(content, list):
+        return ids
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "tool_result":
+            tid = block.get("tool_use_id")
+            if isinstance(tid, str):
+                ids.add(tid)
+    return ids
+
+
+def _placeholder_tool_result(tool_use_id: str) -> dict[str, str]:
+    return {
+        "type": "tool_result",
+        "tool_use_id": tool_use_id,
+        "content": _TRIMMED_TOOL_RESULT_TEXT,
+    }
+
+
+def _orphan_tool_result_as_text(block: dict[str, Any]) -> dict[str, str]:
+    """Reframe an orphaned ``tool_result`` as a plain text block.
+
+    Conversion (vs dropping) preserves the payload — e.g. the extracted text of a
+    PDF that Claude Code front-loads as a ``tool_result`` in the first message, a
+    pattern DeepSeek otherwise rejects with HTTP 400 — while removing the unpaired
+    ``tool_use_id`` that violates the contract. Content has already been
+    normalized to a string by :func:`_normalize_tool_result_content`.
+    """
+    raw = block.get("content")
+    text = raw if isinstance(raw, str) and raw.strip() else _TRIMMED_TOOL_RESULT_TEXT
+    return {"type": "text", "text": text}
+
+
+def _reconcile_tool_pairs(messages: Any) -> tuple[Any, dict[str, int]]:
+    """Repair orphaned ``tool_use`` / ``tool_result`` pairs before forwarding.
+
+    DeepSeek's Anthropic-compatible endpoint enforces the Messages tool-pairing
+    contract and rejects violations with HTTP 400 ``invalid_request_error``
+    (surfaced to the client as the opaque ``Invalid request sent to provider.``).
+    Claude Code conversations routinely leave one of two violations behind — from
+    mid-tool-use context trimming, or from front-loading file contents as a
+    ``tool_result`` in the first message — and both are repaired here,
+    meaning-preserved:
+
+    1. Assistant ``tool_use`` with no matching ``tool_result`` in the *next*
+       message -> synthesize a placeholder ``tool_result`` (the real result was
+       trimmed from context). When no user message follows, one is inserted.
+    2. User ``tool_result`` with no matching ``tool_use`` in the *previous*
+       message -> reframe the orphaned block as a text block (its payload is
+       preserved; the unpaired ``tool_use_id`` that triggers the 400 is removed).
+
+    Returns ``(messages, stats)`` where ``stats`` counts the repairs applied.
+    """
+    stats = {"added_tool_results": 0, "orphan_tool_results_as_text": 0}
+    if not isinstance(messages, list) or not messages:
+        return messages, stats
+
+    # Pass A: reframe orphan tool_result blocks (no matching tool_use in prev msg)
+    # as text so their payload survives without violating the pairing contract.
+    pass_a: list[Any] = []
+    for i, message in enumerate(messages):
+        if (
+            isinstance(message, dict)
+            and message.get("role") == "user"
+            and isinstance(message.get("content"), list)
+        ):
+            prev = messages[i - 1] if i > 0 else None
+            valid_ids = set(_assistant_tool_use_ids(prev))
+            new_content: list[Any] = []
+            for block in message["content"]:
+                if (
+                    isinstance(block, dict)
+                    and block.get("type") == "tool_result"
+                    and block.get("tool_use_id") not in valid_ids
+                ):
+                    new_content.append(_orphan_tool_result_as_text(block))
+                    stats["orphan_tool_results_as_text"] += 1
+                    continue
+                new_content.append(block)
+            new_msg = dict(message)
+            new_msg["content"] = new_content
+            pass_a.append(new_msg)
+        else:
+            pass_a.append(message)
+
+    # Pass B: every assistant tool_use must be answered in the next user message.
+    result: list[Any] = []
+    n = len(pass_a)
+    i = 0
+    while i < n:
+        message = pass_a[i]
+        result.append(message)
+        ids = _assistant_tool_use_ids(message)
+        if ids:
+            nxt = pass_a[i + 1] if i + 1 < n else None
+            if isinstance(nxt, dict) and nxt.get("role") == "user":
+                missing = [tid for tid in ids if tid not in _user_tool_result_ids(nxt)]
+                if missing:
+                    placeholders = [_placeholder_tool_result(tid) for tid in missing]
+                    new_next = dict(nxt)
+                    content = new_next.get("content")
+                    if isinstance(content, list):
+                        new_next["content"] = placeholders + list(content)
+                    elif isinstance(content, str) and content:
+                        new_next["content"] = placeholders + [
+                            {"type": "text", "text": content}
+                        ]
+                    else:
+                        new_next["content"] = placeholders
+                    stats["added_tool_results"] += len(missing)
+                    result.append(new_next)
+                    i += 2
+                    continue
+            else:
+                # No following user message: insert one carrying the placeholders.
+                placeholders = [_placeholder_tool_result(tid) for tid in ids]
+                result.append({"role": "user", "content": placeholders})
+                stats["added_tool_results"] += len(ids)
+        i += 1
+
+    return result, stats
+
+
 def _inject_extra_system_prompt(
     data: dict[str, Any], *, thinking_enabled: bool = False
 ) -> None:
@@ -510,6 +662,18 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
                 )
             )
         )
+        # Final repair: reconcile orphaned tool_use/tool_result pairs left behind
+        # by context trimming. Without this DeepSeek rejects the turn with HTTP
+        # 400 invalid_request_error -> opaque "Invalid request sent to provider".
+        data["messages"], tool_pair_stats = _reconcile_tool_pairs(data["messages"])
+        if any(tool_pair_stats.values()):
+            logger.warning(
+                "DEEPSEEK_REQUEST: reconciled orphaned tool pairs "
+                "(added_tool_results={added_tool_results} "
+                "orphan_tool_results_as_text={orphan_tool_results_as_text}); these "
+                "would otherwise be a 400 invalid_request_error from DeepSeek.",
+                **tool_pair_stats,
+            )
     if "max_tokens" not in data or data.get("max_tokens") is None:
         data["max_tokens"] = ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
 
