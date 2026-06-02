@@ -43,7 +43,7 @@ Free Claude Code routes Anthropic Messages API traffic from Claude Code to any p
 ## What You Get
 
 - Drop-in proxy for Claude Code's Anthropic API calls.
-- 17 provider backends: NVIDIA NIM, OpenRouter, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama.
+- 18 provider backends: NVIDIA NIM, OpenRouter, FreeLLMAPI, Google AI Studio (Gemini), DeepSeek, Mistral La Plateforme, Mistral Codestral, OpenCode Zen, OpenCode Go, Wafer, Kimi, Cerebras Inference, Groq, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama.
 - Per-model routing: send Opus, Sonnet, Haiku, and fallback traffic to different providers.
 - Native Claude Code `/model` picker support through the proxy's `/v1/models` endpoint (Claude Code must opt in to Gateway model discovery; see [Model Picker](#model-picker)).
 - Streaming, tool use, reasoning/thinking block handling, and local request optimizations.
@@ -135,7 +135,15 @@ In the Admin UI, paste it into `OPENROUTER_API_KEY`, then set `MODEL` to an Open
 
 Browse [all models](https://openrouter.ai/models) or [free models](https://openrouter.ai/collections/free-models).
 
-### 3. [Google AI Studio (Gemini)](https://aistudio.google.com/)
+### 3. [FreeLLMAPI](https://github.com/tashfeenahmed/freellmapi)
+
+Run your local FreeLLMAPI server, add provider keys in its dashboard, and copy the unified API key. The default upstream URL is `http://localhost:3001/v1`.
+
+In the Admin UI, paste the unified key into `FREELLMAPI_API_KEY`, keep or update `FREELLMAPI_BASE_URL`, then set `MODEL` to `freellmapi/auto` so FreeLLMAPI's router picks the upstream model. You can also route to a specific FreeLLMAPI model id with `freellmapi/<model-id>`.
+
+FreeLLMAPI exposes OpenAI-compatible `POST /v1/chat/completions` and `GET /v1/models` endpoints, so this provider uses the same OpenAI chat conversion path as other compatible gateways.
+
+### 4. [Google AI Studio (Gemini)](https://aistudio.google.com/)
 
 Get a Gemini API key at [Google AI Studio](https://aistudio.google.com/apikey) (see Google's [Gemini OpenAI compatibility](https://ai.google.dev/gemini-api/docs/openai) docs).
 
@@ -147,7 +155,7 @@ Popular examples:
 
 - `gemini/models/gemini-3.1-flash-lite`
 
-### 4. [DeepSeek](https://platform.deepseek.com/)
+### 5. [DeepSeek](https://platform.deepseek.com/)
 
 Get a key at [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys).
 
@@ -155,7 +163,7 @@ In the Admin UI, paste it into `DEEPSEEK_API_KEY`, then set `MODEL` to a DeepSee
 
 This provider uses DeepSeek's Anthropic-compatible endpoint, not the OpenAI chat-completions endpoint.
 
-### 5. [Mistral La Plateforme](https://console.mistral.ai/)
+### 6. [Mistral La Plateforme](https://console.mistral.ai/)
 
 [Mistral](https://mistral.ai) hosts an OpenAI-compatible Chat Completions API at `https://api.mistral.ai/v1`. Activate the **Experiment** plan on [console.mistral.ai](https://console.mistral.ai/) for free-tier API access with rate limits (upgrade for higher quotas).
 
@@ -168,7 +176,7 @@ Popular examples:
 
 Browse models at [Mistral documentation](https://docs.mistral.ai/).
 
-### 6. [Mistral Codestral](https://console.mistral.ai/)
+### 7. [Mistral Codestral](https://console.mistral.ai/)
 
 Mistral's **Codestral** gateway uses a **separate API key** from La Plateforme: provision `CODESTRAL_API_KEY`, then route with the `mistral_codestral/` prefix. The default upstream is **`https://codestral.mistral.ai/v1`** (OpenAI-compatible Chat Completions; same request shaping as the `mistral` provider). See Mistral's [coding / FIM domains](https://docs.mistral.ai/mistral-vibe/using-fim-api); the curated [free LLM API list](https://github.com/cheahjs/free-llm-api-resources#mistral-codestral) summarizes typical Codestral access terms.
 
@@ -176,7 +184,7 @@ Popular examples:
 
 - `mistral_codestral/codestral-latest`
 
-### 7. [OpenCode Zen](https://opencode.ai/)
+### 8. [OpenCode Zen](https://opencode.ai/)
 
 Get an API key at [opencode.ai/auth](https://opencode.ai/auth).
 
@@ -195,7 +203,7 @@ Popular examples:
 
 Browse available models at [opencode.ai](https://opencode.ai).
 
-### 8. [OpenCode Go](https://opencode.ai/)
+### 9. [OpenCode Go](https://opencode.ai/)
 
 Get an API key at [opencode.ai/auth](https://opencode.ai/auth) (same as OpenCode Zen).
 
@@ -209,7 +217,7 @@ Popular examples:
 
 Browse available models at [opencode.ai](https://opencode.ai).
 
-### 9. [Wafer](https://wafer.ai/)
+### 10. [Wafer](https://wafer.ai/)
 
 Get a key from [wafer.ai](https://wafer.ai). In the Admin UI, paste it into `WAFER_API_KEY`, then set `MODEL` to a Wafer Pass model such as `wafer/DeepSeek-V4-Pro`.
 
@@ -222,7 +230,7 @@ Popular examples:
 
 This provider uses Wafer's Anthropic-compatible endpoint at `https://pass.wafer.ai/v1/messages`.
 
-### 10. [Kimi](https://platform.moonshot.ai/)
+### 11. [Kimi](https://platform.moonshot.ai/)
 
 Get a key at [platform.moonshot.ai/console/api-keys](https://platform.moonshot.ai/console/api-keys).
 
@@ -232,7 +240,7 @@ This provider calls Kimi's **Anthropic-compatible** Messages API (`https://api.m
 
 Browse models at [platform.moonshot.ai](https://platform.moonshot.ai).
 
-### 11. [Cerebras Inference](https://inference-docs.cerebras.ai/quickstart)
+### 12. [Cerebras Inference](https://inference-docs.cerebras.ai/quickstart)
 
 Sign up and create an API key in the [Cerebras Cloud Console](https://cloud.cerebras.ai) (see [Quickstart](https://inference-docs.cerebras.ai/quickstart)).
 
@@ -240,7 +248,7 @@ In the Admin UI, set `CEREBRAS_API_KEY`, then route with `MODEL` such as `cerebr
 
 Cerebras exposes an OpenAI-compatible API at `https://api.cerebras.ai/v1` ([OpenAI compatibility](https://inference-docs.cerebras.ai/resources/openai)). Non-standard request fields should go in `extra_body` when using the OpenAI client; see the same page. For reasoning models and parameters, see [Reasoning](https://inference-docs.cerebras.ai/capabilities/reasoning). This proxy follows other OpenAI-compat adapters for thinking via `reasoning_content` when Claude-style thinking is enabled.
 
-### 12. [Groq](https://console.groq.com/)
+### 13. [Groq](https://console.groq.com/)
 
 Get an API key at [console.groq.com/keys](https://console.groq.com/keys).
 
@@ -252,7 +260,7 @@ Reasoning-heavy models expose extra knobs documented under [Groq reasoning](http
 
 Browse models at [console.groq.com/docs/models](https://console.groq.com/docs/models).
 
-### 13. [Fireworks AI](https://fireworks.ai/)
+### 14. [Fireworks AI](https://fireworks.ai/)
 
 Get an API key at [fireworks.ai/account/api-keys](https://fireworks.ai/account/api-keys).
 
@@ -262,7 +270,7 @@ Fireworks exposes an **Anthropic-compatible** Messages API at `https://api.firew
 
 Browse models at [fireworks.ai/models](https://fireworks.ai/models).
 
-### 14. [Z.ai](https://z.ai/)
+### 15. [Z.ai](https://z.ai/)
 
 Get an API key at [Z.ai/manage-apikey/apikey-list](https://z.ai/manage-apikey/apikey-list).
 
@@ -277,13 +285,13 @@ Popular examples:
 
 Browse models at [Z.ai](https://z.ai).
 
-### 15. [LM Studio](https://lmstudio.ai/)
+### 16. [LM Studio](https://lmstudio.ai/)
 
 Start LM Studio's local server and load a model. In the Admin UI, keep or update `LM_STUDIO_BASE_URL`, then set `MODEL` to the model identifier shown by LM Studio, prefixed with `lmstudio/`.
 
 Prefer models with tool-use support for Claude Code workflows.
 
-### 16. [llama.cpp](https://github.com/ggml-org/llama.cpp)
+### 17. [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 Start `llama-server` with an Anthropic-compatible `/v1/messages` endpoint and enough context for Claude Code requests.
 
@@ -291,7 +299,7 @@ In the Admin UI, keep or update `LLAMACPP_BASE_URL`, then set `MODEL` to the loc
 
 For local coding models, context size matters. If llama.cpp returns HTTP 400 for normal Claude Code requests, increase `--ctx-size` and verify the model/server build supports the requested features.
 
-### 17. [Ollama](https://ollama.com/)
+### 18. [Ollama](https://ollama.com/)
 
 Run Ollama and pull a model:
 
@@ -451,6 +459,7 @@ Important pieces:
 - FastAPI exposes Anthropic-compatible routes such as `/v1/messages`, `/v1/messages/count_tokens`, and `/v1/models`.
 - Model routing resolves the Claude model name to `MODEL_OPUS`, `MODEL_SONNET`, `MODEL_HAIKU`, or `MODEL`.
 - NIM, OpenCode Zen, and OpenCode Go use OpenAI chat streaming translated into Anthropic SSE.
+- FreeLLMAPI, Gemini, Groq, Cerebras, Mistral, Codestral, OpenCode, and NVIDIA NIM use OpenAI Chat Completions style transports where applicable.
 - Wafer, OpenRouter, DeepSeek, Kimi, Fireworks AI, Z.ai, LM Studio, llama.cpp, and Ollama use Anthropic Messages style transports where applicable (with provider-specific quirks and model-list URLs).
 - The proxy normalizes thinking blocks, tool calls, token usage metadata, and provider errors into the shape Claude Code expects.
 - Request optimizations answer trivial Claude Code probes locally to save latency and quota.
