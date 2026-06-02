@@ -133,6 +133,13 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         settings_attr="xiaomi_base_url",
     ),
     ConfigFieldSpec(
+        "XIAOMI_PROXY",
+        "Xiaomi Proxy",
+        "providers",
+        "text",
+        settings_attr="xiaomi_proxy",
+    ),
+    ConfigFieldSpec(
         "NVIDIA_NIM_API_KEY",
         "NVIDIA NIM API Key",
         "providers",

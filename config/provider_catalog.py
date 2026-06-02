@@ -64,6 +64,7 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         credential_attr="xiaomi_api_key",
         default_base_url=XIAOMI_DEFAULT_BASE,
         base_url_attr="xiaomi_base_url",
+        proxy_attr="xiaomi_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
     "nvidia_nim": ProviderDescriptor(

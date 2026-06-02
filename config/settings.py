@@ -105,6 +105,7 @@ def _removed_env_var_message(model_config: Mapping[str, Any]) -> str | None:
 
 
 class Settings(BaseSettings):
+    """Application settings loaded from environment variables."""
     # ==================== Xiaomi MiMo Config ====================
     xiaomi_api_key: str = Field(default="", validation_alias="XIAOMI_API_KEY")
     xiaomi_base_url: str = Field(default="https://api.xiaomimimo.com/v1", validation_alias="XIAOMI_BASE_URL")
@@ -183,7 +184,7 @@ class Settings(BaseSettings):
     # ==================== Model ====================
     # All Claude model requests are mapped to this single model (fallback)
     # Format: provider_type/model/name
-    model: str = "nvidia_nim/z-ai/glm4.7"
+    model: str = "nvidia_nim/nvidia/nemotron-3-super-120b-a12b"
 
     # Per-model overrides (optional, falls back to MODEL)
     # Each can use a different provider
