@@ -27,6 +27,9 @@ def _clear_process_config(monkeypatch) -> None:
         "MODEL",
         "NVIDIA_NIM_API_KEY",
         "OPENROUTER_API_KEY",
+        "FREELLMAPI_API_KEY",
+        "FREELLMAPI_BASE_URL",
+        "FREELLMAPI_PROXY",
         "ANTHROPIC_AUTH_TOKEN",
         "FCC_ENV_FILE",
         "HOST",
@@ -102,6 +105,8 @@ def test_admin_config_masks_secrets_and_exposes_manifest(monkeypatch, tmp_path):
     keys = {field["key"] for field in body["fields"]}
     assert "ANTHROPIC_AUTH_TOKEN" in keys
     assert "OPENROUTER_API_KEY" in keys
+    assert "FREELLMAPI_API_KEY" in keys
+    assert "FREELLMAPI_BASE_URL" in keys
     assert "FIREWORKS_API_KEY" in keys
     assert "GEMINI_API_KEY" in keys
     assert "GROQ_API_KEY" in keys
@@ -208,6 +213,35 @@ def test_admin_apply_writes_fireworks_key_and_masks_preview(monkeypatch, tmp_pat
     text = env_file.read_text(encoding="utf-8")
     assert "MODEL=fireworks/test-model" in text
     assert "FIREWORKS_API_KEY=fw-secret" in text
+
+
+def test_admin_apply_writes_freellmapi_key_base_url_and_masks_preview(
+    monkeypatch, tmp_path
+):
+    _set_home(monkeypatch, tmp_path)
+    _clear_process_config(monkeypatch)
+    app = create_app(lifespan_enabled=False)
+
+    response = _local_client(app).post(
+        "/admin/api/config/apply",
+        json={
+            "values": {
+                "MODEL": "freellmapi/auto",
+                "FREELLMAPI_API_KEY": "free-secret",
+                "FREELLMAPI_BASE_URL": "http://127.0.0.1:3001/v1",
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["applied"] is True
+    assert "FREELLMAPI_API_KEY=********" in body["env_preview"]
+    env_file = tmp_path / ".fcc" / ".env"
+    text = env_file.read_text(encoding="utf-8")
+    assert "MODEL=freellmapi/auto" in text
+    assert "FREELLMAPI_API_KEY=free-secret" in text
+    assert "FREELLMAPI_BASE_URL=http://127.0.0.1:3001/v1" in text
 
 
 def test_admin_apply_writes_gemini_key_and_masks_preview(monkeypatch, tmp_path):

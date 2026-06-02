@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # ==================== OpenRouter Config ====================
     open_router_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
 
+    # ==================== FreeLLMAPI Config ====================
+    freellmapi_api_key: str = Field(default="", validation_alias="FREELLMAPI_API_KEY")
+    freellmapi_base_url: str = Field(
+        default="http://localhost:3001/v1",
+        validation_alias="FREELLMAPI_BASE_URL",
+    )
+
     # ==================== Mistral La Plateforme ====================
     mistral_api_key: str = Field(default="", validation_alias="MISTRAL_API_KEY")
 
@@ -161,6 +168,7 @@ class Settings(BaseSettings):
     # ==================== Per-Provider Proxy ====================
     nvidia_nim_proxy: str = Field(default="", validation_alias="NVIDIA_NIM_PROXY")
     open_router_proxy: str = Field(default="", validation_alias="OPENROUTER_PROXY")
+    freellmapi_proxy: str = Field(default="", validation_alias="FREELLMAPI_PROXY")
     mistral_proxy: str = Field(default="", validation_alias="MISTRAL_PROXY")
     codestral_proxy: str = Field(default="", validation_alias="CODESTRAL_PROXY")
     lmstudio_proxy: str = Field(default="", validation_alias="LMSTUDIO_PROXY")
