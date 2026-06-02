@@ -22,7 +22,7 @@ class XiaomiProvider(OpenAIChatTransport):
         self, request: Any, thinking_enabled: bool | None = None
     ) -> dict:
         effective_thinking = self._is_thinking_enabled(request, thinking_enabled)
-        
+
         try:
             body = build_base_request_body(
                 request,
@@ -32,7 +32,7 @@ class XiaomiProvider(OpenAIChatTransport):
             )
         except OpenAIConversionError as exc:
             raise InvalidRequestError(str(exc)) from exc
-        
+
         return body
 
     async def list_model_infos(self) -> frozenset[ProviderModelInfo]:
