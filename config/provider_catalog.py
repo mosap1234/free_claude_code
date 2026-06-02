@@ -36,6 +36,7 @@ ZAI_DEFAULT_BASE = "https://api.z.ai/api/anthropic/v1"
 GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
 CEREBRAS_DEFAULT_BASE = "https://api.cerebras.ai/v1"
+FREELLMAPI_DEFAULT_BASE = "http://localhost:3001/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +75,17 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
         default_base_url=OPENROUTER_DEFAULT_BASE,
         proxy_attr="open_router_proxy",
         capabilities=("chat", "streaming", "tools", "thinking", "native_anthropic"),
+    ),
+    "freellmapi": ProviderDescriptor(
+        provider_id="freellmapi",
+        transport_type="openai_chat",
+        credential_env="FREELLMAPI_API_KEY",
+        credential_url="https://github.com/tashfeenahmed/freellmapi",
+        credential_attr="freellmapi_api_key",
+        default_base_url=FREELLMAPI_DEFAULT_BASE,
+        base_url_attr="freellmapi_base_url",
+        proxy_attr="freellmapi_proxy",
+        capabilities=("chat", "streaming", "tools", "thinking", "rate_limit"),
     ),
     "gemini": ProviderDescriptor(
         provider_id="gemini",
