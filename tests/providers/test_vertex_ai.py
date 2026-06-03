@@ -104,7 +104,6 @@ def test_openai_messages_to_contents_alternating_and_merging():
     assert contents[1]["role"] == "user"
     assert "functionResponse" in contents[1]["parts"][0]
 
-
 def test_openai_messages_to_contents_strips_interrupted_and_no_content():
     # Test stripping of "[Tool use interrupted]" and "(no content)" from strings
     # Empty turns should be filtered out entirely, causing the remaining turns to be merged if they have the same role
