@@ -294,6 +294,9 @@ class Settings(BaseSettings):
         default=None, validation_alias="MAX_MESSAGE_LOG_ENTRIES_PER_CHAT"
     )
 
+    # ==================== Miscellaneous ====================
+    claude_config_dir: str = Field(default="", validation_alias="CLAUDE_CONFIG_DIR")
+
     # ==================== Server ====================
     host: str = "0.0.0.0"
     port: int = 8082

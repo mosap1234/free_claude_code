@@ -796,6 +796,15 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         advanced=True,
     ),
     ConfigFieldSpec(
+        "CLAUDE_CONFIG_DIR",
+        "Claude Config Dir",
+        "runtime",
+        settings_attr="claude_config_dir",
+        default="",
+        advanced=False,
+        description="Directory passed to Claude Code subprocess via CLAUDE_CONFIG_DIR environment variable",
+    ),
+    ConfigFieldSpec(
         "FCC_SMOKE_MODEL_NVIDIA_NIM",
         "Smoke NVIDIA NIM Model",
         "smoke",

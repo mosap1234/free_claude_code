@@ -428,3 +428,159 @@ def test_launch_claude_unreachable_proxy_exits_with_hint(
     captured = capsys.readouterr()
     assert "http://127.0.0.1:9393" in captured.err
     assert "fcc-server" in captured.err
+
+
+def test_claude_child_env_passes_through_claude_config_dir():
+    """Test that _claude_child_env passes through CLAUDE_CONFIG_DIR when configured."""
+    from cli.entrypoints import _claude_child_env
+    from config.settings import Settings
+
+    settings = Settings.model_construct(
+        host="0.0.0.0",
+        port=8082,
+        anthropic_auth_token="",
+        claude_config_dir="/custom/claude/config",
+    )
+
+    base_env = {"PATH": "/usr/bin", "HOME": "/home/user", "OTHER_VAR": "test"}
+    env = _claude_child_env(settings, base_env)
+
+    # Should pass through CLAUDE_CONFIG_DIR
+    assert env.get("CLAUDE_CONFIG_DIR") == "/custom/claude/config"
+    # Should still have other vars
+    assert env["PATH"] == "/usr/bin"
+    assert env["HOME"] == "/home/user"
+    assert env["OTHER_VAR"] == "test"
+
+
+def test_claude_child_env_no_claude_config_dir_when_empty():
+    """Test that _claude_child_env does not pass CLAUDE_CONFIG_DIR when empty."""
+    from cli.entrypoints import _claude_child_env
+    from config.settings import Settings
+
+    settings = Settings.model_construct(
+        host="0.0.0.0",
+        port=8082,
+        anthropic_auth_token="",
+        claude_config_dir="",  # Empty string
+    )
+
+    base_env = {"PATH": "/usr/bin", "HOME": "/home/user", "OTHER_VAR": "test"}
+    env = _claude_child_env(settings, base_env)
+
+    # Should NOT pass through CLAUDE_CONFIG_DIR when empty
+    assert "CLAUDE_CONFIG_DIR" not in env
+    # Should still have other vars
+    assert env["PATH"] == "/usr/bin"
+    assert env["HOME"] == "/home/user"
+    assert env["OTHER_VAR"] == "test"
+
+
+def test_claude_child_env_no_claude_config_dir_when_not_set():
+    """Test that _claude_child_env does not pass CLAUDE_CONFIG_DIR when not configured."""
+    from cli.entrypoints import _claude_child_env
+    from config.settings import Settings
+
+    # Using default Settings (claude_config_dir defaults to "")
+    settings = Settings.model_construct(
+        host="0.0.0.0",
+        port=8082,
+        anthropic_auth_token="",
+        # claude_config_dir not specified, will use default ""
+    )
+
+    base_env = {"PATH": "/usr/bin", "HOME": "/home/user", "OTHER_VAR": "test"}
+    env = _claude_child_env(settings, base_env)
+
+    # Should NOT pass through CLAUDE_CONFIG_DIR when not set/default
+    assert "CLAUDE_CONFIG_DIR" not in env
+    # Should still have other vars
+    assert env["PATH"] == "/usr/bin"
+    assert env["HOME"] == "/home/user"
+    assert env["OTHER_VAR"] == "test"
+
+
+def test_launch_claude_includes_claude_config_dir_in_child_env(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that launch_claude passes CLAUDE_CONFIG_DIR to child process when configured."""
+    from cli.entrypoints import launch_claude
+    from config.settings import Settings
+
+    settings = Settings.model_construct(
+        host="0.0.0.0",
+        port=9191,
+        anthropic_auth_token="proxy-token",
+        claude_config_dir="/tmp/my-claude-config",
+    )
+
+    with (
+        patch("cli.entrypoints.get_settings", return_value=settings),
+        patch("cli.entrypoints._preflight_proxy", return_value=None),
+        patch("cli.entrypoints.shutil.which", return_value="/fake/claude"),
+        patch("cli.entrypoints.subprocess.Popen") as popen,
+        patch("cli.entrypoints.register_pid"),
+        patch("cli.entrypoints.unregister_pid"),
+        pytest.raises(SystemExit),
+    ):
+        process = popen.return_value
+        process.pid = 12345
+        process.wait.return_value = 0
+        launch_claude(["--test-arg"])
+
+    # Verify the call was made with correct args
+    popen.assert_called_once()
+    call_args = popen.call_args
+    assert call_args.args[0] == ["/fake/claude", "--test-arg"]
+
+    # Check that CLAUDE_CONFIG_DIR is in the child environment
+    child_env = call_args.kwargs["env"]
+    assert child_env.get("CLAUDE_CONFIG_DIR") == "/tmp/my-claude-config"
+    # Also check other expected vars are present
+    assert child_env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9191"
+    assert child_env["ANTHROPIC_AUTH_TOKEN"] == "proxy-token"
+    assert child_env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
+    assert child_env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "190000"
+
+
+def test_launch_claude_excludes_claude_config_dir_when_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that launch_claude does not pass CLAUDE_CONFIG_DIR when not configured."""
+    from cli.entrypoints import launch_claude
+    from config.settings import Settings
+
+    # Ensure clean environment for this test
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+
+    # Settings with default (empty) claude_config_dir
+    settings = Settings.model_construct(
+        host="0.0.0.0",
+        port=9191,
+        anthropic_auth_token="proxy-token",
+        claude_config_dir="",  # Explicitly empty
+    )
+
+    with (
+        patch("cli.entrypoints.get_settings", return_value=settings),
+        patch("cli.entrypoints._preflight_proxy", return_value=None),
+        patch("cli.entrypoints.shutil.which", return_value="/fake/claude"),
+        patch("cli.entrypoints.subprocess.Popen") as popen,
+        patch("cli.entrypoints.register_pid"),
+        patch("cli.entrypoints.unregister_pid"),
+        pytest.raises(SystemExit),
+    ):
+        process = popen.return_value
+        process.pid = 12345
+        process.wait.return_value = 0
+        launch_claude([])
+
+    # Verify the call was made
+    popen.assert_called_once()
+
+    # Check that CLAUDE_CONFIG_DIR is NOT in the child environment
+    child_env = popen.call_args.kwargs["env"]
+    assert "CLAUDE_CONFIG_DIR" not in child_env
+    # Other vars should still be present
+    assert child_env["ANTHROPIC_BASE_URL"] == "http://127.0.0.1:9191"
+    assert child_env["ANTHROPIC_AUTH_TOKEN"] == "proxy-token"

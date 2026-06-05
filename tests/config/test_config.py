@@ -379,6 +379,30 @@ class TestSettings:
 
         assert settings.enable_model_thinking is True
 
+    def test_claude_config_dir_from_env(self, monkeypatch):
+        """CLAUDE_CONFIG_DIR env var is loaded into settings."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/custom/config/path")
+        settings = Settings()
+        assert settings.claude_config_dir == "/custom/config/path"
+
+    def test_claude_config_dir_empty_string(self, monkeypatch):
+        """Empty CLAUDE_CONFIG_DIR env var results in empty string setting."""
+        from config.settings import Settings
+
+        monkeypatch.setenv("CLAUDE_CONFIG_DIR", "")
+        settings = Settings()
+        assert settings.claude_config_dir == ""
+
+    def test_claude_config_dir_not_set(self, monkeypatch):
+        """Unset CLAUDE_CONFIG_DIR env var results in empty string setting."""
+        from config.settings import Settings
+
+        monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+        settings = Settings()
+        assert settings.claude_config_dir == ""
+
 
 # --- NimSettings Validation Tests ---
 class TestNimSettingsValidBounds:
