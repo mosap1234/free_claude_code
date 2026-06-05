@@ -16,7 +16,7 @@ class MockMessage:
 
 class MockRequest:
     def __init__(self, **kwargs):
-        self.model = "MiniMax-M2.7"
+        self.model = "MiniMax-M3"
         self.messages = [MockMessage("user", "Hello")]
         self.max_tokens = 100
         self.temperature = 1.0
@@ -77,10 +77,10 @@ def test_base_url_constant():
 
 def test_build_request_body_basic(minimax_provider):
     """Basic request builds correctly."""
-    req = MockRequest(model="MiniMax-M2.7")
+    req = MockRequest(model="MiniMax-M3")
     body = minimax_provider._build_request_body(req)
 
-    assert body["model"] == "MiniMax-M2.7"
+    assert body["model"] == "MiniMax-M3"
     assert body["messages"][0]["role"] == "system"
 
 
@@ -98,6 +98,14 @@ def test_build_request_body_temperature_nonzero_preserved(minimax_provider):
     body = minimax_provider._build_request_body(req)
 
     assert body["temperature"] == 0.7
+
+
+def test_build_request_body_m27_model(minimax_provider):
+    """MiniMax-M2.7 model name is forwarded without modification."""
+    req = MockRequest(model="MiniMax-M2.7")
+    body = minimax_provider._build_request_body(req)
+
+    assert body["model"] == "MiniMax-M2.7"
 
 
 def test_build_request_body_highspeed_model(minimax_provider):

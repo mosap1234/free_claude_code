@@ -12,7 +12,7 @@
 [![Code style: Ruff](https://img.shields.io/badge/code%20formatting-ruff-f5a623.svg?style=for-the-badge)](https://github.com/astral-sh/ruff)
 [![Logging: Loguru](https://img.shields.io/badge/logging-loguru-4ecdc4.svg?style=for-the-badge)](https://github.com/Delgan/loguru)
 
-A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NIM** (40 req/min free), **OpenRouter** (hundreds of models), **DeepSeek** (direct API), **MiniMax** (MiniMax-M2.7), **LM Studio** (fully local), or **llama.cpp** (local with Anthropic endpoints).
+A lightweight proxy that routes Claude Code's Anthropic API calls to **NVIDIA NIM** (40 req/min free), **OpenRouter** (hundreds of models), **DeepSeek** (direct API), **MiniMax** (MiniMax-M3), **LM Studio** (fully local), or **llama.cpp** (local with Anthropic endpoints).
 
 [Quick Start](#quick-start) · [Providers](#providers) · [Discord Bot](#discord-bot) · [Configuration](#configuration) · [Development](#development) · [Contributing](#contributing)
 
@@ -117,15 +117,15 @@ MODEL="deepseek/deepseek-chat"                      # fallback
 </details>
 
 <details>
-<summary><b>MiniMax</b> (MiniMax-M2.7)</summary>
+<summary><b>MiniMax</b> (MiniMax-M3)</summary>
 
 ```dotenv
 MINIMAX_API_KEY="your-minimax-key-here"
 
-MODEL_OPUS="minimax/MiniMax-M2.7"
-MODEL_SONNET="minimax/MiniMax-M2.7"
+MODEL_OPUS="minimax/MiniMax-M3"
+MODEL_SONNET="minimax/MiniMax-M3"
 MODEL_HAIKU="minimax/MiniMax-M2.7-highspeed"
-MODEL="minimax/MiniMax-M2.7"                        # fallback
+MODEL="minimax/MiniMax-M3"                          # fallback
 ```
 
 Get your API key from [platform.minimaxi.com](https://platform.minimaxi.com/).
@@ -351,7 +351,7 @@ The proxy also exposes Claude-compatible probe routes: `GET /v1/models`, `POST /
 | **NVIDIA NIM** | Free         | 40 req/min | Daily driver, generous free tier     |
 | **OpenRouter** | Free / Paid  | Varies     | Model variety, fallback options      |
 | **DeepSeek**   | Usage-based  | Varies     | Direct access to DeepSeek chat/reasoner |
-| **MiniMax**    | Usage-based  | Varies     | MiniMax-M2.7 flagship model          |
+| **MiniMax**    | Usage-based  | Varies     | MiniMax-M3 flagship model            |
 | **LM Studio**  | Free (local) | Unlimited  | Privacy, offline use, no rate limits |
 | **llama.cpp**  | Free (local) | Unlimited  | Lightweight local inference engine   |
 
@@ -410,10 +410,11 @@ Browse: [api-docs.deepseek.com](https://api-docs.deepseek.com)
 <details>
 <summary><b>MiniMax models</b></summary>
 
-MiniMax exposes two text generation models via an OpenAI-compatible endpoint:
+MiniMax exposes the following text generation models via an OpenAI-compatible endpoint:
 
-- `minimax/MiniMax-M2.7` — best quality, complex tasks
-- `minimax/MiniMax-M2.7-highspeed` — same capability, lower latency
+- `minimax/MiniMax-M3` — latest flagship model; 512K context, up to 128K output, image input (default)
+- `minimax/MiniMax-M2.7` — previous generation, best quality
+- `minimax/MiniMax-M2.7-highspeed` — previous generation, lower latency
 
 Browse: [platform.minimaxi.com](https://platform.minimaxi.com/) · [API docs](https://platform.minimax.io/docs/api-reference/text-openai-api)
 
