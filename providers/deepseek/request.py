@@ -381,7 +381,32 @@ def _strip_reasoning_content_when_native(messages: Any) -> Any:
         out.append(msg)
     return out
 
-
+def _move_system_messages_to_field(data: dict) -> dict:
+    """Move role=system messages from array to system field for DeepSeek."""
+    messages = data.get("messages", [])
+    system_texts = []
+    filtered = []
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("role") == "system":
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                system_texts.append(content)
+            elif isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        system_texts.append(block.get("text", ""))
+        else:
+            filtered.append(msg)
+    if system_texts:
+        existing = data.get("system", "")
+        if isinstance(existing, list):
+            existing = "\n\n".join(
+                b.get("text", "") for b in existing if isinstance(b, dict) and b.get("type") == "text"
+            )
+        combined = "\n\n".join(filter(None, [existing] + system_texts)) if existing else "\n\n".join(system_texts)
+        data["system"] = combined
+        data["messages"] = filtered
+    return data
 def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     """Build a DeepSeek ``/v1/messages`` JSON body (Anthropic format)."""
     logger.debug(
@@ -393,6 +418,7 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     data = dump_raw_messages_request(request_data)
     if "messages" in data:
         data["messages"] = _strip_unsupported_attachment_blocks(data["messages"])
+    data = _move_system_messages_to_field(data)
     _validate_deepseek_native_request_dict(data)
     data.pop("extra_body", None)
     _downgrade_forced_tool_choice(data)
