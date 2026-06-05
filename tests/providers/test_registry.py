@@ -21,6 +21,7 @@ from providers.mistral import MistralProvider
 from providers.nvidia_nim import NvidiaNimProvider
 from providers.ollama import OllamaProvider
 from providers.open_router import OpenRouterProvider
+from providers.openai import OpenAIProvider
 from providers.opencode import OpenCodeProvider
 from providers.registry import (
     PROVIDER_DESCRIPTORS,
@@ -43,6 +44,7 @@ def _make_settings(**overrides):
     mock.deepseek_api_key = "test_deepseek_key"
     mock.wafer_api_key = "test_wafer_key"
     mock.opencode_api_key = "test_opencode_key"
+    mock.openai_api_key = "test_openai_key"
     mock.zai_api_key = "test_zai_key"
     mock.lm_studio_base_url = "http://localhost:1234/v1"
     mock.llamacpp_base_url = "http://localhost:8080/v1"
@@ -58,6 +60,7 @@ def _make_settings(**overrides):
     mock.wafer_proxy = ""
     mock.opencode_proxy = ""
     mock.opencode_go_proxy = ""
+    mock.openai_proxy = ""
     mock.zai_proxy = ""
     mock.fireworks_proxy = ""
     mock.fireworks_api_key = "test_fireworks_key"
@@ -188,6 +191,7 @@ def test_create_provider_instantiates_each_builtin():
         "gemini": GeminiProvider,
         "groq": GroqProvider,
         "cerebras": CerebrasProvider,
+        "openai": OpenAIProvider,
     }
 
     with (

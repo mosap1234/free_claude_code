@@ -27,6 +27,7 @@ def _clear_process_config(monkeypatch) -> None:
         "MODEL",
         "NVIDIA_NIM_API_KEY",
         "OPENROUTER_API_KEY",
+        "OPENAI_API_KEY",
         "ANTHROPIC_AUTH_TOKEN",
         "FCC_ENV_FILE",
         "HOST",

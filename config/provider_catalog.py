@@ -36,6 +36,7 @@ ZAI_DEFAULT_BASE = "https://api.z.ai/api/anthropic/v1"
 GEMINI_DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GROQ_DEFAULT_BASE = "https://api.groq.com/openai/v1"
 CEREBRAS_DEFAULT_BASE = "https://api.cerebras.ai/v1"
+OPENAI_DEFAULT_BASE = "https://api.openai.com/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,6 +246,16 @@ PROVIDER_CATALOG: dict[str, ProviderDescriptor] = {
             "native_anthropic",
             "local",
         ),
+    ),
+    "openai": ProviderDescriptor(
+        provider_id="openai",
+        transport_type="openai_chat",
+        credential_env="OPENAI_API_KEY",
+        credential_url="https://platform.openai.com/api-keys",
+        credential_attr="openai_api_key",
+        default_base_url=OPENAI_DEFAULT_BASE,
+        proxy_attr="openai_proxy",
+        capabilities=("chat", "streaming", "tools", "rate_limit"),
     ),
 }
 

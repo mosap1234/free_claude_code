@@ -53,6 +53,7 @@ PROVIDER_SMOKE_DEFAULT_MODELS: dict[str, str] = {
     "wafer": "wafer/DeepSeek-V4-Pro",
     "opencode": "opencode/gpt-5.3-codex",
     "opencode_go": "opencode_go/minimax-m2.7",
+    "openai": "openai/gpt-4o-mini",
     "zai": "zai/glm-5.1",
     "gemini": "gemini/models/gemini-3.1-flash-lite",
     "groq": "groq/llama-3.3-70b-versatile",
@@ -249,6 +250,8 @@ class SmokeConfig:
             return bool(self.settings.opencode_api_key.strip())
         if provider == "opencode_go":
             return bool(self.settings.opencode_api_key.strip())
+        if provider == "openai":
+            return bool(self.settings.openai_api_key.strip())
         if provider == "zai":
             return bool(self.settings.zai_api_key.strip())
         if provider == "gemini":
@@ -303,6 +306,8 @@ def _normalize_provider_model(provider: str, raw_model: str) -> str:
     prefix = Settings.parse_provider_type(model)
     if prefix == provider:
         return model
+    if provider == "open_router" and prefix == "openai":
+        return f"{provider}/{model}"
     if prefix in SUPPORTED_PROVIDER_IDS:
         msg = (
             f"FCC_SMOKE_MODEL_{provider.upper()} must use provider prefix "

@@ -36,6 +36,7 @@ def _settings(**overrides):
         "kimi_api_key": "",
         "wafer_api_key": "",
         "opencode_api_key": "",
+        "openai_api_key": "",
         "zai_api_key": "",
         "gemini_api_key": "",
         "groq_api_key": "",
