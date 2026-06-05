@@ -92,6 +92,14 @@ def test_build_request_body_temperature_zero_clamped(minimax_provider):
     assert body["temperature"] == 0.01
 
 
+def test_build_request_body_temperature_negative_clamped(minimax_provider):
+    """Negative temperature is also clamped to 0.01 (MiniMax requires temperature > 0)."""
+    req = MockRequest(temperature=-0.5)
+    body = minimax_provider._build_request_body(req)
+
+    assert body["temperature"] == 0.01
+
+
 def test_build_request_body_temperature_nonzero_preserved(minimax_provider):
     """Non-zero temperature is passed through unchanged."""
     req = MockRequest(temperature=0.7)

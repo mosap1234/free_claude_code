@@ -21,8 +21,8 @@ def build_request_body(request_data: Any) -> dict:
         default_max_tokens=MINIMAX_DEFAULT_MAX_TOKENS,
     )
 
-    # MiniMax requires temperature > 0; clamp to 0.01 if caller passes 0.
-    if body.get("temperature", 1.0) == 0:
+    # MiniMax requires temperature > 0; clamp to 0.01 if caller passes 0 or negative.
+    if body.get("temperature", 1.0) <= 0:
         body["temperature"] = 0.01
 
     logger.debug(
