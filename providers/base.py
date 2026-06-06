@@ -25,6 +25,13 @@ class ProviderConfig(BaseModel):
     http_read_timeout: float = 300.0
     http_write_timeout: float = 10.0
     http_connect_timeout: float = HTTP_CONNECT_TIMEOUT_DEFAULT
+
+    # HTTP retry settings
+    http_max_retries: int = 4
+    http_backoff_multiplier: float = 2.0
+    http_min_retry_delay: float = 1.0
+    http_max_retry_delay: float = 30.0
+
     enable_thinking: bool = True
     proxy: str = ""
     log_raw_sse_events: bool = False

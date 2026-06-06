@@ -304,6 +304,35 @@ class TestStreamingExceptionHandling:
         assert "message_stop" in event_text
 
     @pytest.mark.asyncio
+    async def test_empty_successful_stream_retries_before_placeholder(self):
+        """A stop-only upstream response is retried before emitting blank content."""
+        provider = _make_provider()
+        request = _make_request()
+        empty_stream = AsyncStreamMock([_make_chunk(finish_reason="stop")])
+        recovered_stream = AsyncStreamMock(
+            [
+                _make_chunk(content="recovered from empty"),
+                _make_chunk(finish_reason="stop"),
+            ]
+        )
+
+        with patch.object(
+            provider._client.chat.completions,
+            "create",
+            new_callable=AsyncMock,
+            side_effect=[empty_stream, recovered_stream],
+        ) as mock_create:
+            events = await _collect_stream(provider, request)
+
+        event_text = "".join(events)
+        assert mock_create.await_count == 2
+        assert "recovered from empty" in event_text
+        assert event_text.count("event: message_start") == 1
+        parsed = parse_sse_text(event_text)
+        assert_anthropic_stream_contract(parsed)
+        assert parsed[-1].event == "message_stop"
+
+    @pytest.mark.asyncio
     async def test_upstream_completion_tokens_null_emits_int_usage(self):
         """NIM/GLM may send usage.completion_tokens=null; final SSE must not use JSON null."""
         provider = _make_provider()
@@ -655,7 +684,43 @@ class TestStreamingExceptionHandling:
         assert mock_create.await_count == 2
         assert "hidden" not in event_text
         assert "visible" in event_text
-        assert parse_sse_text(event_text)[-1].event == "message_stop"
+        assert event_text.count("event: message_start") == 1
+        parsed = parse_sse_text(event_text)
+        assert_anthropic_stream_contract(parsed)
+        assert parsed[-1].event == "message_stop"
+
+    @pytest.mark.asyncio
+    async def test_precommit_openai_json_decode_error_retries_invisibly(self):
+        """Empty provider JSON during stream iteration is retried without leaking SSE."""
+        provider = _make_provider()
+        request = _make_request()
+        first_stream = AsyncStreamMock(
+            [],
+            error=json.JSONDecodeError("Expecting value", "", 0),
+        )
+        second_stream = AsyncStreamMock(
+            [
+                _make_chunk(content="recovered"),
+                _make_chunk(finish_reason="stop"),
+            ]
+        )
+
+        with patch.object(
+            provider._client.chat.completions,
+            "create",
+            new_callable=AsyncMock,
+            side_effect=[first_stream, second_stream],
+        ) as mock_create:
+            events = await _collect_stream(provider, request)
+
+        event_text = "".join(events)
+        assert mock_create.await_count == 2
+        assert "Expecting value" not in event_text
+        assert "recovered" in event_text
+        assert event_text.count("event: message_start") == 1
+        parsed = parse_sse_text(event_text)
+        assert_anthropic_stream_contract(parsed)
+        assert parsed[-1].event == "message_stop"
 
     @pytest.mark.asyncio
     async def test_clean_eof_after_text_continues_with_overlap_trim(self):

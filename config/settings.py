@@ -208,6 +208,18 @@ class Settings(BaseSettings):
         validation_alias="HTTP_CONNECT_TIMEOUT",
     )
 
+    # ==================== HTTP Retry Settings ====================
+    http_max_retries: int = Field(default=3, validation_alias="HTTP_MAX_RETRIES")
+    http_backoff_multiplier: float = Field(
+        default=2.0, validation_alias="HTTP_BACKOFF_MULTIPLIER"
+    )
+    http_min_retry_delay: float = Field(
+        default=1.0, validation_alias="HTTP_MIN_RETRY_DELAY"
+    )
+    http_max_retry_delay: float = Field(
+        default=30.0, validation_alias="HTTP_MAX_RETRY_DELAY"
+    )
+
     # ==================== Fast Prefix Detection ====================
     fast_prefix_detection: bool = True
 

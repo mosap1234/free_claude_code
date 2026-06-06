@@ -22,6 +22,7 @@ from core.anthropic import (
     ThinkTagParser,
     map_stop_reason,
 )
+from core.anthropic.retry import execute_with_retry
 from core.anthropic.stream_recovery import (
     EARLY_TRANSPARENT_MAX_RETRIES,
     EARLY_TRANSPARENT_TOTAL_ATTEMPTS,
@@ -181,11 +182,22 @@ class OpenAIChatTransport(BaseProvider):
         return {}
 
     async def _create_stream(self, body: dict) -> tuple[Any, dict]:
-        """Create a streaming chat completion, optionally retrying once."""
+        """Create a streaming chat completion with retry logic for transient errors."""
+        create_body = self._prepare_create_body(body)
+
+        async def make_request():
+            return await self._client.chat.completions.create(
+                **create_body,
+                stream=True,
+            )
+
         try:
-            create_body = self._prepare_create_body(body)
-            stream = await self._global_rate_limiter.execute_with_retry(
-                self._client.chat.completions.create, **create_body, stream=True
+            stream = await execute_with_retry(
+                make_request,
+                max_retries=self._config.http_max_retries,
+                backoff_multiplier=self._config.http_backoff_multiplier,
+                min_delay_seconds=self._config.http_min_retry_delay,
+                max_delay_seconds=self._config.http_max_retry_delay,
             )
             return stream, body
         except Exception as error:
@@ -194,8 +206,19 @@ class OpenAIChatTransport(BaseProvider):
                 raise
 
             create_retry_body = self._prepare_create_body(retry_body)
-            stream = await self._global_rate_limiter.execute_with_retry(
-                self._client.chat.completions.create, **create_retry_body, stream=True
+
+            async def make_retry_request():
+                return await self._client.chat.completions.create(
+                    **create_retry_body,
+                    stream=True,
+                )
+
+            stream = await execute_with_retry(
+                make_retry_request,
+                max_retries=self._config.http_max_retries,
+                backoff_multiplier=self._config.http_backoff_multiplier,
+                min_delay_seconds=self._config.http_min_retry_delay,
+                max_delay_seconds=self._config.http_max_retry_delay,
             )
             return stream, retry_body
 
@@ -662,7 +685,8 @@ class OpenAIChatTransport(BaseProvider):
             body=provider_chat_body_snapshot(body),
         )
 
-        yield sse.message_start()
+        for event in hold_event(sse.message_start()):
+            yield event
 
         think_parser = ThinkTagParser()
         heuristic_parser = HeuristicToolParser()
@@ -778,6 +802,32 @@ class OpenAIChatTransport(BaseProvider):
                         raise TruncatedProviderStreamError(
                             "Provider stream ended without finish_reason."
                         )
+                    if (
+                        not self._has_committed_sse_output(sse)
+                        and early_retries < EARLY_TRANSPARENT_MAX_RETRIES
+                    ):
+                        early_retries += 1
+                        holdback.discard()
+                        holdback = RecoveryHoldbackBuffer()
+                        sse = new_sse_builder()
+                        for event in hold_event(sse.message_start()):
+                            yield event
+                        think_parser = ThinkTagParser()
+                        heuristic_parser = HeuristicToolParser()
+                        finish_reason = None
+                        usage_info = None
+                        tool_argument_aliases = {}
+                        tool_argument_alias_buffers = {}
+                        trace_event(
+                            stage="provider",
+                            event="provider.recovery.empty_retry",
+                            source="provider",
+                            provider=tag,
+                            request_id=request_id,
+                            attempt=early_retries,
+                            max_attempts=EARLY_TRANSPARENT_TOTAL_ATTEMPTS,
+                        )
+                        continue
                     break
 
                 except asyncio.CancelledError, GeneratorExit:
@@ -801,6 +851,8 @@ class OpenAIChatTransport(BaseProvider):
                         holdback.discard()
                         holdback = RecoveryHoldbackBuffer()
                         sse = new_sse_builder()
+                        for event in hold_event(sse.message_start()):
+                            yield event
                         think_parser = ThinkTagParser()
                         heuristic_parser = HeuristicToolParser()
                         finish_reason = None

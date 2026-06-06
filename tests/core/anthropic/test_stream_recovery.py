@@ -1,5 +1,7 @@
 """Unit tests for resilient stream recovery helpers."""
 
+import json
+
 import httpx
 
 from core.anthropic.stream_recovery import (
@@ -24,6 +26,7 @@ def test_midstream_recovery_attempts_total_is_five() -> None:
 
 
 def test_retryable_stream_error_classifies_transport_and_http_status() -> None:
+    assert is_retryable_stream_error(json.JSONDecodeError("empty", "", 0))
     assert is_retryable_stream_error(httpx.ReadError("cut off"))
 
     request = httpx.Request("GET", "https://example.test")
