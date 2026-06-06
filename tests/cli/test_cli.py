@@ -562,6 +562,37 @@ class TestCLISession:
             assert "ANTHROPIC_AUTH_TOKEN" not in env
 
     @pytest.mark.asyncio
+    async def test_start_task_custom_auto_compact_window(self):
+        """Test start_task forwards custom CLAUDE_CODE_AUTO_COMPACT_WINDOW to Claude Code."""
+        from cli.session import CLISession
+        from config.settings import Settings
+
+        custom_settings = Settings.model_construct(
+            claude_code_auto_compact_window=250000
+        )
+        session = CLISession(
+            "/tmp", "http://localhost:8082/v1", auth_token="proxy-token"
+        )
+
+        mock_process = AsyncMock()
+        mock_process.stdout.read.side_effect = [b""]
+        mock_process.stderr.read.return_value = b""
+        mock_process.wait.return_value = 0
+
+        with (
+            patch("cli.session.get_settings", return_value=custom_settings),
+            patch(
+                "asyncio.create_subprocess_exec", new_callable=AsyncMock
+            ) as mock_exec,
+        ):
+            mock_exec.return_value = mock_process
+            async for _ in session.start_task("test"):
+                pass
+
+            env = mock_exec.call_args.kwargs["env"]
+            assert env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "250000"
+
+    @pytest.mark.asyncio
     async def test_start_task_allowed_dirs(self):
         """Test start_task includes allowed dirs in command."""
         from cli.session import CLISession

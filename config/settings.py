@@ -294,6 +294,11 @@ class Settings(BaseSettings):
         default=None, validation_alias="MAX_MESSAGE_LOG_ENTRIES_PER_CHAT"
     )
 
+    # ==================== Claude Code CLI Settings ====================
+    claude_code_auto_compact_window: int = Field(
+        default=190000, validation_alias="CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+    )
+
     # ==================== Server ====================
     host: str = "0.0.0.0"
     port: int = 8082
@@ -365,6 +370,13 @@ class Settings(BaseSettings):
     def validate_messaging_rate_limit(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("messaging_rate_limit must be > 0")
+        return v
+
+    @field_validator("claude_code_auto_compact_window")
+    @classmethod
+    def validate_claude_code_auto_compact_window(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("claude_code_auto_compact_window must be > 0")
         return v
 
     @field_validator("messaging_rate_window")

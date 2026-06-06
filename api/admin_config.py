@@ -544,6 +544,18 @@ FIELDS: tuple[ConfigFieldSpec, ...] = (
         restart_required=True,
     ),
     ConfigFieldSpec(
+        "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+        "Claude Code Auto Compact Window",
+        "runtime",
+        "number",
+        settings_attr="claude_code_auto_compact_window",
+        default="190000",
+        description=(
+            "The context length (in tokens) at which Claude Code CLI automatically "
+            "triggers context compaction."
+        ),
+    ),
+    ConfigFieldSpec(
         "MESSAGING_PLATFORM",
         "Messaging Platform",
         "messaging",

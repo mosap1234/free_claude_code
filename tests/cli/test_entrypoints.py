@@ -14,11 +14,13 @@ def _launcher_settings(
     *,
     port: int = 8082,
     token: str = "freecc",
+    claude_code_auto_compact_window: int = 190000,
 ) -> Settings:
     return Settings.model_construct(
         host="0.0.0.0",
         port=port,
         anthropic_auth_token=token,
+        claude_code_auto_compact_window=claude_code_auto_compact_window,
     )
 
 
@@ -308,6 +310,21 @@ def test_claude_child_env_targets_current_proxy_config() -> None:
     assert env["CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY"] == "1"
     assert env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "190000"
     assert "ANTHROPIC_API_KEY" not in env
+
+
+def test_claude_child_env_custom_auto_compact_window() -> None:
+    from cli.entrypoints import _claude_child_env
+
+    env = _claude_child_env(
+        _launcher_settings(
+            port=9090, token=" proxy-token ", claude_code_auto_compact_window=250000
+        ),
+        {
+            "PATH": "keep",
+        },
+    )
+
+    assert env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] == "250000"
 
 
 def test_claude_child_env_removes_blank_configured_auth_token() -> None:
