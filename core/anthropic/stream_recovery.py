@@ -118,6 +118,7 @@ def is_retryable_stream_error(exc: BaseException) -> bool:
     return isinstance(
         exc,
         (
+            json.JSONDecodeError,
             TimeoutError,
             httpx.ReadTimeout,
             httpx.ReadError,
