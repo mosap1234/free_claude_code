@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import shutil
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from typing import Any
@@ -181,9 +182,27 @@ class CLISession:
                 cli_argv=cmd,
             )
 
+            resolved_bin = shutil.which(self.claude_bin)
+            if resolved_bin is None:
+                message = (
+                    f"Could not find Claude Code command: {self.claude_bin}. "
+                    "Install Claude Code or set the full path in claude_bin."
+                )
+                yield {
+                    "type": "error",
+                    "error": {
+                        "message": message,
+                        "claude_bin": self.claude_bin,
+                    },
+                }
+                yield {"type": "exit", "code": 127, "stderr": message}
+                return
+
+            launch_cmd = [resolved_bin, *cmd[1:]]
+
             try:
                 self.process = await asyncio.create_subprocess_exec(
-                    *cmd,
+                    *launch_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=self.workspace,
