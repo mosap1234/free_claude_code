@@ -167,98 +167,6 @@ def _validate_deepseek_native_request_dict(data: dict[str, Any]) -> None:
         _walk_block_list_for_unsupported(system, where="system")
 
 
-def _has_tool_history_blocks(message: Mapping[str, Any]) -> bool:
-    role = message.get("role")
-    content = message.get("content")
-    if not isinstance(content, list):
-        return False
-
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        btype = block.get("type")
-        if role == "assistant" and btype == "tool_use":
-            return True
-        if role == "user" and btype == "tool_result":
-            return True
-    return False
-
-
-def _has_replayable_thinking_before_tool_use(message: Mapping[str, Any]) -> bool:
-    if message.get("role") != "assistant":
-        return False
-    content = message.get("content")
-    if not isinstance(content, list):
-        return False
-
-    has_thinking = False
-    for block in content:
-        if not isinstance(block, dict):
-            continue
-        btype = block.get("type")
-        if btype == "thinking" and isinstance(block.get("thinking"), str):
-            has_thinking = bool(block["thinking"])
-            continue
-        if btype == "tool_use":
-            return has_thinking
-    return False
-
-
-def _has_tool_history(data: dict[str, Any]) -> bool:
-    for message in data.get("messages") or ():
-        if isinstance(message, Mapping) and _has_tool_history_blocks(message):
-            return True
-    return False
-
-
-def _has_replayable_tool_thinking(data: dict[str, Any]) -> bool:
-    for message in data.get("messages") or ():
-        if isinstance(message, Mapping) and _has_replayable_thinking_before_tool_use(
-            message
-        ):
-            return True
-    return False
-
-
-def _remove_deepseek_thinking_hints(data: dict[str, Any]) -> None:
-    """Remove request hints that can keep DeepSeek in thinking mode after fallback."""
-    output_config = data.get("output_config")
-    if isinstance(output_config, dict) and "effort" in output_config:
-        cleaned_output_config = dict(output_config)
-        cleaned_output_config.pop("effort", None)
-        if cleaned_output_config:
-            data["output_config"] = cleaned_output_config
-        else:
-            data.pop("output_config", None)
-
-    context_management = data.get("context_management")
-    if not isinstance(context_management, dict):
-        return
-    edits = context_management.get("edits")
-    if not isinstance(edits, list):
-        return
-    filtered_edits = [
-        edit
-        for edit in edits
-        if not (
-            isinstance(edit, dict)
-            and isinstance(edit.get("type"), str)
-            and edit["type"].startswith("clear_thinking_")
-        )
-    ]
-    if len(filtered_edits) == len(edits):
-        return
-    cleaned_context_management = dict(context_management)
-    if filtered_edits:
-        cleaned_context_management["edits"] = filtered_edits
-        data["context_management"] = cleaned_context_management
-    else:
-        cleaned_context_management.pop("edits", None)
-        if cleaned_context_management:
-            data["context_management"] = cleaned_context_management
-        else:
-            data.pop("context_management", None)
-
 
 def sanitize_deepseek_messages_for_native(
     messages: Any, *, thinking_enabled: bool
@@ -290,13 +198,28 @@ def sanitize_deepseek_messages_for_native(
                 )
             ]
         else:
-            filtered = [
-                block
-                for block in content
-                if not (
-                    isinstance(block, dict) and block.get("type") == "redacted_thinking"
+            filtered = []
+            has_thinking = False
+            has_tool_use = False
+            for block in content:
+                if not isinstance(block, dict):
+                    filtered.append(block)
+                    continue
+                if block.get("type") == "redacted_thinking":
+                    continue
+                if block.get("type") == "thinking":
+                    has_thinking = True
+                    if "signature" not in block:
+                        block = dict(block)
+                        block["signature"] = ""
+                if block.get("type") == "tool_use":
+                    has_tool_use = True
+                filtered.append(block)
+            if has_tool_use and not has_thinking and filtered:
+                filtered.insert(
+                    0,
+                    {"type": "thinking", "thinking": "", "signature": ""},
                 )
-            ]
         new_msg = dict(message)
         new_msg["content"] = filtered or ""
         sanitized.append(new_msg)
@@ -397,36 +320,13 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
     data.pop("extra_body", None)
     _downgrade_forced_tool_choice(data)
 
-    has_tool_history = _has_tool_history(data)
-    has_replayable_tool_thinking = _has_replayable_tool_thinking(data)
-    unsafe_tool_followup = has_tool_history and not has_replayable_tool_thinking
-    effective_thinking_enabled = thinking_enabled and not unsafe_tool_followup
-    if thinking_enabled:
-        if unsafe_tool_followup:
-            logger.debug(
-                "DEEPSEEK_REQUEST: disabling thinking for tool follow-up without "
-                "replayable thinking model={} msgs={} tools={}",
-                data.get("model"),
-                len(data.get("messages", [])),
-                len(data.get("tools", [])),
-            )
-            _remove_deepseek_thinking_hints(data)
-        elif has_tool_history:
-            logger.debug(
-                "DEEPSEEK_REQUEST: keeping thinking for tool follow-up with "
-                "replayable thinking model={} msgs={} tools={}",
-                data.get("model"),
-                len(data.get("messages", [])),
-                len(data.get("tools", [])),
-            )
-        elif data.get("tools") or data.get("tool_choice"):
-            logger.debug(
-                "DEEPSEEK_REQUEST: keeping thinking for initial tool request "
-                "model={} msgs={} tools={}",
-                data.get("model"),
-                len(data.get("messages", [])),
-                len(data.get("tools", [])),
-            )
+    if "messages" in data:
+        data["messages"] = sanitize_deepseek_messages_for_native(
+            data["messages"],
+            thinking_enabled=thinking_enabled,
+        )
+
+    effective_thinking_enabled = thinking_enabled
 
     thinking_cfg = data.pop("thinking", None)
     if effective_thinking_enabled and isinstance(thinking_cfg, dict):
@@ -438,12 +338,7 @@ def build_request_body(request_data: Any, *, thinking_enabled: bool) -> dict:
 
     if "messages" in data:
         data["messages"] = _strip_reasoning_content_when_native(
-            _normalize_tool_result_content(
-                sanitize_deepseek_messages_for_native(
-                    data["messages"],
-                    thinking_enabled=effective_thinking_enabled,
-                )
-            )
+            _normalize_tool_result_content(data["messages"])
         )
     if "max_tokens" not in data or data.get("max_tokens") is None:
         data["max_tokens"] = ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
