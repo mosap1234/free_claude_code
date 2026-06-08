@@ -114,6 +114,18 @@ class Settings(BaseSettings):
     # ==================== Cerebras Inference (OpenAI-compatible) ====================
     cerebras_api_key: str = Field(default="", validation_alias="CEREBRAS_API_KEY")
 
+    # ==================== Telepub Voyage Config ====================
+    telepub_voyage_api_key: str = Field(
+        default="", validation_alias="TELEPUB_VOYAGE_API_KEY"
+    )
+    telepub_voyage_base_url: str = Field(
+        default="https://voyage.prod.telepub.cn/voyage/api",
+        validation_alias="TELEPUB_VOYAGE_BASE_URL",
+    )
+    telepub_voyage_models: str = Field(
+        default="", validation_alias="TELEPUB_VOYAGE_MODELS"
+    )
+
     # ==================== Messaging Platform Selection ====================
     # Valid: "telegram" | "discord" | "none"
     messaging_platform: str = Field(
@@ -174,6 +186,9 @@ class Settings(BaseSettings):
     gemini_proxy: str = Field(default="", validation_alias="GEMINI_PROXY")
     groq_proxy: str = Field(default="", validation_alias="GROQ_PROXY")
     cerebras_proxy: str = Field(default="", validation_alias="CEREBRAS_PROXY")
+    telepub_voyage_proxy: str = Field(
+        default="", validation_alias="TELEPUB_VOYAGE_PROXY"
+    )
 
     # ==================== Provider Rate Limiting ====================
     provider_rate_limit: int = Field(default=40, validation_alias="PROVIDER_RATE_LIMIT")
@@ -394,6 +409,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OLLAMA_BASE_URL must be the Ollama root URL for native Anthropic "
                 "messages, e.g. http://localhost:11434 (without /v1)."
+            )
+        return v
+
+    @field_validator("telepub_voyage_base_url")
+    @classmethod
+    def validate_telepub_voyage_base_url(cls, v: str) -> str:
+        if v.rstrip("/").endswith("/chat/completions"):
+            raise ValueError(
+                "TELEPUB_VOYAGE_BASE_URL must be the OpenAI client root, e.g. "
+                "https://voyage.prod.telepub.cn/voyage/api — do not append "
+                '"/chat/completions" (the OpenAI SDK adds it).'
             )
         return v
 

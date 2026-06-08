@@ -136,6 +136,13 @@ def _create_cerebras(config: ProviderConfig, _settings: Settings) -> BaseProvide
     return CerebrasProvider(config)
 
 
+def _create_telepub_voyage(config: ProviderConfig, settings: Settings) -> BaseProvider:
+    from providers.telepub_voyage import TelepubVoyageProvider
+
+    static_ids = _csv_model_ids(settings.telepub_voyage_models)
+    return TelepubVoyageProvider(config, static_model_ids=static_ids)
+
+
 PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "nvidia_nim": _create_nvidia_nim,
     "open_router": _create_open_router,
@@ -154,6 +161,7 @@ PROVIDER_FACTORIES: dict[str, ProviderFactory] = {
     "lmstudio": _create_lmstudio,
     "llamacpp": _create_llamacpp,
     "ollama": _create_ollama,
+    "telepub_voyage": _create_telepub_voyage,
 }
 
 if set(PROVIDER_DESCRIPTORS) != set(SUPPORTED_PROVIDER_IDS) or set(
@@ -171,6 +179,11 @@ def _string_attr(settings: Settings, attr_name: str | None, default: str = "") -
         return default
     value = getattr(settings, attr_name, default)
     return value if isinstance(value, str) else default
+
+
+def _csv_model_ids(raw: str) -> frozenset[str]:
+    """Parse comma-separated model ids, skipping empty entries."""
+    return frozenset(part.strip() for part in raw.split(",") if part.strip())
 
 
 def _credential_for(descriptor: ProviderDescriptor, settings: Settings) -> str:
