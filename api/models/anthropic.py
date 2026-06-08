@@ -142,7 +142,7 @@ def _normalize_system_role_messages(data: Any) -> Any:
 # Message Types
 # =============================================================================
 class Message(BaseModel):
-    role: Literal["user", "assistant"]
+    role: Literal["user", "assistant", "system"]
     content: (
         str
         | list[
