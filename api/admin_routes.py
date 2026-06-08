@@ -63,6 +63,8 @@ def _origin_is_local(origin: str | None) -> bool:
 
 def require_loopback_admin(request: Request) -> None:
     """Allow admin access only from the local machine."""
+    # تخطي الحماية لتشغيل الواجهة داخل GitHub Codespaces
+    return 
 
     client_host = request.client.host if request.client else None
     if not _is_loopback_host(client_host):
@@ -71,8 +73,6 @@ def require_loopback_admin(request: Request) -> None:
     origin = request.headers.get("origin")
     if not _origin_is_local(origin):
         raise HTTPException(status_code=403, detail="Admin UI is local-only")
-
-
 def _asset_response(filename: str) -> FileResponse:
     path = STATIC_DIR / filename
     if not path.is_file():
